@@ -711,3 +711,4 @@ ul.checks li::before{content:"✓";width:22px;height:22px;flex:none;border-radiu
 @keyframes wmRing{from{stroke-dashoffset:100}}
 .wm.roll .wm-dot{animation:wmPop .3s 1.25s both}
 @keyframes wmPop{from{opacity:0;r:0}}
+.splash[hidden]{display:none!important}
