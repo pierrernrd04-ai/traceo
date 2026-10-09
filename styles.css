@@ -721,3 +721,4 @@ ul.checks li::before{content:"✓";width:22px;height:22px;flex:none;border-radiu
 .bl-in .muted{font-size:16px;line-height:1.45}
 .bl-soon{background:var(--soft);border:1px solid rgba(37,201,143,.35);color:var(--ink);border-radius:16px;padding:14px 16px;font-weight:600;line-height:1.45}
 .bl-in .btn{width:100%}
+.bl-in .btn{flex:none;height:auto;min-height:58px;max-height:64px}
