@@ -11,7 +11,7 @@ function track(name, data){ try{ if(window.umami && (window.TRACEO_CONFIG || {})
 document.addEventListener("visibilitychange", () => { if(document.visibilityState === "hidden"){ const s = Math.round((Date.now() - T0)/1000); track("temps_passe", {secondes:s, tranche:s < 30 ? "moins de 30 s" : s < 120 ? "30 s à 2 min" : s < 600 ? "2 à 10 min" : "plus de 10 min", onglets:tabsSeen}); } });
 // Diagnostic temporaire : les erreurs (sans données personnelles) sont envoyées à un canal privé pour être corrigées à distance
 const DBG = "https://ntfy.sh/traceo-dbg-9591c50f";
-function report(kind, msg){ try{ fetch(DBG, {method:"POST", body:`[${kind}] ${String(msg).slice(0, 600)} | v45 | ${navigator.userAgent.replace(/\(KHTML.*$/, "").slice(0, 120)}`}).catch(() => {}); }catch(e){} }
+function report(kind, msg){ try{ fetch(DBG, {method:"POST", body:`[${kind}] ${String(msg).slice(0, 600)} | v46 | ${navigator.userAgent.replace(/\(KHTML.*$/, "").slice(0, 120)}`}).catch(() => {}); }catch(e){} }
 // Affiche toute erreur à l'écran (bandeau rouge) : une capture suffit pour corriger
 (function(){ let n = 0; const show = m => { if(n++ > 3) return; const d = document.createElement("div"); d.style.cssText = "position:fixed;left:8px;right:8px;top:calc(env(safe-area-inset-top,0px) + 8px);z-index:9999;background:#B3263E;color:#fff;font:600 12px/1.35 system-ui;padding:8px 10px;border-radius:10px;white-space:pre-wrap"; d.textContent = "Erreur : " + m; d.onclick = () => d.remove(); (document.body || document.documentElement).appendChild(d); setTimeout(() => d.remove(), 15000); };
   window.addEventListener("error", e => { report("error", (e.message || "?") + " " + (e.filename || "") + ":" + (e.lineno || "") + ":" + (e.colno || "") + " " + (e.error && e.error.stack ? String(e.error.stack).slice(0, 300) : "")); if(/^Script error/.test(e.message || "") && window.glFail){ try{ glFail(); }catch(x){} return; } show((e.message || "?") + (e.filename ? " (" + e.filename.split("/").pop() + ":" + e.lineno + ")" : "")); });
@@ -835,15 +835,15 @@ body.addEventListener("click", e => { const b = e.target.closest("[data-ct]"); i
 (() => { let y0 = null; const g = $("#grab"); g.addEventListener("touchstart", e => y0 = e.touches[0].clientY, {passive:true}); g.addEventListener("touchend", e => { if(y0 == null) return; const dy = e.changedTouches[0].clientY - y0; if(dy > 30) panel.classList.add("min"); if(dy < -30) panel.classList.remove("min"); y0 = null; }); })();
 /* ---------- Chat : le coach Traceo répond aux questions et agit dans l'app ---------- */
 // Avec CHAT_API (serveur server/worker.js + clé Anthropic) : vraie IA (Claude). Sans : assistant intégré, toujours disponible.
-const CHAT = {msgs:store.get("chat", []), busy:false};
+const CHAT = {msgs:store.get("chat", []), mem:store.get("chatMem", {}), busy:false};
 const CHAT_AI = () => !!C.CHAT_API;
-const CHAT_SUGG = ["Fais-moi une boucle de 5 km", "Quelle allure pour un 10 km en 50 min ?", "Que manger avant de courir ?", "Un échauffement rapide", "Comment marche Premium ?", "Installer l'app sur iPhone"];
+const CHAT_SUGG = ["Fais-moi une boucle de 5 km", "J'ai fait 10 km en 52 min, prédis mes chronos", "Allure pour un semi en 1h45", "Je débute, par où commencer ?", "Plan marathon en 4h", "J'ai mal au genou"];
 function viewChat(){
-  const hello = `Salut ! Je suis le coach Traceo. Demande-moi une boucle, une allure, un conseil nutrition ou d'échauffement, ou comment marche l'app.`;
+  const hello = `Salut ! Je suis le coach Traceo. Je trace ta boucle, calcule tes allures, prédis tes chronos, prépare ton plan d'entraînement et réponds à tes questions sur la course, la nutrition, les blessures et l'app.`;
   const list = [{r:"a", t:hello}, ...CHAT.msgs];
   return `<div class="chat-head"><span class="chat-av"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/><path d="M8 9.5h8M8 12.5h5"/></svg></span><span><b>Coach Traceo</b><small>${CHAT_AI() ? "Assistant IA · répond en quelques secondes" : "Assistant intégré · toujours disponible"}</small></span>${CHAT.msgs.length ? `<button class="linkbtn" id="chatClear">Effacer</button>` : ""}</div>
     <div class="chat-list" id="chatList">${list.map(m => `<div class="msg ${m.r === "u" ? "msg-u" : "msg-b"}">${m.r === "u" ? esc(m.t) : fmtBot(m.t)}${m.act ? `<button class="btn soft msg-act" data-act="${esc(m.act)}">${esc(m.actLabel || "Ouvrir")}</button>` : ""}</div>`).join("")}${CHAT.busy ? `<div class="msg msg-b typing"><i></i><i></i><i></i></div>` : ""}</div>
-    ${CHAT.msgs.length < 2 ? `<div class="chat-sugg">${CHAT_SUGG.map(x => `<button class="chip" data-sugg="${esc(x)}">${esc(x)}</button>`).join("")}</div>` : ""}
+    ${(() => { const last = CHAT.msgs[CHAT.msgs.length - 1], sg = CHAT.msgs.length < 2 ? CHAT_SUGG : !CHAT.busy && last && last.r === "a" && last.sugg ? last.sugg : []; return sg.length ? `<div class="chat-sugg">${sg.map(x => `<button class="chip" data-sugg="${esc(x)}">${esc(x)}</button>`).join("")}</div>` : ""; })()}
     <form class="chat-form" id="chatForm"><input id="chatIn" class="input" placeholder="Écris ta question…" autocomplete="off" enterkeyhint="send" maxlength="600"><button class="btn hero" aria-label="Envoyer"><svg viewBox="0 0 24 24"><path d="M4 12l16-8-6 16-2.5-6.5z"/></svg></button></form>`;
 }
 // Mise en forme simple des réponses : **gras** et retours à la ligne
@@ -853,7 +853,7 @@ function wireChat(){
   $("#chatForm").onsubmit = e => { e.preventDefault(); const v = $("#chatIn").value.trim(); if(v) chatSend(v); };
   body.querySelectorAll("[data-sugg]").forEach(b => b.onclick = () => chatSend(b.dataset.sugg));
   body.querySelectorAll("[data-act]").forEach(b => b.onclick = () => chatAct(b.dataset.act));
-  $("#chatClear") && ($("#chatClear").onclick = () => { CHAT.msgs = []; store.set("chat", []); render(); });
+  $("#chatClear") && ($("#chatClear").onclick = () => { CHAT.msgs = []; CHAT.mem = {}; store.set("chat", []); store.set("chatMem", {}); render(); });
 }
 async function chatSend(text){
   if(CHAT.busy) return;
@@ -866,14 +866,27 @@ async function chatSend(text){
       if(j && j.reply) ans = {t:j.reply};
     }catch(e){}
   }
-  if(!ans) ans = localCoach(text);
+  if(!ans) ans = brainAnswer(text);
   // une demande de boucle se traduit en action dans l'app
   const km = ans.km;
-  CHAT.busy = false; CHAT.msgs.push({r:"a", t:ans.t, act:ans.act, actLabel:ans.actLabel}); CHAT.msgs = CHAT.msgs.slice(-40); store.set("chat", CHAT.msgs);
+  if(!CHAT_AI()) await new Promise(r => setTimeout(r, 350 + Math.min(900, ans.t.length*2)));   // petit temps de « frappe »
+  CHAT.busy = false; CHAT.msgs.push({r:"a", t:ans.t, act:ans.act, actLabel:ans.actLabel, sugg:ans.sugg}); CHAT.msgs = CHAT.msgs.slice(-40); store.set("chat", CHAT.msgs);
   if(S.tab === "chat") render();
   if(km){ S.mode = "dist"; S.distKm = km; store.set("mode", "dist"); store.set("distKm", km); }
 }
+// Cerveau intégré (chat-brain.js) : calculs, connaissances running et fil de la conversation
+function brainAnswer(text){
+  if(!window.TraceoBrain) return localCoach(text);
+  const ctx = {start:S.start?.label || null, distKm:S.distKm, pace:S.pace, weight:S.weight, premium:isPremium() && !betaOn(), beta:betaOn(), price:C.PRICE_LABEL};
+  let out; try{ out = TraceoBrain.answer(text, ctx, CHAT.mem); }catch(e){ report("brain", e.message); return localCoach(text); }
+  CHAT.mem = Object.assign(CHAT.mem, out.mem || {}); store.set("chatMem", CHAT.mem);
+  if(out.mode === "time"){ S.mode = "time"; S.durMin = out.durMin; store.set("mode", "time"); store.set("durMin", out.durMin); }
+  return out;
+}
 function chatAct(a){
+  if(a === "gen3"){ S.mode = "dist"; S.distKm = 3; store.set("mode", "dist"); store.set("distKm", 3); a = "gen"; }
+  if(a === "mine") return go("mine");
+  if(a === "legal") return window.open("legal.html", "_blank", "noopener");
   if(a === "gen"){ go("plan"); if(S.start) setTimeout(generate, 250); else showGate(); }
   else if(a === "loc"){ go("plan"); locate(); }
   else if(a === "premium") go("premium");
