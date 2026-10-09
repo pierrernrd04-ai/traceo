@@ -1,6 +1,6 @@
 // Traceo — fonctionnement hors ligne de l'app (la carte et le calcul des boucles demandent Internet).
 // Version volontairement simple : on ne touche ni aux cartes ni aux services externes, pour éviter tout blocage (Safari).
-const VERSION = "traceo-v31";
+const VERSION = "traceo-v32";
 const SHELL = ["./", "index.html", "styles.css", "app.js", "config.js", "manifest.webmanifest", "icons/icon-192.png", "icons/icon-512.png"];
 
 self.addEventListener("install", e => {
@@ -14,7 +14,7 @@ const clean = res => res.redirected ? res.blob().then(b => new Response(b, {stat
 self.addEventListener("fetch", e => {
   const url = new URL(e.request.url);
   if (e.request.method !== "GET" || url.origin !== location.origin) return;   // cartes, adresses, itinéraires : le navigateur gère seul
-  e.respondWith(fetch(e.request).then(res => {
+  e.respondWith(fetch(e.request, {cache:"no-cache"}).then(res => {
     if (res.ok && !res.redirected){ const copy = res.clone(); caches.open(VERSION).then(c => c.put(e.request, copy)); }
     return clean(res);
   }).catch(() => caches.match(e.request, {ignoreSearch:true}).then(hit => hit || caches.match("./"))));

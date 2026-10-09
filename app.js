@@ -3,7 +3,11 @@
    Traceo — une boucle de course nouvelle à chaque sortie, depuis là où tu es.
    ========================================================================= */
 const C = window.TRACEO_CONFIG;
-const PV = window.TRACEO_PREVIEW || null;             // aperçu dans Claude (carte et GPS simulés)
+const PV = window.TRACEO_PREVIEW || null;
+// Affiche toute erreur à l'écran (bandeau rouge) : une capture suffit pour corriger
+(function(){ let n = 0; const show = m => { if(n++ > 3) return; const d = document.createElement("div"); d.style.cssText = "position:fixed;left:8px;right:8px;top:calc(env(safe-area-inset-top,0px) + 8px);z-index:9999;background:#B3263E;color:#fff;font:600 12px/1.35 system-ui;padding:8px 10px;border-radius:10px;white-space:pre-wrap"; d.textContent = "Erreur : " + m; d.onclick = () => d.remove(); (document.body || document.documentElement).appendChild(d); setTimeout(() => d.remove(), 15000); };
+  window.addEventListener("error", e => show((e.message || "?") + (e.filename ? " (" + e.filename.split("/").pop() + ":" + e.lineno + ")" : "")));
+  window.addEventListener("unhandledrejection", e => { const r = e.reason; if(r && /abort|Failed to fetch|Load failed|NetworkError/i.test(String(r.message || r))) return; show(String(r && r.message || r)); }); })();             // aperçu dans Claude (carte et GPS simulés)
 const FRANCE = [[41.3, -5.3], [51.15, 9.7]];
 const TERR = ["fr","gp","mq","gf","re","yt","pm","bl","mf","wf","pf","nc","tf"];
 const OUTREMER = [
@@ -125,14 +129,14 @@ async function setBase(){
   }
   const style = isDark() ? "dark_all" : "rastertiles/voyager";
   // Fond principal : carte vectorielle MapLibre (OpenFreeMap, gratuit, sans clé, usage commercial autorisé), aux couleurs de Traceo
-  if(window.maplibregl && TraceoGL && C.MAP_STYLE !== "raster" && !glBroken){
+  if(window.maplibregl && TraceoGL && C.MAP_STYLE !== "raster" && !glBroken && !/[?&]raster/.test(location.search)){
     try{
       const sup = maplibregl.supported ? maplibregl.supported() : true;
       if(sup){
         tileUrl = (z, x, y) => `https://${"abcd"[(x+y)%4]}.basemaps.cartocdn.com/${style}/${z}/${x}/${y}@2x.png`;  // pour l'affiche et le hors-ligne
         base = new TraceoGL({style:C.MAP_STYLE_URL || "https://tiles.openfreemap.org/styles/dark", attribution:'© <a href="https://openfreemap.org">OpenFreeMap</a> © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'}).addTo(map);
         const gl = base.getMaplibreMap && base.getMaplibreMap();
-        if(gl) gl.on("style.load", () => traceoStyle(gl));
+        if(gl){ gl.on("style.load", () => traceoStyle(gl)); let ok = false; gl.once("load", () => ok = true); setTimeout(() => { if(!ok) glFail(); }, 8000); }
         return;
       }
     }catch(e){ console.warn("MapLibre indisponible, carte raster", e); }
