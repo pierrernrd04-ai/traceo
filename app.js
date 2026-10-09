@@ -275,7 +275,7 @@ function showMe(la, lo, acc){
   if(acc){ if(!accC) accC = L.circle([la, lo], {radius:acc, color:cssv("--blue"), weight:1, opacity:.35, fillOpacity:.08, interactive:false}).addTo(map); else accC.setLatLng([la, lo]).setRadius(acc); }
 }
 function setStart(s, fly = true){
-  S.start = s; S.results = null; S.view = "form"; routeLayer.clearLayers();
+  S.start = s; S.results = null; S.view = "form"; routeLayer.clearLayers(); hideGate();
   document.querySelector(".hint")?.remove();
   if(startMk){ map.removeLayer(startMk); startMk = null; }
   startMk = L.marker([s.lat, s.lng], {icon:L.divIcon({className:"", html:'<div class="pin"><span>GO</span></div>', iconSize:[40,40], iconAnchor:[4,40]}), zIndexOffset:900}).addTo(map);
@@ -319,8 +319,68 @@ function locate(){
     if(watchMe == null) watchMe = navigator.geolocation.watchPosition(q => { if(!run.active) showMe(q.coords.latitude, q.coords.longitude, q.coords.accuracy); }, () => {}, {enableHighAccuracy:true, maximumAge:15000});
   }, err => {
     fab.classList.remove("busy"); S.locating = false; if(S.tab === "plan") render();
+    if(gateOn()){ gateFail(err.code); return; }
     if(err.code === 1) permissionHelp(); else toast("Position introuvable pour l'instant. Réessaie, ou tape ton adresse en haut.", 4500);
   }, {enableHighAccuracy:true, timeout:15000, maximumAge:10000});
+}
+/* ---------- Écran de départ obligatoire : se localiser (recommandé) ou choisir une ville ---------- */
+// Pas de réglages à toucher : la demande d'autorisation part d'un simple geste ; si elle est refusée,
+// Traceo propose automatiquement la ville approximative (d'après la connexion), à confirmer d'un geste.
+const gateEl = () => $("#gate");
+const gateOn = () => { const g = gateEl(); return !!(g && !g.hidden); };
+const PIN = '<svg viewBox="0 0 24 24"><path d="M12 21s-7-6.3-7-12a7 7 0 0114 0c0 5.7-7 12-7 12z"/><circle cx="12" cy="9" r="2.6"/></svg>';
+function showGate(){
+  if(S.start || PV || /[?&]test\b/.test(location.search)) return;
+  let g = gateEl();
+  if(!g){ g = document.createElement("div"); g.id = "gate"; g.className = "gate"; document.body.appendChild(g); }
+  g.innerHTML = `<div class="gate-in">
+    <div class="gate-pin">${PIN}</div>
+    <p class="eyebrow">Avant de courir</p>
+    <p class="gate-h">D'où pars-tu ?</p>
+    <p class="muted">Traceo dessine ta boucle depuis ton point de départ, dans les vraies rues autour de toi.</p>
+    <button class="btn hero block" id="gLoc">${PIN}Me localiser <small>recommandé</small></button>
+    <div class="gate-msg" id="gMsg" hidden></div>
+    <div class="gate-row"><button class="btn soft" id="gCity">Choisir une ville</button><button class="btn soft" id="gAddr">Taper une adresse</button></div>
+    <p class="small">Ta position sert uniquement à tracer ta boucle. Elle reste sur ton téléphone.</p></div>`;
+  g.hidden = false; document.body.classList.add("gate-on");
+  $("#gLoc").onclick = gateLocate;
+  $("#gCity").onclick = () => villesModal("grandes");
+  $("#gAddr").onclick = () => { g.hidden = true; document.body.classList.remove("gate-on"); setTimeout(() => q.focus(), 60);
+    // si la personne quitte la recherche sans choisir, l'écran revient
+    q.addEventListener("blur", () => setTimeout(() => { if(!S.start && res.hidden && document.activeElement !== q) showGate(); }, 900), {once:true}); };
+  track("ecran_depart");
+}
+function hideGate(){ const g = gateEl(); if(g){ g.hidden = true; } document.body.classList.remove("gate-on"); }
+function gateLocate(){
+  const b = $("#gLoc"); if(b){ b.disabled = true; b.innerHTML = `<span class="spin"></span>Localisation en cours…`; }
+  const m = $("#gMsg"); if(m) m.hidden = true;
+  locate(); track("localiser", {depuis:"ecran_depart"});
+}
+async function gateFail(code){
+  const b = $("#gLoc"), m = $("#gMsg"); if(!m) return;
+  if(b){ b.disabled = false; b.innerHTML = `${PIN}Réessayer de me localiser`; }
+  m.hidden = false; m.innerHTML = `<span class="spin"></span>Recherche de ta ville…`;
+  // position approximative d'après la connexion (aucune autorisation nécessaire)
+  let city = null;
+  try{
+    const j = await fetchJSON("https://get.geojs.io/v1/ip/geo.json", {}, 6000), la = +j.latitude, lo = +j.longitude;
+    const ok = isFinite(la) && isFinite(lo) && (TERR.includes(String(j.country_code || "").toLowerCase()) || (la > 41 && la < 51.5 && lo > -5.5 && lo < 10));
+    if(ok){ let name = j.city || ""; try{ const r = await fetchJSON(`${C.GEOCODER_FR}/reverse?lat=${la}&lon=${lo}&index=address&limit=1`, {}, 5000); name = r.features?.[0]?.properties?.city || name; }catch(e){}
+      city = {lat:la, lng:lo, name:name || "ta zone"}; }
+  }catch(e){}
+  if(!gateOn()) return;
+  const why = code === 1 ? "Tu n'as pas autorisé ta position : pas de souci." : "Ta position précise est introuvable pour l'instant.";
+  if(city){
+    m.innerHTML = `<b>${esc(why)}</b><br>Tu sembles être près de <b>${esc(city.name)}</b>.<button class="btn hero block" id="gIp">Partir de ${esc(city.name)}</button><span class="small">Tu pourras ensuite affiner ton départ : appui long sur la carte ou adresse exacte.</span>`;
+    $("#gIp").onclick = () => { setStart({lat:r6(city.lat), lng:r6(city.lng), label:`Autour de ${city.name}`, city:true}); toast(`Départ autour de ${city.name}. Appui long sur la carte pour un point exact.`, 4800); track("depart_approx"); };
+  } else m.innerHTML = `<b>${esc(why)}</b><br>Choisis ta ville ou tape ton adresse ci-dessous.`;
+  if(code === 1 && isIOS) m.insertAdjacentHTML("beforeend", `<span class="small">Pour la position exacte plus tard : Réglages &gt; Safari &gt; Position &gt; Autoriser.</span>`);
+}
+// Au lancement : si la position est déjà autorisée, Traceo localise tout seul
+async function autoStart(){
+  if(S.start || PV) return;
+  let st = "prompt"; try{ st = (await navigator.permissions?.query({name:"geolocation"}))?.state || "prompt"; }catch(e){}
+  if(st === "granted"){ showGate(); gateLocate(); } else showGate();
 }
 function permissionHelp(){
   openModal(`<button class="iconbtn x" data-close aria-label="Fermer">${I.x}</button><p class="title">Autorise ta position</p>
@@ -1899,7 +1959,9 @@ function splash(first){
   let w = 0; splash.iv = setInterval(() => { const r = $("#spRot"); if(!r || el.hidden){ clearInterval(splash.iv); return; } r.classList.add("out"); spT.push(setTimeout(() => { w = (w + 1) % ROTW.length; r.textContent = ROTW[w]; r.classList.remove("out"); r.classList.add("in"); spT.push(setTimeout(() => r.classList.remove("in"), 500)); }, 300)); }, 2400);
   spT.push(setTimeout(wmRoll, 150)); clearInterval(splash.wm); splash.wm = setInterval(() => { if(el.hidden) return clearInterval(splash.wm); wmRoll(); }, 9000);
   el.querySelectorAll("[data-spm]").forEach(b => b.onclick = () => { store.set("spModel", b.dataset.spm); splash(first); });
-  $("#spGoBtn").onclick = () => { celebrate(60); el.classList.add("out"); clearInterval(splash.iv); spT.forEach(clearTimeout); setTimeout(() => { el.hidden = true; el.classList.remove("out"); if(first) onboarding(0); else hint(); }, 420); };
+  $("#spGoBtn").onclick = () => { celebrate(60); el.classList.add("out"); clearInterval(splash.iv); spT.forEach(clearTimeout); setTimeout(() => { el.hidden = true; el.classList.remove("out"); store.set("onboarded", true); if(!gateOn() && !S.start) autoStart(); }, 420);
+    // le toucher compte comme geste : on demande la position tout de suite (fenêtre « Autoriser » du téléphone)
+    if(!S.start && !PV){ showGate(); gateLocate(); } };
 }
 // Petite bulle d'aide qui pointe la barre de recherche
 function hint(){
@@ -2043,4 +2105,4 @@ document.addEventListener("visibilitychange", () => { if(!document.hidden && S.t
 rebuildMemory(); render(); payOnLaunch(); checkBetaLock(); syncClock();
 if("serviceWorker" in navigator && location.protocol === "https:" && !PV && !NATIVE) navigator.serviceWorker.register("sw.js").catch(() => {});
 // À l'ouverture : un écran d'accueil motivant. Pas de localisation automatique : l'utilisateur choisit son départ.
-if(new URLSearchParams(location.search).has("test")) setTimeout(checkApp, 300); else if(!fromPay) splash(!store.get("onboarded", false));
+if(new URLSearchParams(location.search).has("test")) setTimeout(checkApp, 300); else if(!fromPay) splash(!store.get("onboarded", false)); else setTimeout(autoStart, 800);
