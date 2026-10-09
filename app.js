@@ -4,9 +4,12 @@
    ========================================================================= */
 const C = window.TRACEO_CONFIG;
 const PV = window.TRACEO_PREVIEW || null;
+// Diagnostic temporaire : les erreurs (sans données personnelles) sont envoyées à un canal privé pour être corrigées à distance
+const DBG = "https://ntfy.sh/traceo-dbg-9591c50f";
+function report(kind, msg){ try{ fetch(DBG, {method:"POST", body:`[${kind}] ${String(msg).slice(0, 600)} | v37 | ${navigator.userAgent.replace(/\(KHTML.*$/, "").slice(0, 120)}`}).catch(() => {}); }catch(e){} }
 // Affiche toute erreur à l'écran (bandeau rouge) : une capture suffit pour corriger
 (function(){ let n = 0; const show = m => { if(n++ > 3) return; const d = document.createElement("div"); d.style.cssText = "position:fixed;left:8px;right:8px;top:calc(env(safe-area-inset-top,0px) + 8px);z-index:9999;background:#B3263E;color:#fff;font:600 12px/1.35 system-ui;padding:8px 10px;border-radius:10px;white-space:pre-wrap"; d.textContent = "Erreur : " + m; d.onclick = () => d.remove(); (document.body || document.documentElement).appendChild(d); setTimeout(() => d.remove(), 15000); };
-  window.addEventListener("error", e => { if(/^Script error/.test(e.message || "") && window.glFail){ try{ glFail(); }catch(x){} return; } show((e.message || "?") + (e.filename ? " (" + e.filename.split("/").pop() + ":" + e.lineno + ")" : "")); });
+  window.addEventListener("error", e => { report("error", (e.message || "?") + " " + (e.filename || "") + ":" + (e.lineno || "") + ":" + (e.colno || "") + " " + (e.error && e.error.stack ? String(e.error.stack).slice(0, 300) : "")); if(/^Script error/.test(e.message || "") && window.glFail){ try{ glFail(); }catch(x){} return; } show((e.message || "?") + (e.filename ? " (" + e.filename.split("/").pop() + ":" + e.lineno + ")" : "")); });
   window.addEventListener("unhandledrejection", e => { const r = e.reason; if(r && /abort|Failed to fetch|Load failed|NetworkError/i.test(String(r.message || r))) return; show(String(r && r.message || r)); }); })();             // aperçu dans Claude (carte et GPS simulés)
 const FRANCE = [[41.3, -5.3], [51.15, 9.7]];
 const TERR = ["fr","gp","mq","gf","re","yt","pm","bl","mf","wf","pf","nc","tf"];
@@ -463,7 +466,7 @@ let osrmDown = 0;   // après un échec OSRM, on passe directement par Valhalla 
 let routeQ = Promise.resolve(), lastRoute = {}, routeErr = "";
 function queued(host, fn, tries = 3){
   const run = async () => { for(let k = 0; k < tries; k++){ const w = (lastRoute[host] || 0) + 1150 - Date.now(); if(w > 0) await new Promise(r => setTimeout(r, w)); lastRoute[host] = Date.now();
-      try{ return await fn(); }catch(e){ routeErr = host + " " + (e.message || e); if(!/HTTP (429|5\d\d)|abort|Failed|Load failed|NetworkError/i.test(String(e.message || e)) || k === tries - 1) throw e; await new Promise(r => setTimeout(r, 1500*(k + 1))); } } };
+      try{ return await fn(); }catch(e){ routeErr = host + " " + (e.message || e); report("route", routeErr + " try " + k); if(!/HTTP (429|5\d\d)|abort|Failed|Load failed|NetworkError/i.test(String(e.message || e)) || k === tries - 1) throw e; await new Promise(r => setTimeout(r, 1500*(k + 1))); } } };
   const p = routeQ.then(run, run); routeQ = p.catch(() => {}); return p;
 }
 async function routeFoot(wps){
@@ -514,11 +517,11 @@ async function generate(){
     if(!isPremium()){ S.week.n++; store.set("week", S.week); }
     const r = S.results[0], l = {id:"l" + Date.now(), date:Date.now(), name:`Boucle du ${new Date().toLocaleDateString("fr-FR", {weekday:"long", day:"numeric", month:"long"})}`, place:(S.start.label || "").split(",").slice(-1)[0].trim(), start:S.start, pts:simplify(r.pts), len:r.len, newPct:Math.round(r.newLen/r.len*100), ascent:r.ascent, fav:false};
     S.loops.push(l); trimLoops(); store.set("loops", S.loops); S.loopId = l.id;
-    try{ render(); }catch(e){ console.error(e); toast("Affichage : " + (e.message || e), 6000); }
-    try{ showRoute(r); }catch(e){ console.error(e); toast("Tracé : " + (e.message || e), 6000); }
-    updateCrown();
+    try{ render(); }catch(e){ console.error(e); report("render", (e.message || e) + " " + String(e.stack || "").slice(0, 300)); toast("Affichage : " + (e.message || e), 6000); }
+    try{ showRoute(r); }catch(e){ console.error(e); report("showRoute", (e.message || e) + " " + String(e.stack || "").slice(0, 300)); toast("Tracé : " + (e.message || e), 6000); }
+    updateCrown(); report("ok", got.length + " boucles " + Math.round(r.len) + "m");
     if(S.loops.length === 1 || S.loops.length === 4) setTimeout(maybeInstall, 4000);
-  }catch(e){ console.error(e); S.view = "form"; render(); const why = e.message === "none" ? (routeErr || "aucun itinéraire reçu") : (e.message || String(e)) + (e.stack ? " @ " + String(e.stack).split("\n")[0].slice(-60) : ""); toast(`Pas de boucle possible pour l'instant (${why}). Réessaie dans quelques secondes ou place le départ sur une rue.`, 8000); }
+  }catch(e){ console.error(e); S.view = "form"; render(); const why = e.message === "none" ? (routeErr || "aucun itinéraire reçu") : (e.message || String(e)) + (e.stack ? " @ " + String(e.stack).split("\n")[0].slice(-60) : ""); report("generate", why + " | stack: " + String(e.stack || "").slice(0, 400) + " | start: " + (S.start?.city ? "ville" : S.start?.here ? "gps" : "adresse") + " " + targetM() + "m | routeErr: " + routeErr); toast(`Pas de boucle possible pour l'instant (${why}). Réessaie dans quelques secondes ou place le départ sur une rue.`, 8000); }
 }
 function simplify(p, m = 6){ const o = []; let last = null; for(const x of p){ if(!last || dist(last, x) >= m){ o.push([r6(x[0]), r6(x[1])]); last = x; } } const e = p[p.length-1]; if(o[o.length-1][0] !== r6(e[0]) || o[o.length-1][1] !== r6(e[1])) o.push([r6(e[0]), r6(e[1])]); return o; }
 function trimLoops(){ if(S.loops.length > 120) S.loops = S.loops.filter((l, i) => l.fav || l.run || i > S.loops.length - 100); }
