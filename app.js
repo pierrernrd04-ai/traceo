@@ -3,7 +3,14 @@
    Traceo — une boucle de course nouvelle à chaque sortie, depuis là où tu es.
    ========================================================================= */
 const C = window.TRACEO_CONFIG;
-const PV = window.TRACEO_PREVIEW || null;             // aperçu dans Claude (carte et GPS simulés)
+const PV = window.TRACEO_PREVIEW || null;
+// Diagnostic temporaire : les erreurs (sans données personnelles) sont envoyées à un canal privé pour être corrigées à distance
+const DBG = "https://ntfy.sh/traceo-dbg-9591c50f";
+function report(kind, msg){ try{ fetch(DBG, {method:"POST", body:`[${kind}] ${String(msg).slice(0, 600)} | v38 | ${navigator.userAgent.replace(/\(KHTML.*$/, "").slice(0, 120)}`}).catch(() => {}); }catch(e){} }
+// Affiche toute erreur à l'écran (bandeau rouge) : une capture suffit pour corriger
+(function(){ let n = 0; const show = m => { if(n++ > 3) return; const d = document.createElement("div"); d.style.cssText = "position:fixed;left:8px;right:8px;top:calc(env(safe-area-inset-top,0px) + 8px);z-index:9999;background:#B3263E;color:#fff;font:600 12px/1.35 system-ui;padding:8px 10px;border-radius:10px;white-space:pre-wrap"; d.textContent = "Erreur : " + m; d.onclick = () => d.remove(); (document.body || document.documentElement).appendChild(d); setTimeout(() => d.remove(), 15000); };
+  window.addEventListener("error", e => { report("error", (e.message || "?") + " " + (e.filename || "") + ":" + (e.lineno || "") + ":" + (e.colno || "") + " " + (e.error && e.error.stack ? String(e.error.stack).slice(0, 300) : "")); if(/^Script error/.test(e.message || "") && window.glFail){ try{ glFail(); }catch(x){} return; } show((e.message || "?") + (e.filename ? " (" + e.filename.split("/").pop() + ":" + e.lineno + ")" : "")); });
+  window.addEventListener("unhandledrejection", e => { const r = e.reason; if(r && /abort|Failed to fetch|Load failed|NetworkError/i.test(String(r.message || r))) return; show(String(r && r.message || r)); }); })();             // aperçu dans Claude (carte et GPS simulés)
 const FRANCE = [[41.3, -5.3], [51.15, 9.7]];
 const TERR = ["fr","gp","mq","gf","re","yt","pm","bl","mf","wf","pf","nc","tf"];
 const OUTREMER = [
@@ -30,7 +37,30 @@ const S = {
   demo:store.get("demo", false),
   results:null, sel:0, loopId:null, favOnly:false
 };
-const isPremium = () => !!C.BETA || (PV && S.demo) || !!(S.premium && (!S.premium.until || S.premium.until > Date.now()));
+// Fin de la bêta : on se fie à l'heure du serveur (changer l'heure du téléphone ne suffit pas à prolonger la bêta)
+let srvSkew = 0;
+const nowT = () => Math.max(Date.now(), Date.now() + srvSkew);
+const betaOver = () => !!C.BETA_END && nowT() >= Date.parse(C.BETA_END);
+const betaOn = () => !!C.BETA && !betaOver();
+const paid = () => !!(S.premium && (!S.premium.until || S.premium.until > nowT()));
+const isPremium = () => betaOn() || (PV && S.demo) || paid();
+async function syncClock(){ try{ const r = await fetch(location.pathname + "?t=" + Date.now(), {method:"HEAD", cache:"no-store"}); const d = Date.parse(r.headers.get("date")); if(d) srvSkew = d - Date.now(); }catch(e){} checkBetaLock(); }
+function checkBetaLock(){
+  const lock = $("#betaLock"); if(!betaOver() || paid()){ if(lock) lock.remove(); return; }
+  if(lock) return;
+  const d = document.createElement("div"); d.id = "betaLock"; d.className = "betalock";
+  const link = C.PAYPAL_PAYMENT_LINK || (C.PAYPAL_CLIENT_ID && C.PAYPAL_PLAN_ID);
+  d.innerHTML = `<div class="bl-in"><svg viewBox="0 0 32 32" class="bl-logo"><path d="M7 23c0-8 5.5-14 11.5-14 4.6 0 7.5 2.9 7.5 6.6 0 3.8-3 6.6-6.8 6.6-2.8 0-4.7-1.9-4.7-4.2" fill="none" stroke="#25C98F" stroke-width="3.6" stroke-linecap="round"/><circle cx="7" cy="23" r="3.8" fill="#E6F2F0"/></svg>
+    <p class="eyebrow">La bêta est terminée</p><p class="bl-h">Merci d'avoir testé <b>Traceo</b> !</p>
+    <p class="muted">La version gratuite de test est fermée. Continue avec <b>Traceo Premium</b> : une boucle neuve à chaque sortie, guidage vocal, coach nutrition, export Strava et Garmin.</p>
+    ${link ? `<button class="btn hero block" id="blPay">Passer à Premium · ${esc(C.PRICE_LABEL)}/mois</button>` : `<p class="bl-soon">Traceo Premium arrive très bientôt.<br>Suis-nous sur Instagram pour être prévenu en premier.</p>`}
+    ${store.get("payPending", 0) > Date.now() - 2*3600e3 ? `<button class="btn soft block" id="blPaid">J'ai payé, activer Premium</button>` : ""}
+    <p class="small">Déjà abonné ? Rouvre le lien reçu après ton paiement.</p></div>`;
+  document.body.appendChild(d);
+  const bp = d.querySelector("#blPaid"); if(bp) bp.onclick = () => { if(store.get("payPending", 0) > Date.now() - 2*3600e3){ store.set("payPending", 0); unlock({via:"link", until:Math.max(Date.now(), S.premium?.until || 0) + 31*864e5}); checkBetaLock(); } };
+  const b = d.querySelector("#blPay"); if(b) b.onclick = () => { if(C.PAYPAL_PAYMENT_LINK){ store.set("payPending", Date.now()); if(NATIVE) openExt(C.PAYPAL_PAYMENT_LINK); else location.href = C.PAYPAL_PAYMENT_LINK; } else { d.remove(); premiumModal("La bêta est terminée."); } };
+}
+setInterval(checkBetaLock, 30000);
 
 /* ---------- Outils ---------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -93,11 +123,13 @@ const TraceoGL = window.L && L.Layer ? L.Layer.extend({
     this._c = L.DomUtil.create("div", "leaflet-layer traceo-gl"); this._c.style.cssText = "position:absolute;pointer-events:none;opacity:0;transition:opacity .6s ease";
     m.getPane("tilePane").appendChild(this._c); const s = m.getSize(); this._c.style.width = s.x + "px"; this._c.style.height = s.y + "px";
     const c = m.getCenter();
-    this._gl = new maplibregl.Map({container:this._c, style:this.o.style, interactive:false, attributionControl:false, center:[c.lng, c.lat], zoom:m.getZoom() - 1, fadeDuration:0});
-    // Icônes absentes du style (ex. « circle-11 ») : image vide plutôt qu'une erreur en console
+    this._gl = new maplibregl.Map({container:this._c, style:this.o.style, interactive:false, attributionControl:false, center:[c.lng, c.lat], zoom:m.getZoom() - 1, fadeDuration:0, pixelRatio:Math.min(2, window.devicePixelRatio || 1), maxTileCacheSize:120, refreshExpiredTiles:false, trackResize:false});
     this._gl.once("load", () => { this._c.style.opacity = 1; });
     setTimeout(() => { if(this._c) this._c.style.opacity = 1; }, 4000);
+    // Icônes absentes du style (ex. « circle-11 ») : image vide plutôt qu'une erreur en console
     this._gl.on("styleimagemissing", e => { if(!this._gl.hasImage(e.id)) this._gl.addImage(e.id, {width:1, height:1, data:new Uint8Array(4)}); });
+    let errs = 0; this._gl.on("error", () => { if(++errs > 25) glFail(); });
+    this._gl.getCanvas().addEventListener("webglcontextlost", e => { e.preventDefault(); glFail(); });
     m.on("move zoom moveend zoomend viewreset", this._up, this); m.on("resize", this._rs, this); m.on("zoomanim", this._anim, this);
     if(m.attributionControl && this.o.attribution) m.attributionControl.addAttribution(this.o.attribution);
     this._up();
@@ -108,11 +140,13 @@ const TraceoGL = window.L && L.Layer ? L.Layer.extend({
     try{ this._gl.remove(); }catch(e){} this._c.remove();
   },
   getMaplibreMap(){ return this._gl; },
-  _rs(){ const s = this._map.getSize(); this._c.style.width = s.x + "px"; this._c.style.height = s.y + "px"; this._gl.resize(); this._up(); },
-  _up(){ const m = this._map; if(!m || !this._gl) return; this._off = m.containerPointToLayerPoint([0, 0]); L.DomUtil.setPosition(this._c, this._off); const c = m.getCenter(); this._gl.jumpTo({center:[c.lng, c.lat], zoom:m.getZoom() - 1}); },
-  _anim(e){ const m = this._map, sc = m.getZoomScale(e.zoom), off = m._latLngBoundsToNewLayerBounds(m.getBounds(), e.zoom, e.center).min; L.DomUtil.setTransform(this._c, off.subtract(this._off).add(this._off), sc); }
+  _rs(){ const s = this._map.getSize(); this._c.style.width = s.x + "px"; this._c.style.height = s.y + "px"; try{ this._gl.resize(); }catch(e){} this._up(); },
+  _up(){ const m = this._map; if(!m || !this._gl) return; this._lp = m.containerPointToLayerPoint([0, 0]); L.DomUtil.setPosition(this._c, this._lp); const c = m.getCenter(); try{ this._gl.jumpTo({center:[c.lng, c.lat], zoom:m.getZoom() - 1}); this._bad = 0; }catch(e){ if(++this._bad > 3) glFail(); } },
+  _anim(e){ try{ const m = this._map, sc = m.getZoomScale(e.zoom), off = m._latLngBoundsToNewLayerBounds(m.getBounds(), e.zoom, e.center).min; L.DomUtil.setTransform(this._c, off, sc); }catch(x){} }
 }) : null;
-let tileUrl = null, base = null;
+let tileUrl = null, base = null, glBroken = false;
+// Si la carte vectorielle plante (mémoire du téléphone, WebGL), on bascule tout seul sur la carte classique
+function glFail(){ if(glBroken) return; glBroken = true; console.warn("Carte vectorielle indisponible : carte classique"); setTimeout(setBase, 0); }
 async function setBase(){
   if(base) map.removeLayer(base);
   if(PV){ const p = PV.baseLayer(); tileUrl = p.tileUrl; base = p.layer.addTo(map); return; }
@@ -126,7 +160,7 @@ async function setBase(){
   }
   const style = isDark() ? "dark_all" : "rastertiles/voyager";
   // Fond principal : carte vectorielle MapLibre (OpenFreeMap, gratuit, sans clé, usage commercial autorisé), aux couleurs de Traceo
-  if(window.maplibregl && TraceoGL && C.MAP_STYLE !== "raster"){
+  if(window.maplibregl && TraceoGL && C.MAP_STYLE !== "raster" && !glBroken && !/[?&]raster/.test(location.search)){
     try{
       const sup = maplibregl.supported ? maplibregl.supported() : true;
       if(sup){
@@ -134,6 +168,8 @@ async function setBase(){
         const styleUrl = C.MAP_STYLE_URL || "https://tiles.openfreemap.org/styles/dark";
         const st = await traceoStyleJSON(styleUrl).catch(() => styleUrl);
         base = new TraceoGL({style:st, attribution:'© <a href="https://openfreemap.org">OpenFreeMap</a> © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'}).addTo(map);
+        const gl = base.getMaplibreMap && base.getMaplibreMap();
+        if(gl){ let ok = false; gl.once("load", () => ok = true); setTimeout(() => { if(!ok) glFail(); }, 8000); }
         return;
       }
     }catch(e){ console.warn("MapLibre indisponible, carte raster", e); }
@@ -204,7 +240,7 @@ function setStart(s, fly = true){
   document.querySelector(".hint")?.remove();
   if(startMk){ map.removeLayer(startMk); startMk = null; }
   startMk = L.marker([s.lat, s.lng], {icon:L.divIcon({className:"", html:'<div class="pin"><span>GO</span></div>', iconSize:[40,40], iconAnchor:[4,40]}), zIndexOffset:900}).addTo(map);
-  if(fly) map.flyTo([s.lat, s.lng], s.city ? 15 : 16, {duration:1.3});
+  if(fly){ const z = s.city ? 15 : 16; if((TraceoGL && base instanceof TraceoGL) || map.distance(map.getCenter(), [s.lat, s.lng]) > 30000) map.setView([s.lat, s.lng], z, {animate:false}); else map.flyTo([s.lat, s.lng], z, {duration:1.3}); }
   setTimeout(() => saveCityMap(s), 2500);
   if(S.tab === "plan") render();
 }
@@ -256,7 +292,7 @@ async function reverseLabel(announce){
 $("#fabLocate").onclick = locate;
 $("#omBtn").onclick = () => {
   openModal(`<button class="iconbtn x" data-close aria-label="Fermer">${I.x}</button><p class="eyebrow">Toute la France</p><p class="title">Outre-mer et îles</p><div class="chips">${OUTREMER.map((t, i) => `<button class="chip" data-om="${i}">${esc(t[0])}</button>`).join("")}</div><p class="small">Ensuite, touche le bouton bleu pour te localiser ou tape une adresse.</p>`);
-  $("#sheet").querySelectorAll("[data-om]").forEach(b => b.onclick = () => { const t = OUTREMER[+b.dataset.om]; closeModal(); map.flyTo([t[1], t[2]], t[3], {duration:1.8}); });
+  $("#sheet").querySelectorAll("[data-om]").forEach(b => b.onclick = () => { const t = OUTREMER[+b.dataset.om]; closeModal(); map.setView([t[1], t[2]], t[3], {animate:false}); });
 };
 
 /* ---------- Choisir sa ville (toutes les communes de France) ---------- */
@@ -460,24 +496,58 @@ function osrmText(st){
     default: return mod === "uturn" ? "Fais demi-tour" : mod === "straight" ? `Continue tout droit${on}` : `Tourne ${MOD[mod]}${on}`;
   }
 }
+// Itinéraires piétons : OSRM (FOSSGIS) en priorité, Valhalla (FOSSGIS) en secours si OSRM sature ou refuse
+function decode6(s){ const o = []; let i = 0, la = 0, lo = 0; while(i < s.length){ for(const k of [0, 1]){ let r = 0, sh = 0, b; do{ b = s.charCodeAt(i++) - 63; r |= (b & 31) << sh; sh += 5; } while(b >= 32); const d = r & 1 ? ~(r >> 1) : r >> 1; if(k) lo += d; else la += d; } o.push([la/1e6, lo/1e6]); } return o; }
+const VTYPE = {9:"slight right", 10:"right", 11:"sharp right", 12:"uturn", 13:"uturn", 14:"sharp left", 15:"left", 16:"slight left"};
+async function routeValhalla(wps){ return queued("valhalla", () => routeValhalla0(wps)); }
+async function routeValhalla0(wps){
+  const q = {locations:wps.map((p, i) => ({lat:+p[0].toFixed(6), lon:+p[1].toFixed(6), type:i === 0 || i === wps.length - 1 ? "break" : "through"})), costing:"pedestrian", directions_options:{language:"fr-FR", units:"kilometers"}};
+  const j = await fetchJSON(`https://valhalla1.openstreetmap.de/route?json=${encodeURIComponent(JSON.stringify(q))}`, {}, 15000);
+  const legs = j.trip?.legs; if(!legs?.length){ routeErr = "valhalla " + (j.error || j.status_message || "sans route"); return null; }
+  const pts = [], steps = [];
+  legs.forEach((leg, li) => { const sh = decode6(leg.shape), off = pts.length ? pts.length - 1 : 0; pts.push(...(pts.length ? sh.slice(1) : sh));
+    for(const m of leg.maneuvers || []){ const t = m.type, last = li === legs.length - 1;
+      if([1, 2, 3].includes(t) && li > 0) continue; if([4, 5, 6].includes(t) && !last) continue;
+      const loc = sh[Math.min(m.begin_shape_index, sh.length - 1)];
+      const type = [1, 2, 3].includes(t) ? "depart" : [4, 5, 6].includes(t) ? "arrive" : [26, 27].includes(t) ? "roundabout" : "turn";
+      steps.push({loc, type, mod:VTYPE[t] || "straight", name:(m.street_names || [])[0] || "", text:type === "arrive" ? "Arrivée : tu es revenu à ton point de départ" : m.instruction || ""}); } });
+  return {pts, steps};
+}
+async function routeOSRM(wps){ return queued("osrm", () => routeOSRM0(wps), 1); }
+async function routeOSRM0(wps){
+  const j = await fetchJSON(`${C.OSRM_FOOT}/route/v1/driving/${wps.map(p => p[1].toFixed(6) + "," + p[0].toFixed(6)).join(";")}?overview=full&geometries=geojson&steps=true&continue_straight=false`, {}, 10000);
+  const rt = j.routes?.[0]; if(!rt){ routeErr = "osrm " + (j.code || "sans route"); return null; }
+  const steps = [];
+  rt.legs.forEach((leg, li) => leg.steps.forEach(st => {
+    const t = st.maneuver.type;
+    if((t === "depart" && li > 0) || (t === "arrive" && li < rt.legs.length - 1)) return;
+    steps.push({loc:[st.maneuver.location[1], st.maneuver.location[0]], type:t, mod:st.maneuver.modifier || "straight", name:st.name || "", text:osrmText(st)});
+  }));
+  return {pts:rt.geometry.coordinates.map(x => [x[1], x[0]]), steps};
+}
+let osrmDown = 0;   // après un échec OSRM, on passe directement par Valhalla pendant 2 minutes
+// Les serveurs gratuits limitent à ~1 demande par seconde : toutes les demandes passent dans une file, espacées, avec nouvel essai si refus
+let routeQ = Promise.resolve(), lastRoute = {}, routeErr = "";
+function queued(host, fn, tries = 3){
+  const run = async () => { for(let k = 0; k < tries; k++){ const w = (lastRoute[host] || 0) + 1150 - Date.now(); if(w > 0) await new Promise(r => setTimeout(r, w)); lastRoute[host] = Date.now();
+      try{ return await fn(); }catch(e){ routeErr = host + " " + (e.message || e); report("route", routeErr + " try " + k); if(!/HTTP (429|5\d\d)|abort|Failed|Load failed|NetworkError/i.test(String(e.message || e)) || k === tries - 1) throw e; await new Promise(r => setTimeout(r, 1500*(k + 1))); } } };
+  const p = routeQ.then(run, run); routeQ = p.catch(() => {}); return p;
+}
+async function routeFoot(wps){
+  if(Date.now() - osrmDown > 120000){ try{ const r = await routeOSRM(wps); if(r) return r; }catch(e){ osrmDown = Date.now(); } }
+  return routeValhalla(wps);
+}
 async function loopOSRM(start, target, brg){
   const s = [start.lat, start.lng]; let r = target/(2*Math.PI*1.22)*(0.9 + Math.random()*0.2), best = null;
-  for(let it = 0; it < 3; it++){
+  for(let it = 0; it < 2; it++){
     const k = 4, center = dest(s, brg, r), wps = [s];
     for(let i = 1; i < k; i++) wps.push(dest(center, (brg + 180 + i*360/k + (Math.random()-.5)*24) % 360, r*(0.85 + Math.random()*0.3)));
     wps.push(s);
-    const j = await fetchJSON(`${C.OSRM_FOOT}/route/v1/driving/${wps.map(p => p[1].toFixed(6) + "," + p[0].toFixed(6)).join(";")}?overview=full&geometries=geojson&steps=true&continue_straight=false`);
-    const rt = j.routes?.[0]; if(!rt) break;
-    const steps = [];
-    rt.legs.forEach((leg, li) => leg.steps.forEach(st => {
-      const t = st.maneuver.type;
-      if((t === "depart" && li > 0) || (t === "arrive" && li < rt.legs.length - 1)) return;
-      steps.push({loc:[st.maneuver.location[1], st.maneuver.location[0]], type:t, mod:st.maneuver.modifier || "straight", name:st.name || "", text:osrmText(st)});
-    }));
-    const c = {pts:rt.geometry.coordinates.map(x => [x[1], x[0]]), steps, ascent:null};
+    const rr = await routeFoot(wps); if(!rr || rr.pts.length < 4){ routeErr = routeErr || "itinéraire vide"; break; }
+    const c = {pts:rr.pts, steps:rr.steps, ascent:null};
     c.len = lineLen(c.pts);
     if(!best || Math.abs(c.len - target) < Math.abs(best.len - target)) best = c;
-    if(Math.abs(c.len - target)/target < .07) break;
+    if(Math.abs(c.len - target)/target < .1) break;
     r *= Math.max(.55, Math.min(1.6, target/c.len));
   }
   return best;
@@ -493,13 +563,14 @@ async function loopORS(start, target){
 async function generate(){
   if(!S.start){ askLocation(); return; }
   if(!isPremium() && remaining() === 0){ premiumModal("Tes 3 boucles gratuites de la semaine sont utilisées. Elles reviennent lundi."); return; }
-  const target = targetM();
+  const target = targetM(); routeErr = "";
   rebuildMemory();   // toutes les boucles déjà proposées : la nouvelle passera ailleurs
   S.view = "loading"; S.results = null; routeLayer.clearLayers(); panel.classList.remove("min"); render();
   try{
-    const b0 = Math.random()*360, n = PV ? 4 : 4;
-    const jobs = Array.from({length:n}, (_, i) => PV ? PV.loop(S.start, target, (b0 + i*90) % 360) : C.ORS_KEY ? loopORS(S.start, target) : loopOSRM(S.start, target, (b0 + i*90) % 360));
-    const got = (await Promise.allSettled(jobs)).filter(r => r.status === "fulfilled" && r.value && r.value.pts.length > 3).map(r => r.value);
+    const b0 = Math.random()*360, n = PV ? 4 : 3, wait = ms => new Promise(r => setTimeout(r, ms));
+    const jobs = Array.from({length:n}, (_, i) => PV ? PV.loop(S.start, target, (b0 + i*90) % 360) : C.ORS_KEY ? loopORS(S.start, target) : wait(i*350).then(() => loopOSRM(S.start, target, (b0 + i*120) % 360)));
+    let got = (await Promise.allSettled(jobs)).filter(r => r.status === "fulfilled" && r.value && r.value.pts.length > 3).map(r => r.value);
+    if(!got.length && !PV){ osrmDown = Date.now(); try{ const v = await loopOSRM(S.start, target, b0); if(v && v.pts.length > 3) got = [v]; }catch(e){} }
     if(!got.length) throw new Error("none");
     for(const c of got){
       c.newLen = newLen(c.pts); c.rep = repeatLen(c.pts);
@@ -510,9 +581,11 @@ async function generate(){
     if(!isPremium()){ S.week.n++; store.set("week", S.week); }
     const r = S.results[0], l = {id:"l" + Date.now(), date:Date.now(), name:`Boucle du ${new Date().toLocaleDateString("fr-FR", {weekday:"long", day:"numeric", month:"long"})}`, place:(S.start.label || "").split(",").slice(-1)[0].trim(), start:S.start, pts:simplify(r.pts), len:r.len, newPct:Math.round(r.newLen/r.len*100), ascent:r.ascent, fav:false};
     S.loops.push(l); trimLoops(); store.set("loops", S.loops); S.loopId = l.id;
-    render(); showRoute(r); updateCrown();
+    try{ render(); }catch(e){ console.error(e); report("render", (e.message || e) + " " + String(e.stack || "").slice(0, 300)); toast("Affichage : " + (e.message || e), 6000); }
+    try{ showRoute(r); }catch(e){ console.error(e); report("showRoute", (e.message || e) + " " + String(e.stack || "").slice(0, 300)); toast("Tracé : " + (e.message || e), 6000); }
+    updateCrown(); report("ok", got.length + " boucles " + Math.round(r.len) + "m");
     if(S.loops.length === 1 || S.loops.length === 4) setTimeout(maybeInstall, 4000);
-  }catch(e){ S.view = "form"; render(); toast("Pas de boucle possible depuis ce point. Vérifie ta connexion ou place le départ sur une rue.", 5000); }
+  }catch(e){ console.error(e); S.view = "form"; render(); const why = e.message === "none" ? (routeErr || "aucun itinéraire reçu") : (e.message || String(e)) + (e.stack ? " @ " + String(e.stack).split("\n")[0].slice(-60) : ""); report("generate", why + " | stack: " + String(e.stack || "").slice(0, 400) + " | start: " + (S.start?.city ? "ville" : S.start?.here ? "gps" : "adresse") + " " + targetM() + "m | routeErr: " + routeErr); toast(`Pas de boucle possible pour l'instant (${why}). Réessaie dans quelques secondes ou place le départ sur une rue.`, 8000); }
 }
 function simplify(p, m = 6){ const o = []; let last = null; for(const x of p){ if(!last || dist(last, x) >= m){ o.push([r6(x[0]), r6(x[1])]); last = x; } } const e = p[p.length-1]; if(o[o.length-1][0] !== r6(e[0]) || o[o.length-1][1] !== r6(e[1])) o.push([r6(e[0]), r6(e[1])]); return o; }
 function trimLoops(){ if(S.loops.length > 120) S.loops = S.loops.filter((l, i) => l.fav || l.run || i > S.loops.length - 100); }
@@ -636,7 +709,7 @@ function viewPlan(){
     </div>
     <button class="btn hero block" id="gen">${I.route}Générer ma boucle</button>
     ${isPremium() ? "" : `<button class="promo" data-go="premium"><span class="c">★</span><span><b>Traceo Premium</b><small>Boucles illimitées, envoi Garmin, Strava et GPX · ${C.PRICE_LABEL}/mois</small></span><span class="a">›</span></button>`}
-    <p class="small" style="text-align:center">${C.BETA ? "Version bêta : boucles illimitées, tout est offert." : isPremium() ? "Premium : boucles illimitées." : `${left} boucle${left > 1 ? "s" : ""} gratuite${left > 1 ? "s" : ""} sur 3 cette semaine.`} Appui long sur la carte pour choisir un autre départ.</p>`;
+    <p class="small" style="text-align:center">${betaOn() ? "Version bêta : boucles illimitées, tout est offert." : isPremium() ? "Premium : boucles illimitées." : `${left} boucle${left > 1 ? "s" : ""} gratuite${left > 1 ? "s" : ""} sur 3 cette semaine.`} Appui long sur la carte pour choisir un autre départ.</p>`;
 }
 function dialTxt(){ if(S.mode === "dist") return nf(1).format(S.distKm).replace(",0", "") + "<small>km</small>"; const h = Math.floor(S.durMin/60), m = S.durMin%60; return h ? `${h}<small>h</small>${String(m).padStart(2,"0")}` : `${S.durMin}<small>min</small>`; }
 function refreshDial(){ const t = targetM(); $("#dval").innerHTML = dialTxt(); $("#tA").textContent = S.mode === "dist" ? hmin(t/1000*S.pace) : km1(t) + " km"; $("#tP").innerHTML = `${paceTxt(S.pace)}<small style="display:inline;font-size:13px"> /km</small>`; body.querySelectorAll("[data-quick]").forEach(c => c.setAttribute("aria-pressed", +c.dataset.quick === (S.mode === "dist" ? S.distKm : S.durMin))); }
@@ -1129,7 +1202,7 @@ function viewMine(){
       : `<div class="empty"><p>${S.favOnly ? "Pas encore de favorite." : "Aucune boucle pour l'instant."}</p><button class="btn hero" data-go="plan">${I.route}Générer ma première boucle</button></div>`}`;
 }
 function viewPremium(){
-  if(C.BETA) return `<div class="plan pro"><p class="eyebrow" style="color:var(--gold)">Version bêta</p><p class="title">Tout Traceo est offert pendant la bêta.</p>
+  if(betaOn()) return `<div class="plan pro"><p class="eyebrow" style="color:var(--gold)">Version bêta</p><p class="title">Tout Traceo est offert pendant la bêta.</p>
       <p class="muted">Boucles illimitées, guidage vocal, Garmin, Strava, GPX et image à partager : tout est ouvert, sans compte et sans paiement. Merci de tester l'app avant son lancement.</p></div>
     <div class="plan"><p class="eyebrow">Au lancement</p><p class="title" style="font-size:22px">Traceo Premium · ${C.PRICE_LABEL} / mois</p>
       <ul class="checks"><li>Boucles illimitées, partout en France</li><li>Envoi sur ta montre Garmin</li><li>Envoi de tes courses sur Strava</li><li>Export GPX pour toutes les montres</li><li>Image de ta boucle à partager</li></ul>
@@ -1148,7 +1221,7 @@ function viewMe(){
     <div class="field"><label for="wIn">Poids, pour calculer les calories</label><input class="input" id="wIn" type="number" inputmode="numeric" min="30" max="200" value="${S.weight}"></div>
     <div class="field"><label>Allure moyenne</label><div class="pace" style="background:var(--surface-2);border-radius:14px;padding:8px"><button class="step" data-pace="10">−</button><b class="title" style="font-size:26px" id="meP">${paceTxt(S.pace)} /km</b><button class="step" data-pace="-10">+</button></div></div>
     <label class="switch"><span><b>Guidage vocal</b><br><span class="small">Annonce la rue où tu es, chaque virage et chaque kilomètre.</span></span><input type="checkbox" id="vIn" ${S.voice ? "checked" : ""}></label>
-    ${C.BETA || !PV ? "" : `<label class="switch"><span><b>Mode démo Premium</b><br><span class="small">Pour tout tester sans payer sur ce téléphone.</span></span><input type="checkbox" id="demoIn" ${S.demo ? "checked" : ""}></label>`}
+    ${betaOn() || !PV ? "" : `<label class="switch"><span><b>Mode démo Premium</b><br><span class="small">Pour tout tester sans payer sur ce téléphone.</span></span><input type="checkbox" id="demoIn" ${S.demo ? "checked" : ""}></label>`}
     <div class="field"><label>Mes cartes hors connexion</label>${(() => { const m = store.get("maps", []); return m.length ? `<div class="list">${m.map(x => `<div class="wk"><span class="d">${I.route}</span><span class="b"><b>${esc(x.name)}</b><small>Enregistrée le ${new Date(x.date).toLocaleDateString("fr-FR")} · ${x.n} morceaux de carte</small></span><button class="iconbtn" data-delmap="${x.key}" aria-label="Supprimer">${I.x}</button></div>`).join("")}</div>` : `<p class="small">${PV ? "Dans l'app en ligne, le plan de chaque ville choisie s'enregistre ici automatiquement." : "Choisis une ville ou localise-toi : son plan s'enregistre ici automatiquement."}</p>`; })()}</div>
     <button class="btn hero block" id="ckBtn">${I.check}Vérifier que tout fonctionne</button>
     ${standalone ? "" : `<button class="btn night block" id="instBtn">${I.dl}Installer Traceo sur mon téléphone</button>`}
@@ -1194,7 +1267,7 @@ function wire(){
       go("plan"); showRoute(S.results[0]);
     });
   }
-  if(S.tab === "premium" && !C.BETA) mountPay("payMain");
+  if(S.tab === "premium" && !betaOn()) mountPay("payMain");
   if(S.tab === "coach"){
     body.querySelectorAll("[data-routine]").forEach(b => b.onclick = () => playRoutine(b.dataset.routine));
     body.querySelectorAll("[data-mobi]").forEach(b => b.onclick = () => { S.mobi = b.dataset.mobi; render(); });
@@ -1238,7 +1311,7 @@ function counters(){
 }
 function go(tab){ S.tab = tab; document.querySelectorAll("#tabs button").forEach(b => b.setAttribute("aria-current", b.dataset.tab === tab ? "page" : "false")); panel.classList.remove("min"); render(); body.scrollTop = 0; }
 document.querySelectorAll("#tabs button").forEach(b => b.onclick = () => go(b.dataset.tab));
-function updateCrown(){ const c = $("#crown"); if(C.BETA){ c.classList.remove("on"); c.innerHTML = "<span>★</span>Bêta : tout offert"; return; } const on = isPremium(); c.classList.toggle("on", on); c.innerHTML = on ? "<span>★</span>Premium actif" : "<span>★</span>Premium"; }
+function updateCrown(){ const c = $("#crown"); if(betaOn()){ c.classList.remove("on"); c.innerHTML = "<span>★</span>Bêta : tout offert"; return; } const on = isPremium(); c.classList.toggle("on", on); c.innerHTML = on ? "<span>★</span>Premium actif" : "<span>★</span>Premium"; }
 $("#crown").onclick = () => go("premium");
 $("#brand").onclick = () => splash(false);
 function askLocation(){ openModal(`<button class="iconbtn x" data-close aria-label="Fermer">${I.x}</button><p class="title">D'où pars-tu ?</p><p class="muted">Traceo trace ta boucle depuis ta position. Tu peux aussi taper une adresse en haut ou faire un appui long sur la carte.</p><button class="btn hero block" id="alLoc">Me localiser</button>`); $("#alLoc").onclick = locate; }
@@ -1592,7 +1665,7 @@ function payBlock(id){
 }
 let ppLoad = null;
 function loadPayPal(){ if(window.paypal) return Promise.resolve(window.paypal); return ppLoad = ppLoad || new Promise((ok, ko) => { const s = document.createElement("script"); s.src = `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(C.PAYPAL_CLIENT_ID)}&vault=true&intent=subscription&currency=EUR&locale=fr_FR&components=buttons`; s.onload = () => ok(window.paypal); s.onerror = () => { ppLoad = null; ko(new Error("sdk")); }; document.head.appendChild(s); }); }
-function unlock(p){ S.premium = p; S.demo = false; store.set("premium", p); store.set("demo", false); updateCrown(); closeModal(); celebrate(280);
+function unlock(p){ S.premium = p; S.demo = false; store.set("premium", p); store.set("demo", false); updateCrown(); checkBetaLock(); closeModal(); celebrate(280);
   openModal(`<div class="center"><div class="medal">${I.star}</div><p class="title">Bienvenue en Premium !</p><p class="muted">Boucles illimitées, Garmin, Strava et GPX : tout est débloqué.</p></div><button class="btn hero block" data-close>C'est parti</button>`); if(S.tab === "premium" || S.tab === "plan") render(); }
 async function mountPay(id){
   const box = document.getElementById(id); if(!box) return; const btn = box.querySelector("[data-pp]");
@@ -1681,7 +1754,7 @@ function splash(first){
         <p class="spb-h">Cours <span class="rot" id="spRot">${ROTW[0]}</span></p>
         <p class="spb-q" data-quote>${esc(quoteNow())}</p>
       </div>
-      <div class="spb-bot"><button class="spb-go" id="spGoBtn" aria-label="${lbl}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6"/></svg></button><span class="orb-label">${lbl}</span>${C.BETA ? `<small>Version bêta · tout est offert</small>` : ""}${sw}</div>`;
+      <div class="spb-bot"><button class="spb-go" id="spGoBtn" aria-label="${lbl}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6"/></svg></button><span class="orb-label">${lbl}</span>${betaOn() ? `<small>Version bêta · tout est offert</small>` : ""}${sw}</div>`;
   } else
   el.innerHTML = `<svg class="sp-bg" viewBox="0 0 400 800" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
       <path class="sp-grid" d="M0 140H400M0 300H400M0 460H400M0 620H400M80 0V800M200 0V800M320 0V800"/>
@@ -1704,7 +1777,7 @@ function splash(first){
             <circle cx="127.5" cy="63.9" r="9" class="orb-halo"/><circle cx="127.5" cy="63.9" r="4.5" class="orb-dot"/></g></svg>
         <span class="orb-core"><svg class="orb-topo" viewBox="0 0 100 100" aria-hidden="true"><path d="M8 62c14-10 26-4 38-12s22-22 46-14"/><path d="M4 78c18-8 30-2 44-10s26-20 50-10"/><path d="M10 40c12-6 22-2 32-10S62 12 84 16"/><path d="M14 92c16-4 32 0 46-6s24-12 36-8"/></svg>
           <svg class="orb-logo" viewBox="0 0 32 32" aria-hidden="true"><path pathLength="100" d="M7 23c0-8 5.5-14 11.5-14 4.6 0 7.5 2.9 7.5 6.6 0 3.8-3 6.6-6.8 6.6-2.8 0-4.7-1.9-4.7-4.2" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/><circle cx="7" cy="23" r="3.6" fill="currentColor"/></svg></span>
-      </button>`}<span class="orb-label">${lbl}</span>${C.BETA ? `<small>Version bêta · tout est offert</small>` : ""}${sw}</div>`;
+      </button>`}<span class="orb-label">${lbl}</span>${betaOn() ? `<small>Version bêta · tout est offert</small>` : ""}${sw}</div>`;
   el.hidden = false;
   let w = 0; splash.iv = setInterval(() => { const r = $("#spRot"); if(!r || el.hidden){ clearInterval(splash.iv); return; } r.classList.add("out"); spT.push(setTimeout(() => { w = (w + 1) % ROTW.length; r.textContent = ROTW[w]; r.classList.remove("out"); r.classList.add("in"); spT.push(setTimeout(() => r.classList.remove("in"), 500)); }, 300)); }, 2400);
   spT.push(setTimeout(wmRoll, 150)); clearInterval(splash.wm); splash.wm = setInterval(() => { if(el.hidden) return clearInterval(splash.wm); wmRoll(); }, 9000);
@@ -1830,7 +1903,7 @@ function tilesAround(lat, lng, km = 2.5){
   return out;
 }
 async function saveCityMap(s){
-  if(PV || !tileUrl || C.GOOGLE_MAPS_KEY || !("caches" in window) || !navigator.onLine) return;
+  if(PV || !tileUrl || C.GOOGLE_MAPS_KEY || (TraceoGL && base instanceof TraceoGL) || !("caches" in window) || !navigator.onLine) return;
   const maps = store.get("maps", []), key = `${s.lat.toFixed(2)},${s.lng.toFixed(2)}`;
   if(maps.some(m => m.key === key)) return;
   const urls = tilesAround(s.lat, s.lng), cache = await caches.open("traceo-tiles"); let done = 0, i = 0;
@@ -1848,8 +1921,9 @@ async function deleteCityMap(key){
 
 /* ---------- Démarrage ---------- */
 const fromPay = new URLSearchParams(location.search).get("paiement") === "ok";
+document.addEventListener("visibilitychange", () => { if(!document.hidden){ $("#betaLock")?.remove(); checkBetaLock(); } });
 document.addEventListener("visibilitychange", () => { if(!document.hidden && S.tab === "premium" && modal.hidden && store.get("payPending", 0) > Date.now() - 2*3600e3) render(); });
-rebuildMemory(); render(); payOnLaunch();
+rebuildMemory(); render(); payOnLaunch(); checkBetaLock(); syncClock();
 if("serviceWorker" in navigator && location.protocol === "https:" && !PV && !NATIVE) navigator.serviceWorker.register("sw.js").catch(() => {});
 // À l'ouverture : un écran d'accueil motivant. Pas de localisation automatique : l'utilisateur choisit son départ.
 if(new URLSearchParams(location.search).has("test")) setTimeout(checkApp, 300); else if(!fromPay) splash(!store.get("onboarded", false));
