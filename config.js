@@ -3,7 +3,7 @@ window.TRACEO_CONFIG = {
   // ---------- Version bêta ----------
   // true : tout est gratuit et illimité pour tout le monde (l'onglet Premium présente l'offre à venir).
   // false : Premium et le paiement s'activent.
-  BETA: true,
+  BETA: false,
 
   // ---------- Carte et adresses ----------
   // Clé Google Maps Platform ("Map Tiles API" + "Places API (New)").
@@ -30,11 +30,6 @@ window.TRACEO_CONFIG = {
   PAYPAL_MANAGE_URL: "https://www.paypal.com/myaccount/autopay/",
   PAYMENT_API: "",                                   // optionnel : serveur de vérification (dossier server/)
   PRICE_LABEL: "4,99 €",
-
-  // ---------- Musique ----------
-  // "Client ID" d'une app Spotify (developer.spotify.com > Dashboard > Create app).
-  // Avec lui : lecture, pause, morceau suivant et playlists Spotify directement dans Traceo.
-  SPOTIFY_CLIENT_ID: "",
 
   // ---------- Montres et applis ----------
   STRAVA_UPLOAD_URL: "https://www.strava.com/upload/select",

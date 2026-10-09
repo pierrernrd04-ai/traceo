@@ -35,10 +35,18 @@ svg{flex:none}
 .me i{position:absolute;inset:3px;border-radius:50%;background:var(--blue);border:3px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.35)}
 .me::before{content:"";position:absolute;inset:-16px;border-radius:50%;background:color-mix(in srgb,var(--blue) 25%,transparent);animation:ping 2s ease-out infinite}
 @keyframes ping{0%{transform:scale(.35);opacity:1}100%{transform:scale(1.4);opacity:0}}
-.pin{width:40px;height:40px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:var(--accent);border:3px solid #fff;box-shadow:var(--shadow);display:grid;place-items:center;animation:pinDrop .55s cubic-bezier(.3,1.6,.5,1)}
+.pin{width:40px;height:40px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:linear-gradient(135deg,#2BE39B,#1EA6D0);border:3px solid #fff;box-shadow:0 0 0 6px rgba(37,201,143,.22),0 0 24px rgba(37,201,143,.55),var(--shadow);display:grid;place-items:center;animation:pinDrop .55s cubic-bezier(.3,1.6,.5,1)}
 .pin span{transform:rotate(45deg);color:var(--accent-ink);font:800 11px var(--f-body);letter-spacing:.04em}
 @keyframes pinDrop{from{transform:translateY(-50px) rotate(-45deg);opacity:0}}
-.km{font:800 11px var(--f-body);color:var(--accent-ink);background:var(--accent);padding:2px 6px;border-radius:7px;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.3);white-space:nowrap}
+/* Tracé néon : halo flouté, bordure sombre, cœur en dégradé vert → cyan */
+.route-glow{filter:url(#tglow)}
+.route-core{stroke:url(#tgrad)}
+.km{position:absolute;transform:translate(-50%,-50%);display:flex;align-items:baseline;gap:1px;font:700 9px var(--f-body);color:var(--muted);background:rgba(5,15,21,.88);padding:3px 7px 3px 6px;border-radius:999px;border:1.5px solid var(--accent);box-shadow:0 0 0 3px rgba(37,201,143,.15),0 2px 8px rgba(0,0,0,.5);white-space:nowrap;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}
+.km b{font:800 12px var(--f-display);color:var(--ink)}
+/* Vignettage : bords assombris et haut fondu sous la barre de recherche, pour faire ressortir le tracé */
+#map::after{content:"";position:absolute;inset:0;z-index:350;pointer-events:none;background:linear-gradient(to bottom,rgba(5,15,21,.78),rgba(5,15,21,0) 150px),radial-gradient(130% 95% at 50% 42%,transparent 55%,rgba(2,8,11,.6))}
+/* Vue d'ensemble : étapes en petits points, numéros quand on zoome */
+body:not(.z-hi) .stepdot{transform:scale(.45);color:transparent;border-width:4px}
 .arrowmk{width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:11px solid #fff;filter:drop-shadow(0 0 1px rgba(0,0,0,.5))}
 
 /* ---------- Haut ---------- */
@@ -374,26 +382,9 @@ div.hero .me2{fill:var(--blue);stroke:#fff;stroke-width:3}
 .musicbtn{border:1px solid var(--line);background:var(--surface-2);color:var(--ink);border-radius:999px;padding:6px 12px;min-height:36px;display:inline-flex;align-items:center;gap:6px;font-weight:800;font-size:13px}
 .musicbtn svg{width:16px;height:16px;stroke:var(--accent);fill:none;stroke-width:2}
 .hud-top{gap:8px}
-.hmusic{display:grid;grid-template-columns:1fr auto auto auto;align-items:center;gap:2px;background:var(--surface-2);border-radius:14px;padding:4px 4px 4px 12px}
-.hmusic .mt,.spnow .mt,.pl .mt{min-width:0}
-.hmusic b,.spnow b,.pl b{display:block;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.hmusic small,.spnow small,.pl small{display:block;font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.hmusic .iconbtn,.spctl .iconbtn{width:44px;height:44px;display:grid;place-items:center;color:var(--ink)}
-.hmusic .pp{color:var(--accent)}
 .iconbtn svg{stroke-linejoin:round}
-.spcard{background:linear-gradient(150deg,rgba(30,215,96,.14),var(--surface-2) 60%);border:1px solid var(--line);border-radius:20px;padding:12px;display:flex;flex-direction:column;gap:10px}
-.spnow{display:grid;grid-template-columns:56px 1fr;gap:12px;align-items:center}
-.spnow img,.spnow .ph,.pl img,.pl .ph{width:56px;height:56px;border-radius:10px;object-fit:cover;background:var(--surface);display:grid;place-items:center}
-.ph svg{width:24px;height:24px;stroke:var(--muted);fill:none;stroke-width:2}
-.spctl{display:flex;justify-content:center;gap:16px}
-.spctl .big{width:58px;height:58px;border-radius:50%;background:#1ED760;color:#04140A}
-.pl{display:grid;grid-template-columns:48px 1fr auto;gap:12px;align-items:center;width:100%;text-align:left;border:0;background:var(--surface-2);border-radius:14px;padding:8px 12px 8px 8px}
-.pl img,.pl .ph{width:48px;height:48px}
-.pl>svg{width:18px;height:18px;color:var(--accent)}
 .appgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
 .appgrid .btn{min-height:48px;font-size:14px}
-.btn.spotify{background:#1ED760;border-color:#1ED760;color:#04140A}
-.btn.spotify svg{stroke:#04140A}
 
 .fly-head>span{display:flex;flex-direction:column;gap:2px;min-width:0}
 .fly-km b{font-family:var(--f-display);font-size:22px;color:var(--ink)}

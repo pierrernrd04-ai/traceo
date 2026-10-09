@@ -30,7 +30,7 @@ const S = {
   demo:store.get("demo", false),
   results:null, sel:0, loopId:null, favOnly:false
 };
-const isPremium = () => !!C.BETA || S.demo || !!(S.premium && (!S.premium.until || S.premium.until > Date.now()));
+const isPremium = () => !!C.BETA || (PV && S.demo) || !!(S.premium && (!S.premium.until || S.premium.until > Date.now()));
 
 /* ---------- Outils ---------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -90,11 +90,13 @@ map.attributionControl.setPrefix(false); map.attributionControl.setPosition("bot
 const TraceoGL = window.L && L.Layer ? L.Layer.extend({
   initialize(o){ this.o = o; },
   onAdd(m){
-    this._c = L.DomUtil.create("div", "leaflet-layer traceo-gl"); this._c.style.cssText = "position:absolute;pointer-events:none";
+    this._c = L.DomUtil.create("div", "leaflet-layer traceo-gl"); this._c.style.cssText = "position:absolute;pointer-events:none;opacity:0;transition:opacity .6s ease";
     m.getPane("tilePane").appendChild(this._c); const s = m.getSize(); this._c.style.width = s.x + "px"; this._c.style.height = s.y + "px";
     const c = m.getCenter();
     this._gl = new maplibregl.Map({container:this._c, style:this.o.style, interactive:false, attributionControl:false, center:[c.lng, c.lat], zoom:m.getZoom() - 1, fadeDuration:0});
     // Icônes absentes du style (ex. « circle-11 ») : image vide plutôt qu'une erreur en console
+    this._gl.once("load", () => { this._c.style.opacity = 1; });
+    setTimeout(() => { if(this._c) this._c.style.opacity = 1; }, 4000);
     this._gl.on("styleimagemissing", e => { if(!this._gl.hasImage(e.id)) this._gl.addImage(e.id, {width:1, height:1, data:new Uint8Array(4)}); });
     m.on("move zoom moveend zoomend viewreset", this._up, this); m.on("resize", this._rs, this); m.on("zoomanim", this._anim, this);
     if(m.attributionControl && this.o.attribution) m.attributionControl.addAttribution(this.o.attribution);
@@ -129,9 +131,9 @@ async function setBase(){
       const sup = maplibregl.supported ? maplibregl.supported() : true;
       if(sup){
         tileUrl = (z, x, y) => `https://${"abcd"[(x+y)%4]}.basemaps.cartocdn.com/${style}/${z}/${x}/${y}@2x.png`;  // pour l'affiche et le hors-ligne
-        base = new TraceoGL({style:C.MAP_STYLE_URL || "https://tiles.openfreemap.org/styles/dark", attribution:'© <a href="https://openfreemap.org">OpenFreeMap</a> © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'}).addTo(map);
-        const gl = base.getMaplibreMap && base.getMaplibreMap();
-        if(gl) gl.on("style.load", () => traceoStyle(gl));
+        const styleUrl = C.MAP_STYLE_URL || "https://tiles.openfreemap.org/styles/dark";
+        const st = await traceoStyleJSON(styleUrl).catch(() => styleUrl);
+        base = new TraceoGL({style:st, attribution:'© <a href="https://openfreemap.org">OpenFreeMap</a> © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'}).addTo(map);
         return;
       }
     }catch(e){ console.warn("MapLibre indisponible, carte raster", e); }
@@ -139,22 +141,51 @@ async function setBase(){
   tileUrl = (z, x, y) => `https://${"abcd"[(x+y)%4]}.basemaps.cartocdn.com/${style}/${z}/${x}/${y}@2x.png`;
   base = L.tileLayer(`https://{s}.basemaps.cartocdn.com/${style}/{z}/{x}/{y}{r}.png`, {subdomains:"abcd", maxZoom:20, crossOrigin:true, attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/attributions">CARTO</a>'}).addTo(map);
 }
-// Recolore le style vectoriel : bleu nuit, routes discrètes, noms de rues lisibles
-function traceoStyle(gl){
-  try{
-    for(const l of gl.getStyle().layers){
-      const id = l.id, set = (p, v) => { try{ gl.setPaintProperty(id, p, v); }catch(e){} };
-      if(l.type === "background") set("background-color", "#07131A");
-      else if(l.type === "fill" && /water/.test(id)) set("fill-color", "#0B2833");
-      else if(l.type === "fill" && /park|landcover|wood|grass/.test(id)) set("fill-color", "#0B1F1C");
-      else if(l.type === "fill" && /building/.test(id)) set("fill-color", "#0E1E25");
-      else if(l.type === "line" && /water|river/.test(id)) set("line-color", "#0B2833");
-      else if(l.type === "line" && /motorway|trunk/.test(id) && !/casing/.test(id)) set("line-color", "#2A4A55");
-      else if(l.type === "line" && /highway|road|street|path|transport|bridge|tunnel/.test(id)) set("line-color", /casing/.test(id) ? "#0A1A21" : "#1B3540");
-      else if(l.type === "line" && /boundary/.test(id)) set("line-color", "#24434E");
-      else if(l.type === "symbol"){ set("text-color", /highway|road|street|transport/.test(id) ? "#9DB8B6" : /water/.test(id) ? "#4F7E8C" : "#C9DCDA"); set("text-halo-color", "#07131A"); set("text-halo-width", 1.4); }
+// Style de carte « Traceo nuit » : le style OpenFreeMap est retravaillé AVANT affichage (pas de flash),
+// noms en français, eau et parcs bien lisibles, routes hiérarchisées, plus aucun pictogramme parasite.
+const MAP_PAL = {bg:"#050F15", resid:"#07141B", wood:"#0A2A1F", park:"#0D3627", water:"#0A3D52", waterway:"#0E4A60", building:"#0C1C25", buildingLine:"#14303B",
+  path:"#1C3943", minor:"#14303A", major:"#1E4352", majorCase:"#061016", motor:"#27525F", motorCase:"#050D12", rail:"#1A2F38", border:"#2D5866"};
+const FR_NAME = ["coalesce", ["get", "name:fr"], ["get", "name:latin"], ["get", "name"]];
+let styleCache = null;
+async function traceoStyleJSON(url){
+  if(styleCache) return JSON.parse(styleCache);
+  const st = await fetchJSON(url, {}, 10000), P = MAP_PAL;
+  st.layers = st.layers.filter(l => !/^road_oneway|^aeroway-taxiway$/.test(l.id)).map(l => {
+    const id = l.id, pt = l.paint = l.paint || {}, ly = l.layout = l.layout || {};
+    if(l.type === "background") pt["background-color"] = P.bg;
+    else if(id === "water") pt["fill-color"] = P.water;
+    else if(id === "waterway") pt["line-color"] = P.waterway;
+    else if(id === "landuse_residential"){ pt["fill-color"] = P.resid; pt["fill-opacity"] = 1; }
+    else if(id === "landcover_wood"){ pt["fill-color"] = P.wood; pt["fill-opacity"] = .9; }
+    else if(id === "landuse_park"){ pt["fill-color"] = P.park; pt["fill-opacity"] = .95; }
+    else if(/glacier|ice_shelf/.test(id)) pt["fill-color"] = "#0E2530";
+    else if(id === "building"){ pt["fill-color"] = P.building; pt["fill-outline-color"] = P.buildingLine; pt["fill-opacity"] = ["interpolate", ["linear"], ["zoom"], 13, 0, 15, 1]; }
+    else if(/^aeroway/.test(id)) (l.type === "fill" ? pt["fill-color"] = "#0B1A22" : pt["line-color"] = "#14262E");
+    else if(id === "highway_path"){ pt["line-color"] = P.path; pt["line-dasharray"] = [1.5, 1.5]; }
+    else if(id === "highway_minor") pt["line-color"] = P.minor;
+    else if(/major_casing/.test(id)) pt["line-color"] = P.majorCase;
+    else if(/major_(inner|subtle)/.test(id)) pt["line-color"] = P.major;
+    else if(/motorway_casing/.test(id)) pt["line-color"] = P.motorCase;
+    else if(/motorway_(inner|subtle)/.test(id)) pt["line-color"] = P.motor;
+    else if(/pier/.test(id)) (l.type === "fill" ? pt["fill-color"] = P.minor : pt["line-color"] = P.minor);
+    else if(/^railway/.test(id)) pt["line-color"] = P.rail;
+    else if(/^boundary/.test(id)){ pt["line-color"] = P.border; pt["line-opacity"] = .8; }
+    if(l.type === "symbol"){
+      if(ly["text-field"] && !/motorway/.test(id)) ly["text-field"] = FR_NAME;
+      delete ly["icon-image"]; pt["icon-opacity"] = 0;
+      pt["text-halo-color"] = P.bg; pt["text-halo-width"] = 1.6; pt["text-halo-blur"] = .5;
+      if(id === "water_name"){ pt["text-color"] = "#4B97AE"; ly["text-font"] = ["Noto Sans Italic"]; }
+      else if(/highway_name/.test(id)){ pt["text-color"] = "#8DB1B0"; ly["text-font"] = ["Noto Sans Regular"]; }
+      else if(/place_city|place_country|place_state/.test(id)){ pt["text-color"] = /country/.test(id) ? "#7FE3C3" : "#EAF5F3"; ly["text-font"] = ["Noto Sans Bold"]; if(/country|state/.test(id)){ ly["text-transform"] = "uppercase"; ly["text-letter-spacing"] = .12; } }
+      else if(id === "place_town"){ pt["text-color"] = "#D3E4E2"; ly["text-font"] = ["Noto Sans Bold"]; }
+      else if(/place_(village|suburb|other)/.test(id)){ pt["text-color"] = "#8AA4A3"; if(id === "place_suburb"){ ly["text-transform"] = "uppercase"; ly["text-letter-spacing"] = .1; } }
+      // texte centré sur le point, l'icône (rond) ayant disparu
+      if(/^place_(town|city|village)/.test(id)){ ly["text-anchor"] = "center"; ly["text-offset"] = [0, 0]; }
     }
-  }catch(e){}
+    return l;
+  });
+  styleCache = JSON.stringify(st);
+  return st;
 }
 setBase();
 try{ matchMedia("(prefers-color-scheme: dark)").addEventListener("change", setBase); }catch(e){}
@@ -491,16 +522,28 @@ const curRoute = () => S.results?.[S.sel];
 // La boucle reste en mémoire après son affichage : la suivante cherchera d'autres rues
 function commitMemory(){ rebuildMemory(); }
 
+const routeSV = L.svg({padding:.5});
+// Dégradé vert → cyan et halo lumineux du tracé, déclarés une fois dans le calque SVG
+function routeDefs(){
+  const svg = routeSV._container; if(!svg || svg.querySelector("#tgrad")) return;
+  const d = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+  d.innerHTML = `<linearGradient id="tgrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2BE39B"/><stop offset=".55" stop-color="#22D3C5"/><stop offset="1" stop-color="#1EA6D0"/></linearGradient>
+    <filter id="tglow" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="6"/></filter>`;
+  svg.insertBefore(d, svg.firstChild);
+}
 function showRoute(r, fit = true){
   routeLayer.clearLayers(); routeLayer._r = r; setTimeout(() => loadPOIs(r), fit ? 1900 : 300);
-  const sv = L.svg({padding:.5}), acc = cssv("--accent");
-  L.polyline(r.pts, {renderer:sv, color:"#fff", weight:12, opacity:.95, lineJoin:"round", interactive:false}).addTo(routeLayer);
-  const line = L.polyline(r.pts, {renderer:sv, color:acc, weight:7, lineJoin:"round", interactive:false}).addTo(routeLayer);
-  const flow = L.polyline(r.pts, {renderer:sv, color:"#fff", weight:3, opacity:0, lineCap:"round", className:"route-flow", interactive:false}).addTo(routeLayer);
+  const sv = routeSV, acc = cssv("--accent"), o = {renderer:sv, lineJoin:"round", lineCap:"round", interactive:false};
+  const glow = L.polyline(r.pts, {...o, color:acc, weight:20, opacity:.5, className:"route-glow"}).addTo(routeLayer); routeDefs();
+  const casing = L.polyline(r.pts, {...o, color:"#02110B", weight:11, opacity:.85}).addTo(routeLayer);
+  const line = L.polyline(r.pts, {...o, color:acc, weight:6, className:"route-core"}).addTo(routeLayer);
+  const flow = L.polyline(r.pts, {...o, color:"#fff", weight:3, opacity:0, className:"route-flow"}).addTo(routeLayer);
   let a = 0, next = 1000;
-  for(let i = 1; i < r.pts.length; i++){ a += dist(r.pts[i-1], r.pts[i]); if(a >= next && a < r.len - 250){ L.marker(r.pts[i], {interactive:false, icon:L.divIcon({className:"", html:`<span class="km">${next/1000} km</span>`, iconSize:[0,0], iconAnchor:[14,10]})}).addTo(routeLayer); next += 1000; } }
+  for(let i = 1; i < r.pts.length; i++){ a += dist(r.pts[i-1], r.pts[i]); if(a >= next && a < r.len - 250){ L.marker(r.pts[i], {interactive:false, icon:L.divIcon({className:"", html:`<span class="km"><b>${next/1000}</b>km</span>`, iconSize:[0,0], iconAnchor:[0,0]})}).addTo(routeLayer); next += 1000; } }
   if(fit) map.flyToBounds(L.latLngBounds(r.pts), {...pad(), duration:1});
-  setTimeout(() => { const p = line._path; if(!p) return; const len = p.getTotalLength(); p.style.setProperty("--len", len); p.classList.add("route-draw"); p.addEventListener("animationend", () => { p.classList.remove("route-draw"); flow.setStyle({opacity:.95}); }, {once:true}); }, fit ? 1050 : 40);
+  // Le tracé se dessine (halo, bordure et néon ensemble), puis des points blancs défilent dans le sens de la course
+  setTimeout(() => { [glow, casing, line].forEach((pl, k) => { const p = pl._path; if(!p) return; p.style.setProperty("--len", p.getTotalLength()); p.classList.add("route-draw");
+    if(k === 2) p.addEventListener("animationend", () => { [glow, casing, line].forEach(q => q._path?.classList.remove("route-draw")); flow.setStyle({opacity:.9}); }, {once:true}); }); }, fit ? 1050 : 40);
 }
 
 /* ---------- Vignettes ---------- */
@@ -1090,7 +1133,7 @@ function viewPremium(){
   return `<div class="plan pro"><p class="eyebrow" style="color:var(--gold)">Traceo Premium</p><p class="title">Une boucle neuve à chaque sortie, sans limite.</p>
       <p class="price">${C.PRICE_LABEL}<small> / mois</small></p>
       <ul class="checks"><li>Boucles illimitées, partout en France</li><li>Envoi sur ta montre Garmin</li><li>Envoi de tes courses sur Strava</li><li>Export GPX pour toutes les montres</li><li>Image de ta boucle à partager</li></ul>
-      ${on ? `<p><b>Premium actif</b>${S.premium.until ? ` jusqu'au ${new Date(S.premium.until).toLocaleDateString("fr-FR")}` : ""}.</p>${S.premium.via === "sub" ? `<a class="btn block night" href="${C.PAYPAL_MANAGE_URL}" target="_blank" rel="noopener">Gérer mon abonnement PayPal</a>` : ""}` : payBlock("payMain")}
+      ${on ? `<p><b>Premium actif</b>${S.premium.until ? ` jusqu'au ${new Date(S.premium.until).toLocaleDateString("fr-FR")}` : ""}.</p>${S.premium.via === "sub" ? `<a class="btn block night" href="${C.PAYPAL_MANAGE_URL}" target="_blank" rel="noopener">Gérer mon abonnement PayPal</a>` : S.premium.until && S.premium.until - Date.now() < 7*864e5 ? `<p class="small">Pour continuer après cette date, reprends 31 jours : ils s'ajoutent à ceux qui restent.</p>${payBlock("payMain")}` : ""}` : payBlock("payMain")}
     </div>
     <div class="plan"><p class="eyebrow">Gratuit</p><p class="title" style="font-size:22px">3 boucles par semaine, guidage compris.</p><p class="small">Il te reste ${remaining()} boucle${remaining() > 1 ? "s" : ""} cette semaine.</p></div>`;
 }
@@ -1099,7 +1142,7 @@ function viewMe(){
     <div class="field"><label for="wIn">Poids, pour calculer les calories</label><input class="input" id="wIn" type="number" inputmode="numeric" min="30" max="200" value="${S.weight}"></div>
     <div class="field"><label>Allure moyenne</label><div class="pace" style="background:var(--surface-2);border-radius:14px;padding:8px"><button class="step" data-pace="10">−</button><b class="title" style="font-size:26px" id="meP">${paceTxt(S.pace)} /km</b><button class="step" data-pace="-10">+</button></div></div>
     <label class="switch"><span><b>Guidage vocal</b><br><span class="small">Annonce la rue où tu es, chaque virage et chaque kilomètre.</span></span><input type="checkbox" id="vIn" ${S.voice ? "checked" : ""}></label>
-    ${C.BETA || (!PV && (C.PAYPAL_CLIENT_ID || C.PAYPAL_PAYMENT_LINK)) ? "" : `<label class="switch"><span><b>Mode démo Premium</b><br><span class="small">Pour tout tester sans payer sur ce téléphone.</span></span><input type="checkbox" id="demoIn" ${S.demo ? "checked" : ""}></label>`}
+    ${C.BETA || !PV ? "" : `<label class="switch"><span><b>Mode démo Premium</b><br><span class="small">Pour tout tester sans payer sur ce téléphone.</span></span><input type="checkbox" id="demoIn" ${S.demo ? "checked" : ""}></label>`}
     <div class="field"><label>Mes cartes hors connexion</label>${(() => { const m = store.get("maps", []); return m.length ? `<div class="list">${m.map(x => `<div class="wk"><span class="d">${I.route}</span><span class="b"><b>${esc(x.name)}</b><small>Enregistrée le ${new Date(x.date).toLocaleDateString("fr-FR")} · ${x.n} morceaux de carte</small></span><button class="iconbtn" data-delmap="${x.key}" aria-label="Supprimer">${I.x}</button></div>`).join("")}</div>` : `<p class="small">${PV ? "Dans l'app en ligne, le plan de chaque ville choisie s'enregistre ici automatiquement." : "Choisis une ville ou localise-toi : son plan s'enregistre ici automatiquement."}</p>`; })()}</div>
     <button class="btn hero block" id="ckBtn">${I.check}Vérifier que tout fonctionne</button>
     ${standalone ? "" : `<button class="btn night block" id="instBtn">${I.dl}Installer Traceo sur mon téléphone</button>`}
@@ -1314,7 +1357,7 @@ async function startRun(route){
   liveLayer.clearLayers(); run.line = L.polyline([], {color:cssv("--blue"), weight:5, opacity:.9, lineCap:"round", interactive:false}).addTo(liveLayer);
   if(!(await NATIVE?.keepAwake(true))){ try{ run.wake = await navigator.wakeLock?.request("screen"); }catch(e){} }
   run.watch = navigator.geolocation.watchPosition(onPos, err => { $("#hGps").textContent = err.code === 1 ? "GPS refusé" : "GPS perdu"; if(err.code === 1) permissionHelp(); }, {enableHighAccuracy:true, maximumAge:0, timeout:20000});
-  run.timer = setInterval(tick, 1000); tick(); updateGuide(); musicPoll(true);
+  run.timer = setInterval(tick, 1000); tick(); updateGuide();
   map.setView([route.pts[0][0], route.pts[0][1]], 17); followMode(true); map.on("dragstart", () => { if(run.active && !gesture){ run.follow = false; } });
   syncH();
 }
@@ -1399,7 +1442,7 @@ $("#hPause").onclick = () => { run.paused = !run.paused; $("#hud").classList.tog
 (() => { const b = $("#hStop"); let t = null; const dn = e => { e.preventDefault(); b.classList.add("hold"); t = setTimeout(finishRun, 1100); }; const up = () => { b.classList.remove("hold"); clearTimeout(t); }; b.addEventListener("pointerdown", dn); ["pointerup","pointerleave","pointercancel"].forEach(ev => b.addEventListener(ev, up)); b.addEventListener("keydown", e => { if(e.key === "Enter" || e.key === " ") finishRun(); }); })();
 function finishRun(){
   if(!run.active) return; run.active = false; clearInterval(run.timer); navigator.geolocation.clearWatch(run.watch); try{ run.wake?.release(); }catch(e){} NATIVE?.keepAwake(false);
-  document.body.classList.remove("run-on"); $("#hud").hidden = true; $("#guide").hidden = true; followMode(false); musicPoll(false); syncH();
+  document.body.classList.remove("run-on"); $("#hud").hidden = true; $("#guide").hidden = true; followMode(false); syncH();
   const res = {time:run.elapsed, dist:run.dist, kcal:kcal(run.dist), pace:run.dist > 0 ? run.elapsed/(run.dist/1000) : null, ascent:Math.round(run.ascent), gps:run.gps};
   const l = curLoop(); if(l && res.dist > 50){ l.run = {time:res.time, dist:res.dist, kcal:res.kcal, ascent:res.ascent, date:Date.now()}; store.set("loops", S.loops); }
   // programme d'entraînement : la course coche la prochaine séance de la semaine
@@ -1506,7 +1549,7 @@ const subReady = () => !!(C.PAYPAL_CLIENT_ID && C.PAYPAL_PLAN_ID);
 function payBlock(id){
   const live = !PV && (subReady() || C.PAYPAL_PAYMENT_LINK);
   return `<div class="paybox" id="${id}">${live && subReady() ? `<div class="skel" style="height:52px"></div>` : `<button class="btn block paypal" data-pp>Payer avec <b>PayPal</b></button>`}</div>
-    <p class="small">Paiement sécurisé par PayPal : compte PayPal ou carte bancaire. Sans engagement.</p>`;
+    <p class="small">${subReady() ? "Paiement sécurisé par PayPal : compte PayPal ou carte bancaire. Sans engagement, résiliable à tout moment." : "Paiement sécurisé par PayPal (compte PayPal ou carte bancaire). Un paiement = 31 jours de Premium, sans abonnement ni renouvellement automatique."}</p>`;
 }
 let ppLoad = null;
 function loadPayPal(){ if(window.paypal) return Promise.resolve(window.paypal); return ppLoad = ppLoad || new Promise((ok, ko) => { const s = document.createElement("script"); s.src = `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(C.PAYPAL_CLIENT_ID)}&vault=true&intent=subscription&currency=EUR&locale=fr_FR&components=buttons`; s.onload = () => ok(window.paypal); s.onerror = () => { ppLoad = null; ko(new Error("sdk")); }; document.head.appendChild(s); }); }
@@ -1516,8 +1559,8 @@ async function mountPay(id){
   const box = document.getElementById(id); if(!box) return; const btn = box.querySelector("[data-pp]");
   if(btn){ btn.onclick = () => {
     if(PV){ toast("Dans l'app en ligne, ce bouton ouvre le paiement PayPal.", 4000); return; }
-    if(C.PAYPAL_PAYMENT_LINK){ store.set("payPending", Date.now()); location.href = C.PAYPAL_PAYMENT_LINK; return; }
-    toast("Le paiement PayPal n'est pas encore branché (voir LISEZMOI).", 4500);
+    if(C.PAYPAL_PAYMENT_LINK){ store.set("payPending", Date.now()); if(NATIVE) openExt(C.PAYPAL_PAYMENT_LINK); else location.href = C.PAYPAL_PAYMENT_LINK; return; }
+    toast("Le paiement arrive très bientôt. Réessaie dans quelques jours.", 4500);
   }; return; }
   try{
     const pp = await loadPayPal(); box.innerHTML = "";
@@ -1531,7 +1574,14 @@ async function mountPay(id){
 async function verifySub(id){ const r = await fetch(C.PAYMENT_API.replace(/\/$/, "") + "/paypal/verify", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({subscription_id:id})}); return r.json(); }
 async function payOnLaunch(){
   const u = new URLSearchParams(location.search);
-  if(u.get("paiement") === "ok" && store.get("payPending", 0) > Date.now() - 2*3600e3){ store.set("payPending", 0); history.replaceState(null, "", location.pathname); unlock({via:"link", until:Date.now() + 31*864e5}); return; }
+  // Premium par lien (31 jours) : rappel 3 jours avant la fin, puis à la fin, une fois par jour au plus
+  const end = S.premium?.via === "link" ? S.premium.until : 0, today = new Date().toDateString();
+  if(end && store.get("payNag", "") !== today && u.get("paiement") !== "ok"){
+    const days = Math.ceil((end - Date.now())/864e5);
+    if(days <= 0){ store.set("payNag", today); setTimeout(() => toast("Ton Premium est terminé. Reprends 31 jours dans l'onglet Premium.", 5000), 2500); }
+    else if(days <= 3){ store.set("payNag", today); setTimeout(() => toast(`Ton Premium se termine dans ${days} jour${days > 1 ? "s" : ""}. Prolonge-le dans l'onglet Premium.`, 5000), 2500); }
+  }
+  if(u.get("paiement") === "ok" && store.get("payPending", 0) > Date.now() - 2*3600e3){ store.set("payPending", 0); history.replaceState(null, "", location.pathname); const from = Math.max(Date.now(), S.premium?.until || 0); unlock({via:"link", until:from + 31*864e5}); return; }
   if(S.premium?.via === "sub" && C.PAYMENT_API && Date.now() - (S.premium.checked || 0) > 6*3600e3){ try{ const j = await verifySub(S.premium.id); if(j.active === false){ S.premium = null; store.set("premium", null); toast("Ton abonnement Premium a pris fin."); } else { S.premium.checked = Date.now(); store.set("premium", S.premium); } updateCrown(); }catch(e){} }
 }
 
@@ -1547,7 +1597,7 @@ const FEATS = [
   [I.route, "Une boucle neuve à chaque sortie", "Traceo écarte les rues qu'il t'a déjà proposées."],
   ['<svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16 9a4 4 0 010 6M18.5 6.5a7.5 7.5 0 010 11"/></svg>', "Guidé à la voix", "Rue par rue, virage par virage, comme un GPS."],
   ['<svg viewBox="0 0 24 24"><path d="M13 3L5 14h6l-1 7 8-11h-6z"/></svg>', "Ton coach", "Entraînement, nutrition, hydratation et mobilité."],
-  [MI_NOTE(), "Ta musique", "Spotify, Apple Music ou Deezer à portée de doigt."]
+  [MI_NOTE(), "Ta musique", "Apple Music, Deezer ou YouTube Music à portée de doigt."]
 ];
 function MI_NOTE(){ return '<svg viewBox="0 0 24 24"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg>'; }
 // Écran d'accueil à chaque ouverture : animations, petites bulles, phrases drôles et motivantes
@@ -1674,101 +1724,23 @@ setInterval(() => { const q = quoteNow(); if(q === lastQ) return; lastQ = q;
   document.querySelectorAll("[data-quote]").forEach(el => { el.classList.remove("qin"); el.classList.add("qout"); setTimeout(() => { el.textContent = q; el.classList.remove("qout"); el.classList.add("qin"); }, 350); });
   syncQBars(); }, 500);
 
-/* ---------- Musique : Spotify dans l'app, et accès direct aux autres applis ---------- */
+/* ---------- Musique : accès direct aux applis de musique et de podcasts ---------- */
 const MI = {
-  note:'<svg viewBox="0 0 24 24"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg>',
-  prev:'<svg viewBox="0 0 24 24"><path d="M19 5L9 12l10 7zM6 5v14"/></svg>',
-  next:'<svg viewBox="0 0 24 24"><path d="M5 5l10 7-10 7zM18 5v14"/></svg>',
-  play:'<svg viewBox="0 0 24 24"><path d="M7 4.5v15l12-7.5z" fill="currentColor" stroke="none"/></svg>',
-  pause:'<svg viewBox="0 0 24 24"><path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z" fill="currentColor" stroke="none"/></svg>'
+  note:'<svg viewBox="0 0 24 24"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg>'
 };
 const APPS = [
   ["Apple Music", "https://music.apple.com/fr/search?term=running"],
   ["Deezer", "https://www.deezer.com/fr/search/running"],
   ["YouTube Music", "https://music.youtube.com/search?q=running"],
-  ["Spotify", "https://open.spotify.com/search/running"],
-  ["Podcasts", isIOS ? "https://podcasts.apple.com/fr/" : "https://open.spotify.com/genre/podcasts-web"]
+  ["Podcasts", isIOS ? "https://podcasts.apple.com/fr/" : "https://www.deezer.com/fr/channels/podcasts"]
 ];
-const SPT = {tok:store.get("sp", null), now:null, poll:null};
-const spReady = () => !!SPT.tok;
-const b64u = buf => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-const redirectUri = () => location.origin + location.pathname;
-async function spConnect(){
-  if(PV){ toast("Dans l'app en ligne, ce bouton connecte ton compte Spotify.", 4000); return; }
-  if(!C.SPOTIFY_CLIENT_ID){ toast("Spotify n'est pas encore branché (voir le guide).", 4000); return; }
-  if(run.active){ toast("Connecte Spotify avant de lancer la course."); return; }
-  const v = b64u(crypto.getRandomValues(new Uint8Array(48)));
-  const ch = b64u(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(v)));
-  store.set("spv", v);
-  const q = new URLSearchParams({client_id:C.SPOTIFY_CLIENT_ID, response_type:"code", redirect_uri:redirectUri(), code_challenge_method:"S256", code_challenge:ch, state:"spotify", scope:"user-read-playback-state user-modify-playback-state user-read-currently-playing playlist-read-private"});
-  location.href = "https://accounts.spotify.com/authorize?" + q;
-}
-async function spTokenCall(params){
-  const r = await fetch("https://accounts.spotify.com/api/token", {method:"POST", headers:{"Content-Type":"application/x-www-form-urlencoded"}, body:new URLSearchParams({client_id:C.SPOTIFY_CLIENT_ID, ...params})});
-  if(!r.ok) throw new Error("token"); const j = await r.json();
-  SPT.tok = {access:j.access_token, refresh:j.refresh_token || SPT.tok?.refresh, exp:Date.now() + j.expires_in*1000}; store.set("sp", SPT.tok);
-}
-async function spOnLaunch(){
-  const u = new URLSearchParams(location.search);
-  if(u.get("state") !== "spotify") return;
-  history.replaceState(null, "", location.pathname);
-  if(!u.get("code")){ toast("Connexion Spotify annulée."); return; }
-  try{ await spTokenCall({grant_type:"authorization_code", code:u.get("code"), redirect_uri:redirectUri(), code_verifier:store.get("spv", "")}); toast("Spotify connecté : commande ta musique depuis Traceo."); }
-  catch(e){ toast("La connexion à Spotify a échoué. Réessaie.", 4000); }
-}
-async function sp(path, method = "GET", body){
-  if(!SPT.tok) throw {code:"auth"};
-  if(Date.now() > SPT.tok.exp - 60000){ try{ await spTokenCall({grant_type:"refresh_token", refresh_token:SPT.tok.refresh}); }catch(e){ SPT.tok = null; store.set("sp", null); throw {code:"auth"}; } }
-  const r = await fetch("https://api.spotify.com/v1" + path, {method, headers:{Authorization:"Bearer " + SPT.tok.access, ...(body ? {"Content-Type":"application/json"} : {})}, body:body ? JSON.stringify(body) : undefined});
-  if(r.status === 204 || r.status === 202) return null;
-  if(r.status === 401){ SPT.tok = null; store.set("sp", null); throw {code:"auth"}; }
-  if(r.status === 404) throw {code:"device"};
-  if(r.status === 403) throw {code:"premium"};
-  if(!r.ok) throw {code:"other"};
-  return r.json().catch(() => null);
-}
-const spErr = e => toast(e?.code === "device" ? "Ouvre Spotify et lance un morceau une fois : Traceo pourra ensuite le commander." : e?.code === "premium" ? "Commander la lecture demande un compte Spotify Premium." : e?.code === "auth" ? "Reconnecte ton compte Spotify." : "Spotify ne répond pas pour l'instant.", 4500);
-async function spRefreshNow(){
-  try{ const j = await sp("/me/player"); SPT.now = j && j.item ? {title:j.item.name, artist:(j.item.artists || []).map(a => a.name).join(", ") || j.item.show?.name || "", img:j.item.album?.images?.slice(-1)[0]?.url || j.item.images?.slice(-1)[0]?.url || "", playing:j.is_playing} : null; }
-  catch(e){ SPT.now = null; }
-  paintMusic();
-}
-function paintMusic(){
-  const n = SPT.now, bar = $("#hMusic");
-  if(bar){ bar.hidden = !spReady(); if(spReady()) bar.innerHTML = `<span class="mt">${n ? `<b>${esc(n.title)}</b><small>${esc(n.artist)}</small>` : "<b>Spotify</b><small>Aucune lecture en cours</small>"}</span><button class="iconbtn" data-sp="prev" aria-label="Précédent">${MI.prev}</button><button class="iconbtn pp" data-sp="toggle" aria-label="Lecture ou pause">${n?.playing ? MI.pause : MI.play}</button><button class="iconbtn" data-sp="next" aria-label="Suivant">${MI.next}</button>`; }
-  const np = $("#spNow"); if(np) np.innerHTML = n ? `${n.img ? `<img src="${esc(n.img)}" alt="">` : `<span class="ph">${MI.note}</span>`}<span class="mt"><b>${esc(n.title)}</b><small>${esc(n.artist)}</small></span>` : `<span class="ph">${MI.note}</span><span class="mt"><b>Rien en lecture</b><small>Choisis une playlist ci-dessous</small></span>`;
-  const pp = $("#spPP"); if(pp) pp.innerHTML = n?.playing ? MI.pause : MI.play;
-  document.querySelectorAll("[data-sp]").forEach(b => b.onclick = () => spCmd(b.dataset.sp));
-}
-async function spCmd(c){
-  try{
-    if(c === "toggle") await sp(SPT.now?.playing ? "/me/player/pause" : "/me/player/play", "PUT");
-    if(c === "next") await sp("/me/player/next", "POST");
-    if(c === "prev") await sp("/me/player/previous", "POST");
-    setTimeout(spRefreshNow, 450);
-  }catch(e){ spErr(e); }
-}
-async function musicSheet(){
-  const sp1 = spReady();
+function musicSheet(){
   openModal(`<button class="iconbtn x" data-close aria-label="Fermer">${I.x}</button><p class="eyebrow">Musique et podcasts</p><p class="title">Ta bande-son</p>
-    ${sp1 ? `<div class="spcard"><div class="spnow" id="spNow"></div><div class="spctl"><button class="iconbtn" data-sp="prev" aria-label="Précédent">${MI.prev}</button><button class="iconbtn big" id="spPP" data-sp="toggle" aria-label="Lecture ou pause">${MI.play}</button><button class="iconbtn" data-sp="next" aria-label="Suivant">${MI.next}</button></div></div>
-      <p class="eyebrow">Playlists pour courir</p><div class="list" id="spLists"><div class="skel" style="height:56px"></div></div>`
-    : (C.SPOTIFY_CLIENT_ID || PV) ? `<button class="btn block spotify" id="spGo">${MI.note}Connecter Spotify</button><p class="small">Connecte ton compte une fois : tu changes ensuite de morceau ou de playlist sans quitter Traceo, même en courant.</p>` : ""}
-    <p class="eyebrow">Ouvrir une autre appli</p>
-    <div class="appgrid">${APPS.filter(a => !(sp1 && a[0] === "Spotify")).map(([n, u]) => `<a class="btn soft" href="${u}" target="_blank" rel="noopener">${esc(n)}</a>`).join("")}</div>
-    <p class="small">Ta musique continue pendant la course. Avec Apple Music, Deezer ou YouTube Music, utilise aussi les commandes de l'écran verrouillé.</p>`);
-  $("#spGo") && ($("#spGo").onclick = spConnect);
-  if(!sp1) return;
-  await spRefreshNow();
-  try{
-    const [mine, run1] = await Promise.all([sp("/me/playlists?limit=6").catch(() => null), sp("/search?q=running&type=playlist&limit=6&market=FR").catch(() => null)]);
-    const items = [...(mine?.items || []), ...(run1?.playlists?.items || [])].filter(Boolean).slice(0, 10);
-    const box = $("#spLists"); if(!box) return;
-    box.innerHTML = items.length ? items.map((p, i) => `<button class="pl" data-pl="${esc(p.uri)}">${p.images?.[0]?.url ? `<img src="${esc(p.images[p.images.length-1].url)}" alt="">` : `<span class="ph">${MI.note}</span>`}<span class="mt"><b>${esc(p.name)}</b><small>${i < (mine?.items?.length || 0) ? "Ta playlist" : "Playlist running"}</small></span>${MI.play}</button>`).join("") : `<p class="small">Aucune playlist trouvée.</p>`;
-    box.querySelectorAll("[data-pl]").forEach(b => b.onclick = async () => { try{ await sp("/me/player/play", "PUT", {context_uri:b.dataset.pl}); toast("C'est parti en musique !"); setTimeout(spRefreshNow, 600); }catch(e){ spErr(e); } });
-  }catch(e){}
+    <p class="eyebrow">Ouvrir une appli</p>
+    <div class="appgrid">${APPS.map(([n, u]) => `<a class="btn soft" href="${u}" target="_blank" rel="noopener" data-ext>${esc(n)}</a>`).join("")}</div>
+    <p class="small">Lance ta musique avant de partir : elle continue pendant la course. Utilise les commandes de l'écran verrouillé pour changer de morceau.</p>`);
+  sheet.querySelectorAll("[data-ext]").forEach(a => a.onclick = e => { e.preventDefault(); openExt(a.href); });
 }
-function musicPoll(on){ clearInterval(SPT.poll); if(on && spReady()){ spRefreshNow(); SPT.poll = setInterval(spRefreshNow, 10000); } else paintMusic(); }
 
 
 /* ---------- Vérifier l'app : tout se teste en un bouton, une fois l'app en ligne ---------- */
@@ -1834,7 +1806,7 @@ async function deleteCityMap(key){
 }
 
 /* ---------- Démarrage ---------- */
-rebuildMemory(); render(); payOnLaunch(); spOnLaunch();
+rebuildMemory(); render(); payOnLaunch();
 if("serviceWorker" in navigator && location.protocol === "https:" && !PV && !NATIVE) navigator.serviceWorker.register("sw.js").catch(() => {});
 // À l'ouverture : un écran d'accueil motivant. Pas de localisation automatique : l'utilisateur choisit son départ.
 if(new URLSearchParams(location.search).has("test")) setTimeout(checkApp, 300); else splash(!store.get("onboarded", false));
