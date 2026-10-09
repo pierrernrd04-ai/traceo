@@ -1,5 +1,5 @@
 // Traceo — fonctionnement hors ligne de l'app (la carte et le calcul des boucles demandent Internet).
-const VERSION = "traceo-v27";
+const VERSION = "traceo-v28";
 const SHELL = ["./", "index.html", "styles.css", "app.js", "config.js", "manifest.webmanifest", "icons/icon-192.png", "icons/icon-512.png",
   "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css", "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js", "https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js", "https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css"];
 
@@ -13,7 +13,7 @@ self.addEventListener("fetch", e => {
   const url = new URL(e.request.url);
   if (e.request.method !== "GET") return;
   // Fonds de carte : garde les dalles déjà vues pour un affichage rapide
-  if (/basemaps\.cartocdn\.com|tile\.googleapis\.com|tiles\.openfreemap\.org/.test(url.host)) {
+  if (/basemaps\.cartocdn\.com|tile\.googleapis\.com|tiles\.openfreemap\.org/.test(url.host) && /\.(pbf|png|jpg|webp)$|\/\d+\/\d+\/\d+/.test(url.pathname)) {
     e.respondWith(caches.open("traceo-tiles").then(async c => {
       const hit = await c.match(e.request);
       if (hit) return hit;
