@@ -1,6 +1,6 @@
 // Traceo — fonctionnement hors ligne de l'app (la carte et le calcul des boucles demandent Internet).
-const VERSION = "traceo-v28";
-const SHELL = ["./", "index.html", "styles.css", "app.js", "config.js", "manifest.webmanifest", "icons/icon-192.png", "icons/icon-512.png",
+const VERSION = "traceo-v29";
+const SHELL = ["./", "index.html", "styles.css", "app.js", "native.js", "config.js", "manifest.webmanifest", "icons/icon-192.png", "icons/icon-512.png",
   "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css", "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js", "https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js", "https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css"];
 
 self.addEventListener("install", e => {

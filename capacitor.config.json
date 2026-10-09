@@ -1,0 +1,20 @@
+{
+  "appId": "fr.traceo.app",
+  "appName": "Traceo",
+  "webDir": "www",
+  "backgroundColor": "#07131A",
+  "android": {
+    "backgroundColor": "#07131A"
+  },
+  "ios": {
+    "backgroundColor": "#07131A",
+    "contentInset": "never"
+  },
+  "plugins": {
+    "StatusBar": {
+      "style": "DARK",
+      "backgroundColor": "#07131A",
+      "overlaysWebView": true
+    }
+  }
+}

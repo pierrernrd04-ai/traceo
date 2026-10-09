@@ -47,7 +47,8 @@ function toast(msg, ms = 3000){ const t = $("#toast"); t.hidden = true; void t.o
 function weekKey(){ const d = new Date(), t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())); const day = t.getUTCDay() || 7; t.setUTCDate(t.getUTCDate() + 4 - day); const y = new Date(Date.UTC(t.getUTCFullYear(), 0, 1)); return t.getUTCFullYear() + "-" + Math.ceil(((t - y)/864e5 + 1)/7); }
 function remaining(){ if(S.week.key !== weekKey()){ S.week = {key:weekKey(), n:0}; store.set("week", S.week); } return Math.max(0, C.FREE_PER_WEEK - S.week.n); }
 const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+const NATIVE = window.TRACEO_NATIVE || null;          // app Android / iOS (Capacitor), voir native.js
+const standalone = !!NATIVE || matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
 const isDark = () => true; // charte volontairement sombre
 const cssv = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 async function fetchJSON(url, opt = {}, ms = 12000){
@@ -184,7 +185,7 @@ let watchMe = null;
 function locate(){
   if(run.active){ run.follow = true; if(run.last) map.setView(run.last, 17); return; }
   if(!("geolocation" in navigator)){ toast("Ce navigateur ne donne pas la position. Tape ton adresse en haut."); return; }
-  if(!isSecureContext){ toast("La localisation exige une adresse https."); return; }
+  if(!isSecureContext && !NATIVE){ toast("La localisation exige une adresse https."); return; }
   const fab = $("#fabLocate"); fab.classList.add("busy"); S.locating = true; if(S.tab === "plan" && S.view === "form") render();
   navigator.geolocation.getCurrentPosition(p => {
     fab.classList.remove("busy"); fab.classList.add("done"); S.locating = false;
@@ -1311,7 +1312,7 @@ async function startRun(route){
   document.body.classList.add("run-on"); $("#hud").hidden = false; $("#hud").classList.remove("paused"); $("#guide").hidden = false; $("#hPause").textContent = "Pause";
   $("#gMute").innerHTML = S.voice ? I.sound : I.mute;
   liveLayer.clearLayers(); run.line = L.polyline([], {color:cssv("--blue"), weight:5, opacity:.9, lineCap:"round", interactive:false}).addTo(liveLayer);
-  try{ run.wake = await navigator.wakeLock?.request("screen"); }catch(e){}
+  if(!(await NATIVE?.keepAwake(true))){ try{ run.wake = await navigator.wakeLock?.request("screen"); }catch(e){} }
   run.watch = navigator.geolocation.watchPosition(onPos, err => { $("#hGps").textContent = err.code === 1 ? "GPS refusé" : "GPS perdu"; if(err.code === 1) permissionHelp(); }, {enableHighAccuracy:true, maximumAge:0, timeout:20000});
   run.timer = setInterval(tick, 1000); tick(); updateGuide(); musicPoll(true);
   map.setView([route.pts[0][0], route.pts[0][1]], 17); followMode(true); map.on("dragstart", () => { if(run.active && !gesture){ run.follow = false; } });
@@ -1344,7 +1345,9 @@ function pickVoice(){ try{ const vs = speechSynthesis.getVoices().filter(v => /^
 if("speechSynthesis" in window){ pickVoice(); speechSynthesis.onvoiceschanged = pickVoice; }
 function say(t){ return t.replace(/[«»]/g, "").replace(/\s+/g, " ").trim(); }
 function speak(t, urgent){
-  if(!t || !S.voice || !("speechSynthesis" in window)) return;
+  if(!t || !S.voice) return;
+  if(NATIVE?.speak(say(t), urgent)) return;
+  if(!("speechSynthesis" in window)) return;
   try{ if(urgent) speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(say(t)); u.lang = "fr-FR"; if(frVoice) u.voice = frVoice; u.rate = 1; u.pitch = 1; u.volume = 1; speechSynthesis.speak(u); }catch(e){}
 }
 const mSay = d => d >= 1000 ? `${nf(1).format(d/1000).replace(",0", "")} kilomètre${d >= 2000 ? "s" : ""}` : `${d > 100 ? Math.round(d/50)*50 : Math.max(10, Math.round(d/10)*10)} mètres`;
@@ -1395,7 +1398,7 @@ function tick(fromPos){
 $("#hPause").onclick = () => { run.paused = !run.paused; $("#hud").classList.toggle("paused", run.paused); $("#hState").textContent = run.paused ? "En pause" : "En course"; $("#hPause").textContent = run.paused ? "Reprendre" : "Pause"; speak(run.paused ? "Course en pause." : "C'est reparti.", true); };
 (() => { const b = $("#hStop"); let t = null; const dn = e => { e.preventDefault(); b.classList.add("hold"); t = setTimeout(finishRun, 1100); }; const up = () => { b.classList.remove("hold"); clearTimeout(t); }; b.addEventListener("pointerdown", dn); ["pointerup","pointerleave","pointercancel"].forEach(ev => b.addEventListener(ev, up)); b.addEventListener("keydown", e => { if(e.key === "Enter" || e.key === " ") finishRun(); }); })();
 function finishRun(){
-  if(!run.active) return; run.active = false; clearInterval(run.timer); navigator.geolocation.clearWatch(run.watch); try{ run.wake?.release(); }catch(e){}
+  if(!run.active) return; run.active = false; clearInterval(run.timer); navigator.geolocation.clearWatch(run.watch); try{ run.wake?.release(); }catch(e){} NATIVE?.keepAwake(false);
   document.body.classList.remove("run-on"); $("#hud").hidden = true; $("#guide").hidden = true; followMode(false); musicPoll(false); syncH();
   const res = {time:run.elapsed, dist:run.dist, kcal:kcal(run.dist), pace:run.dist > 0 ? run.elapsed/(run.dist/1000) : null, ascent:Math.round(run.ascent), gps:run.gps};
   const l = curLoop(); if(l && res.dist > 50){ l.run = {time:res.time, dist:res.dist, kcal:res.kcal, ascent:res.ascent, date:Date.now()}; store.set("loops", S.loops); }
@@ -1418,8 +1421,8 @@ function summary(res, l){
   counters();
   if(!ok) return;
   const blob = () => gpxBlob(gpxActivity(name, res.gps)), fn = slug(name) + "-course.gpx";
-  $("#sStrava").onclick = () => { if(needPremium("L'envoi sur Strava fait partie de Premium.")) return; download(blob(), fn); setTimeout(() => window.open(C.STRAVA_UPLOAD_URL, "_blank", "noopener"), 600); toast("GPX de ta course téléchargé. Sur Strava, choisis ce fichier.", 4500); };
-  $("#sGarmin").onclick = () => { if(needPremium("L'envoi sur Garmin fait partie de Premium.")) return; download(blob(), fn); setTimeout(() => window.open(C.GARMIN_IMPORT_ACTIVITY_URL, "_blank", "noopener"), 600); toast("GPX téléchargé. Sur Garmin Connect, choisis ce fichier.", 4500); };
+  $("#sStrava").onclick = () => { if(needPremium("L'envoi sur Strava fait partie de Premium.")) return; exportThenOpen(blob(), fn, C.STRAVA_UPLOAD_URL); toast("GPX de ta course téléchargé. Sur Strava, choisis ce fichier.", 4500); };
+  $("#sGarmin").onclick = () => { if(needPremium("L'envoi sur Garmin fait partie de Premium.")) return; exportThenOpen(blob(), fn, C.GARMIN_IMPORT_ACTIVITY_URL); toast("GPX téléchargé. Sur Garmin Connect, choisis ce fichier.", 4500); };
   $("#sGpx").onclick = () => { if(needPremium("L'export GPX fait partie de Premium.")) return; download(blob(), fn); toast("GPX de ta course téléchargé."); };
   $("#sShare").onclick = () => posterFlow({pts:res.gps.map(p => [p.lat, p.lng]), title:name, lines:[[km2(res.dist) + " km", "distance"], [hms(res.time), "durée"], [paceTxt(res.pace) + "/km", "allure"], [res.kcal + " kcal", "brûlées"]]});
   $("#sImg").onclick = $("#sShare").onclick;
@@ -1434,9 +1437,14 @@ const gpxBlob = s => new Blob([s], {type:"application/gpx+xml"});
 const slug = s => (s || "traceo").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").toLowerCase().slice(0, 60) || "traceo";
 function download(blob, name){
   if(PV) return PV.download(blob, name);
+  if(NATIVE) return NATIVE.saveFile(blob, name).then(ok => { if(!ok) toast("Partage de fichiers indisponible sur ce téléphone."); }).catch(() => toast("Le fichier n'a pas pu être enregistré."));
   const u = URL.createObjectURL(blob), a = document.createElement("a"); a.href = u; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 4000);
 }
+// Télécharge (ou, dans l'app, propose le partage du fichier) puis ouvre le site où l'importer
+async function exportThenOpen(blob, name, url){ await download(blob, name); setTimeout(() => openExt(url), NATIVE ? 0 : 600); }
+function openExt(url){ if(!NATIVE?.openUrl(url)) window.open(url, "_blank", "noopener"); }
 async function share(blob, name, title){
+  if(NATIVE) return download(blob, name);
   const f = new File([blob], name, {type:blob.type});
   if(!PV && navigator.canShare?.({files:[f]})){ try{ await navigator.share({files:[f], title}); return; }catch(e){ if(e.name === "AbortError") return; } }
   download(blob, name);
@@ -1448,7 +1456,7 @@ function garminFlow(r){
   openModal(`<button class="iconbtn x" data-close aria-label="Fermer">${I.x}</button><p class="eyebrow">Garmin</p><p class="title">Ta boucle sur ta montre</p>
     <ol class="muted" style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px"><li>Touche « Télécharger et ouvrir Garmin ».</li><li>Dans Garmin Connect, Parcours &gt; <b>Importer</b> &gt; choisis le fichier <b>${esc(slug(n))}.gpx</b>.</li><li>Touche <b>Envoyer vers l'appareil</b> : la boucle est sur ta montre.</li></ol>
     <button class="btn garmin block" id="gGo">${I.watch}Télécharger et ouvrir Garmin</button>`);
-  $("#gGo").onclick = () => { download(gpxBlob(gpxRoute(n, r.pts)), slug(n) + ".gpx"); setTimeout(() => window.open(C.GARMIN_COURSES_URL, "_blank", "noopener"), 600); closeModal(); };
+  $("#gGo").onclick = () => { exportThenOpen(gpxBlob(gpxRoute(n, r.pts)), slug(n) + ".gpx", C.GARMIN_COURSES_URL); closeModal(); };
 }
 
 /* ---------- Image de la boucle (1080 × 1350) ---------- */
@@ -1765,13 +1773,13 @@ function musicPoll(on){ clearInterval(SPT.poll); if(on && spReady()){ spRefreshN
 
 /* ---------- Vérifier l'app : tout se teste en un bouton, une fois l'app en ligne ---------- */
 const CHECKS = [
-  ["https", "Adresse sécurisée (https)", async () => { if(!isSecureContext) throw "L'app doit être ouverte en https."; return location.host; }],
+  ["https", "Adresse sécurisée (https)", async () => { if(NATIVE) return `App ${NATIVE.platform === "ios" ? "iPhone" : "Android"}`; if(!isSecureContext) throw "L'app doit être ouverte en https."; return location.host; }],
   ["map", "Carte de France (vraies rues)", async () => { if(PV) throw "Carte simulée dans l'aperçu."; if(window.maplibregl && base && base.getMaplibreMap){ const r = await fetch(C.MAP_STYLE_URL || "https://tiles.openfreemap.org/styles/dark"); if(!r.ok) throw "Le serveur de cartes ne répond pas."; return "MapLibre + OpenFreeMap : toute la France, toutes les rues"; } if(!tileUrl) throw "Fond de carte non chargé."; const ok = await new Promise(r => { const im = new Image(); im.crossOrigin = "anonymous"; const t = setTimeout(() => r(false), 8000); im.onload = () => { clearTimeout(t); r(true); }; im.onerror = () => { clearTimeout(t); r(false); }; im.src = tileUrl(15, 16574, 11268); }); if(!ok) throw "Les images de la carte ne se chargent pas."; return C.GOOGLE_MAPS_KEY ? "Google Maps" : window.maplibregl ? "MapLibre + OpenFreeMap (vectoriel, toutes les rues)" : "OpenStreetMap"; }],
   ["search", "Recherche d'adresses", async () => { const j = await fetchJSON(`${C.GEOCODER_FR}/search?q=${encodeURIComponent("1 rue de la République Saint-Germain-en-Laye")}&limit=1`, {}, 8000); const p = j.features?.[0]?.properties; if(!p) throw "Aucune adresse trouvée."; return p.label; }],
   ["towns", "Toutes les communes", async () => { const a = await fetchJSON("https://geo.api.gouv.fr/departements/31/communes?fields=nom", {}, 8000); if(!a.length) throw "Liste vide."; return `${a.length} communes en Haute-Garonne`; }],
   ["route", "Calcul des boucles sur les vraies rues", async () => { const j = await fetchJSON(`${C.OSRM_FOOT}/route/v1/driving/2.0930,48.8980;2.1000,48.9010;2.0930,48.8980?overview=false&steps=true`, {}, 10000); const r = j.routes?.[0]; if(!r) throw "Aucun itinéraire."; const n = r.legs.flatMap(l => l.steps).find(s => s.name)?.name; return `${(r.distance/1000).toFixed(1).replace(".", ",")} km calculés${n ? ", via " + n : ""}`; }],
   ["gps", "Position GPS", async () => { if(!("geolocation" in navigator)) throw "GPS indisponible sur ce navigateur."; const st = await navigator.permissions?.query({name:"geolocation"}).then(p => p.state).catch(() => "prompt"); if(st === "denied") throw "Position refusée : autorise-la dans les réglages du téléphone."; return st === "granted" ? "Autorisée" : "Sera demandée au premier « Me localiser »"; }],
-  ["voice", "Voix de guidage", async () => { if(!("speechSynthesis" in window)) throw "Voix indisponible sur ce navigateur."; pickVoice(); return frVoice ? `Voix française : ${frVoice.name}` : "Voix française par défaut"; }],
+  ["voice", "Voix de guidage", async () => { if(NATIVE?.hasVoice) return "Synthèse vocale du téléphone"; if(!("speechSynthesis" in window)) throw "Voix indisponible sur ce navigateur."; pickVoice(); return frVoice ? `Voix française : ${frVoice.name}` : "Voix française par défaut"; }],
   ["install", "Installation sur l'écran d'accueil", async () => standalone ? "Installée" : "Possible depuis Profil > Installer"]
 ];
 function checkApp(){
@@ -1827,6 +1835,6 @@ async function deleteCityMap(key){
 
 /* ---------- Démarrage ---------- */
 rebuildMemory(); render(); payOnLaunch(); spOnLaunch();
-if("serviceWorker" in navigator && location.protocol === "https:" && !PV) navigator.serviceWorker.register("sw.js").catch(() => {});
+if("serviceWorker" in navigator && location.protocol === "https:" && !PV && !NATIVE) navigator.serviceWorker.register("sw.js").catch(() => {});
 // À l'ouverture : un écran d'accueil motivant. Pas de localisation automatique : l'utilisateur choisit son départ.
 if(new URLSearchParams(location.search).has("test")) setTimeout(checkApp, 300); else splash(!store.get("onboarded", false));

@@ -42,7 +42,8 @@ Le lien débloque Premium 31 jours.
    - `PAYPAL_ENV=live` ;
    - `APP_ORIGIN=https://traceo.pages.dev`.
 
-   Mets ensuite l'adresse du worker dans `PAYMENT_API`.
+   Déploiement : `cd server && npx wrangler deploy`, puis `npx wrangler secret put PAYPAL_SECRET`.
+   Mets ensuite l'adresse du worker (`https://traceo-pay.<ton-compte>.workers.dev`) dans `PAYMENT_API`.
 
 ## Carte et adresses
 
@@ -50,6 +51,52 @@ Le lien débloque Premium 31 jours.
 - **Pour le fond et la recherche Google Maps**, colle une clé Google Maps Platform dans `GOOGLE_MAPS_KEY`. La clé doit avoir « Map Tiles API » et « Places API (New) » activées, et la facturation activée sur Google Cloud.
 - **Pour un usage intensif**, prends une clé openrouteservice dans `ORS_KEY` : les boucles seront aussi calculées avec le dénivelé.
 
-## App Store et Google Play (étape suivante)
+## L'app Android et iPhone
 
-L'app s'emballe avec Capacitor. Pour les abonnements vendus dans l'App Store ou Google Play, Apple et Google imposent en général leur propre système de paiement. On choisira la bonne formule au moment de la publication.
+Le même code est emballé en vraie application avec **Capacitor** (dossiers `android/` et `ios/`).
+Dans l'app, Traceo utilise directement le téléphone :
+- la synthèse vocale pour annoncer les virages ;
+- l'écran qui reste allumé pendant la course ;
+- la feuille de partage pour envoyer les fichiers GPX et les images vers Strava, Garmin Connect, Fichiers ou WhatsApp.
+
+### Installer l'APK sur ton téléphone Android (sans ordinateur)
+
+À chaque mise à jour, GitHub construit l'app tout seul (onglet **Actions** > « App Android »).
+1. Ouvre `https://github.com/pierrernrd04-ai/traceo/releases/tag/android-latest` sur ton téléphone. La release est mise à jour à chaque push sur `main`.
+2. Touche **traceo.apk**, puis autorise l'installation depuis ton navigateur.
+
+Pour une autre branche, ouvre le build dans **Actions** et télécharge l'artefact `traceo-apk`.
+
+### Travailler sur l'app depuis un ordinateur
+
+```
+npm install
+npm run android        # copie l'app web dans www/ et ouvre Android Studio
+npm run ios            # idem pour Xcode (Mac uniquement)
+npm run apk            # APK de test sans Android Studio (SDK Android requis)
+```
+
+Après chaque modification de `app.js`, `styles.css` ou `config.js`, lance `npm run sync`. Les icônes se régénèrent avec `node scripts/make-icons.cjs`.
+
+### Publier sur le Google Play Store
+
+1. Crée une clé de signature, une seule fois, et garde-la précieusement :
+   `keytool -genkey -v -keystore traceo.jks -alias traceo -keyalg RSA -keysize 2048 -validity 10000`
+2. Dans GitHub > Settings > Secrets and variables > Actions, ajoute ces secrets :
+   - `ANDROID_KEYSTORE_BASE64` : le résultat de `base64 -w0 traceo.jks` ;
+   - `ANDROID_KEYSTORE_PASSWORD` ;
+   - `ANDROID_KEY_ALIAS` (`traceo`) ;
+   - `ANDROID_KEY_PASSWORD`.
+3. Le build fournit alors l'artefact `traceo-play-store` (`.aab` signé) à envoyer dans la Play Console (25 $ une fois).
+
+L'identifiant de l'app est `fr.traceo.app`. Tu peux le changer dans `capacitor.config.json` et `android/app/build.gradle`, mais seulement **avant** la première publication.
+
+### Publier sur l'App Store
+
+Il faut un Mac avec Xcode et un compte Apple Developer (99 €/an). Lance `npm run ios`, choisis ton équipe dans **Signing & Capabilities**, puis **Product > Archive**.
+
+### À savoir pour la version app
+
+- **Paiement :** pour un abonnement vendu *dans* l'app, Apple et Google imposent en général leur propre système de paiement. Tant que `BETA: true`, tout est gratuit et la question ne se pose pas. Avant de passer `BETA: false` dans l'app, il faudra brancher Google Play Billing et l'achat intégré Apple, par exemple avec RevenueCat. Le lien PayPal ouvre le navigateur et le retour `?paiement=ok` arrive sur le site web, pas dans l'app.
+- **Spotify :** la connexion Spotify revient sur le site web, pas dans l'app. La musique reste pilotable depuis l'app Spotify.
+- **Écran verrouillé :** l'écran reste allumé pendant la course. Si on le verrouille, le suivi GPS se met en pause jusqu'au retour dans l'app.

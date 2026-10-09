@@ -1,0 +1,94 @@
+# Construit l'app Android à chaque mise à jour.
+# - Toujours : un APK installable directement sur un téléphone (onglet Actions > ce build > Artifacts).
+# - Sur la branche main : l'APK est aussi publié dans la release « android-latest »
+#   (lien fixe : https://github.com/<compte>/traceo/releases/tag/android-latest).
+# - Si les secrets de signature existent : un .aab signé, prêt pour le Google Play Store.
+name: App Android
+
+on:
+  push:
+    paths-ignore: ["**.md", "server/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      VERSION_CODE: ${{ github.run_number }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+
+      - name: Installer Capacitor
+        run: npm ci
+
+      - name: Copier l'app web dans le projet Android
+        run: npm run build && npx cap sync android
+
+      - name: APK (installation directe)
+        working-directory: android
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: Renommer l'APK
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk traceo.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: traceo-apk
+          path: traceo.apk
+
+      - name: Préparer la signature Play Store
+        id: sign
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/traceo.jks"
+            echo "path=$RUNNER_TEMP/traceo.jks" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Bundle signé pour le Play Store (.aab)
+        if: steps.sign.outputs.path != ''
+        working-directory: android
+        env:
+          ANDROID_KEYSTORE_PATH: ${{ steps.sign.outputs.path }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: ./gradlew bundleRelease --no-daemon && cp app/build/outputs/bundle/release/app-release.aab ../traceo-play.aab
+
+      - uses: actions/upload-artifact@v4
+        if: steps.sign.outputs.path != ''
+        with:
+          name: traceo-play-store
+          path: traceo-play.aab
+
+      - name: Publier l'APK (release android-latest)
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          NOTES="APK Android de Traceo, build ${{ github.run_number }} ($(git log -1 --format=%h)). Sur le téléphone : touche traceo.apk, puis autorise l'installation."
+          if gh release view android-latest >/dev/null 2>&1; then
+            gh release upload android-latest traceo.apk --clobber
+            gh release edit android-latest --notes "$NOTES"
+          else
+            gh release create android-latest traceo.apk --prerelease --title "Traceo pour Android" --notes "$NOTES"
+          fi
