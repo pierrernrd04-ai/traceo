@@ -176,7 +176,7 @@ input[type=range]{width:100%;accent-color:var(--accent);height:30px;margin:0}
 .loader p{font-weight:700}
 .loader .small span{display:block;animation:fadeSwap 2.4s infinite}
 @keyframes fadeSwap{0%,100%{opacity:.4}50%{opacity:1}}
-.options{display:flex;gap:10px;overflow-x:auto;scrollbar-width:none;margin:0 -16px;padding:2px 16px 6px;scroll-snap-type:x mandatory}
+.options{flex:none;display:flex;gap:10px;overflow-x:auto;scrollbar-width:none;margin:0 -16px;padding:2px 16px 6px;scroll-snap-type:x mandatory}
 .options::-webkit-scrollbar{display:none}
 .opt{flex:0 0 40%;min-width:140px;scroll-snap-align:start;border:2px solid var(--line);background:var(--surface);border-radius:18px;padding:8px;text-align:left;display:flex;flex-direction:column;gap:6px;transition:border-color .2s,transform .25s}
 .opt[aria-pressed="true"]{border-color:var(--accent);transform:translateY(-2px);box-shadow:0 8px 18px color-mix(in srgb,var(--accent) 22%,transparent)}
@@ -324,7 +324,7 @@ div.hero .me2{fill:var(--blue);stroke:#fff;stroke-width:3}
 .k-parc i{border-color:#25C98F}.k-parc svg{stroke:#25C98F}
 .k-culte i{border-color:#C9D6D5}.k-culte svg{stroke:#C9D6D5}
 /* ---------- Coach ---------- */
-.coachtabs{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}
+.coachtabs{flex:none;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}
 .coachtabs::-webkit-scrollbar{display:none}
 .coachtabs .chip{flex:none}
 .quote{position:relative;border-radius:22px;padding:22px 20px 18px;border:1px solid var(--line);background:radial-gradient(120% 120% at 0% 0%,#0F3B3A,var(--surface-2) 70%);overflow:hidden}
@@ -355,7 +355,7 @@ div.hero .me2{fill:var(--blue);stroke:#fff;stroke-width:3}
 .tabs span{white-space:nowrap}
 .tabs button{font-size:11px}
 /* Coach : onglets internes, profil, besoins, plan */
-.segscroll{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;background:var(--surface-2);border-radius:14px;padding:4px;margin-top:-4px}
+.segscroll{flex:none;display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;background:var(--surface-2);border-radius:14px;padding:4px;margin-top:-4px}
 .segscroll::-webkit-scrollbar{display:none}
 .segscroll button{flex:none;border:0;background:none;color:var(--muted);font-weight:800;font-size:13.5px;padding:9px 13px;border-radius:11px;min-height:40px;white-space:nowrap}
 .segscroll button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 4px rgba(0,0,0,.3)}
@@ -445,7 +445,7 @@ div.hero .me2{fill:var(--blue);stroke:#fff;stroke-width:3}
 .prog b{font-family:var(--f-display);font-size:21px}.prog small{font-size:13px;color:var(--muted)}
 .lv{align-self:flex-start;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--accent);background:var(--soft);border-radius:999px;padding:3px 9px}
 .progcard{border:1px solid var(--line);border-radius:20px;padding:16px;display:flex;flex-direction:column;gap:8px;background:radial-gradient(120% 100% at 100% 0%,#0F3B3A,var(--surface-2) 65%)}
-.weeks{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.weeks{flex:none;display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
 .weeks::-webkit-scrollbar{display:none}
 .weeks button{flex:none;min-width:46px;min-height:40px;border-radius:12px;border:1px solid var(--line);background:var(--surface-2);font-weight:800;font-size:13px;color:var(--muted)}
 .weeks button[aria-pressed="true"]{border-color:var(--accent);color:var(--ink);background:var(--soft)}

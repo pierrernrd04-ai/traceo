@@ -553,8 +553,9 @@ function thumb(cv, pts){
   const xy = pts.map(p => [p[1]*Math.cos(RAD(p[0])), -p[0]]); let a = 1e9, b = -1e9, d = 1e9, e = -1e9;
   for(const [x, y] of xy){ a = Math.min(a, x); b = Math.max(b, x); d = Math.min(d, y); e = Math.max(e, y); }
   const s = Math.min((w-14)/Math.max(b-a, 1e-9), (h-14)/Math.max(e-d, 1e-9)), ox = (w-(b-a)*s)/2, oy = (h-(e-d)*s)/2;
-  c.lineJoin = c.lineCap = "round"; c.strokeStyle = cssv("--accent"); c.lineWidth = 2.8; c.beginPath();
-  xy.forEach(([x, y], i) => { const X = ox+(x-a)*s, Y = oy+(y-d)*s; i ? c.lineTo(X, Y) : c.moveTo(X, Y); }); c.stroke();
+  const gr = c.createLinearGradient(0, 0, w, h); gr.addColorStop(0, "#2BE39B"); gr.addColorStop(1, "#1EA6D0");
+  c.lineJoin = c.lineCap = "round"; c.strokeStyle = gr; c.lineWidth = 2.8; c.shadowColor = "rgba(37,201,143,.8)"; c.shadowBlur = 6; c.beginPath();
+  xy.forEach(([x, y], i) => { const X = ox+(x-a)*s, Y = oy+(y-d)*s; i ? c.lineTo(X, Y) : c.moveTo(X, Y); }); c.stroke(); c.shadowBlur = 0;
   c.fillStyle = cssv("--ink"); c.beginPath(); c.arc(ox+(xy[0][0]-a)*s, oy+(xy[0][1]-d)*s, 3.4, 0, 7); c.fill();
 }
 
@@ -1512,18 +1513,45 @@ const lat2y = (la, z) => { const s = Math.sin(RAD(la)); return (.5 - Math.log((1
 const loadImg = src => new Promise(r => { const im = new Image(); im.crossOrigin = "anonymous"; const t = setTimeout(() => r(null), 7000); im.onload = () => { clearTimeout(t); r(im); }; im.onerror = () => { clearTimeout(t); r(null); }; im.src = src; });
 function rr(c, x, y, w, h, r){ c.beginPath(); c.moveTo(x+r, y); c.arcTo(x+w, y, x+w, y+h, r); c.arcTo(x+w, y+h, x, y+h, r); c.arcTo(x, y+h, x, y, r); c.arcTo(x, y, x+w, y, r); c.closePath(); }
 function fit(c, s, max){ s = String(s); if(c.measureText(s).width <= max) return s; while(s.length > 1 && c.measureText(s + "…").width > max) s = s.slice(0, -1); return s + "…"; }
+// Rend la zone de la boucle avec le style vectoriel de l'app, hors écran ; renvoie l'image et la projection
+async function glSnapshot(pts, W, H, pad){
+  if(PV || !window.maplibregl || !styleCache) return null;
+  const k = 2, div = document.createElement("div"); div.style.cssText = `position:fixed;left:-10000px;top:0;width:${W/k}px;height:${H/k}px`; document.body.appendChild(div);
+  let m;
+  try{
+    m = new maplibregl.Map({container:div, style:JSON.parse(styleCache), interactive:false, attributionControl:false, preserveDrawingBuffer:true, pixelRatio:k, fadeDuration:0});
+    let a = 90, b = -90, d = 180, e = -180; for(const [la, lo] of pts){ a = Math.min(a, la); b = Math.max(b, la); d = Math.min(d, lo); e = Math.max(e, lo); }
+    await new Promise(r => { m.once("load", r); setTimeout(r, 8000); });
+    m.fitBounds([[d, a], [e, b]], {padding:{top:pad[0]/k, right:pad[1]/k, bottom:pad[2]/k, left:pad[3]/k}, duration:0, maxZoom:17});
+    await new Promise(r => { m.once("idle", r); setTimeout(r, 9000); });
+    const img = document.createElement("canvas"); img.width = W; img.height = H; img.getContext("2d").drawImage(m.getCanvas(), 0, 0, W, H);
+    const P = p => { const q = m.project([p[1], p[0]]); return [q.x*k, q.y*k]; };
+    const proj = pts.map(P);
+    return {img, proj};
+  }catch(e){ return null; }
+  finally{ try{ m?.remove(); }catch(e){} div.remove(); }
+}
 async function poster(o, tiles){
   const W = 1080, H = 1350, cv = document.createElement("canvas"); cv.width = W; cv.height = H; const c = cv.getContext("2d");
   if(o.pts.length < 2) throw new Error("vide");
   let a = 90, b = -90, d = 180, e = -180; for(const [la, lo] of o.pts){ a = Math.min(a, la); b = Math.max(b, la); d = Math.min(d, lo); e = Math.max(e, lo); }
   let z = 18; while(z > 3 && ((lon2x(e, z) - lon2x(d, z)) > W - 180 || (lat2y(a, z) - lat2y(b, z)) > H - 560)) z--;
   const ox = (lon2x(d, z) + lon2x(e, z))/2 - W/2, oy = (lat2y(a, z) + lat2y(b, z))/2 - H/2 + 20;
-  c.fillStyle = "#0B1A20"; c.fillRect(0, 0, W, H);
-  if(tiles && tileUrl){ const n = 2**z, jobs = []; for(let x = Math.floor(ox/256); x <= Math.floor((ox+W)/256); x++) for(let y = Math.floor(oy/256); y <= Math.floor((oy+H)/256); y++){ if(y < 0 || y >= n) continue; jobs.push(loadImg(tileUrl(z, ((x % n) + n) % n, y)).then(im => im && c.drawImage(im, x*256 - ox, y*256 - oy, 256, 256))); } await Promise.all(jobs); }
-  const P = p => [lon2x(p[1], z) - ox, lat2y(p[0], z) - oy];
+  c.fillStyle = "#050F15"; c.fillRect(0, 0, W, H);
+  const snap = tiles ? await glSnapshot(o.pts, W, H, [250, 90, 380, 90]) : null;
+  if(snap) c.drawImage(snap.img, 0, 0);
+  else if(tiles && tileUrl){ const n = 2**z, jobs = []; for(let x = Math.floor(ox/256); x <= Math.floor((ox+W)/256); x++) for(let y = Math.floor(oy/256); y <= Math.floor((oy+H)/256); y++){ if(y < 0 || y >= n) continue; jobs.push(loadImg(tileUrl(z, ((x % n) + n) % n, y)).then(im => im && c.drawImage(im, x*256 - ox, y*256 - oy, 256, 256))); } await Promise.all(jobs); }
+  const XY = snap ? snap.proj : o.pts.map(p => [lon2x(p[1], z) - ox, lat2y(p[0], z) - oy]);
+  // vignettage, puis tracé néon : halo, bordure sombre, dégradé vert → cyan
+  const vg = c.createRadialGradient(W/2, H*.42, W*.35, W/2, H*.42, W*.95); vg.addColorStop(0, "rgba(2,8,11,0)"); vg.addColorStop(1, "rgba(2,8,11,.7)"); c.fillStyle = vg; c.fillRect(0, 0, W, H);
+  let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9; for(const [x, y] of XY){ x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
+  const ng = c.createLinearGradient(x0, y0, x1, y1); ng.addColorStop(0, "#2BE39B"); ng.addColorStop(.55, "#22D3C5"); ng.addColorStop(1, "#1EA6D0");
+  const path = () => { c.beginPath(); XY.forEach(([x, y], i) => i ? c.lineTo(x, y) : c.moveTo(x, y)); };
   c.lineJoin = c.lineCap = "round";
-  for(const [w, col, bl] of [[22, "rgba(255,255,255,.9)", 0], [12, "#25C98F", 24]]){ c.strokeStyle = col; c.lineWidth = w; c.shadowColor = bl ? "#25C98F" : "transparent"; c.shadowBlur = bl; c.beginPath(); o.pts.forEach((p, i) => { const [x, y] = P(p); i ? c.lineTo(x, y) : c.moveTo(x, y); }); c.stroke(); }
-  c.shadowBlur = 0; const [sx, sy] = P(o.pts[0]); c.fillStyle = "#07131A"; c.beginPath(); c.arc(sx, sy, 20, 0, 7); c.fill(); c.fillStyle = "#fff"; c.beginPath(); c.arc(sx, sy, 8, 0, 7); c.fill();
+  c.strokeStyle = "rgba(37,201,143,.55)"; c.lineWidth = 34; c.shadowColor = "#25C98F"; c.shadowBlur = 40; path(); c.stroke();
+  c.shadowBlur = 0; c.strokeStyle = "#02110B"; c.lineWidth = 20; path(); c.stroke();
+  c.strokeStyle = ng; c.lineWidth = 11; c.shadowColor = "rgba(43,227,155,.9)"; c.shadowBlur = 14; path(); c.stroke();
+  c.shadowBlur = 0; const [sx, sy] = XY[0]; c.fillStyle = "#07131A"; c.beginPath(); c.arc(sx, sy, 20, 0, 7); c.fill(); c.fillStyle = "#fff"; c.beginPath(); c.arc(sx, sy, 8, 0, 7); c.fill();
   const g = c.createLinearGradient(0, 0, 0, 230); g.addColorStop(0, "rgba(5,15,20,.95)"); g.addColorStop(1, "rgba(5,15,20,0)"); c.fillStyle = g; c.fillRect(0, 0, W, 230);
   c.fillStyle = "#fff"; c.font = "800 66px 'Bricolage Grotesque', sans-serif"; c.fillText("traceo", 64, 108);
   c.fillStyle = "#7FE3C3"; c.font = "700 30px Figtree, sans-serif"; c.fillText(new Date().toLocaleDateString("fr-FR", {day:"numeric", month:"long", year:"numeric"}), 64, 152);
@@ -1532,7 +1560,7 @@ async function poster(o, tiles){
   const cols = o.lines.slice(0, 4), cw = (W - 180)/cols.length;
   cols.forEach(([v, l], i) => { const x = 90 + i*cw; c.fillStyle = i === 0 ? "#25C98F" : "#fff"; c.font = "800 60px 'Bricolage Grotesque', sans-serif"; c.fillText(fit(c, v, cw - 14), x, cy + 170); c.fillStyle = "rgba(255,255,255,.65)"; c.font = "600 27px Figtree, sans-serif"; c.fillText(l, x, cy + 212); });
   c.fillStyle = "rgba(255,255,255,.55)"; c.font = "600 24px Figtree, sans-serif"; c.fillText("Une boucle neuve à chaque sortie · Traceo", 90, cy + 256);
-  c.textAlign = "right"; c.font = "500 18px Figtree, sans-serif"; c.fillStyle = "rgba(255,255,255,.5)"; c.fillText(C.GOOGLE_MAPS_KEY ? "Carte © Google" : "© OpenStreetMap © CARTO", W - 24, cy - 14);
+  c.textAlign = "right"; c.font = "500 18px Figtree, sans-serif"; c.fillStyle = "rgba(255,255,255,.5)"; c.fillText(C.GOOGLE_MAPS_KEY ? "Carte © Google" : snap ? "© OpenFreeMap © OpenStreetMap" : "© OpenStreetMap © CARTO", W - 24, cy - 14);
   return await new Promise((ok, ko) => { try{ cv.toBlob(x => x ? ok(x) : ko(new Error("blob")), "image/png"); }catch(err){ ko(err); } });
 }
 async function posterFlow(o){
