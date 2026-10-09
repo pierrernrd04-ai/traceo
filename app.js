@@ -93,6 +93,8 @@ const TraceoGL = window.L && L.Layer ? L.Layer.extend({
     m.getPane("tilePane").appendChild(this._c); const s = m.getSize(); this._c.style.width = s.x + "px"; this._c.style.height = s.y + "px";
     const c = m.getCenter();
     this._gl = new maplibregl.Map({container:this._c, style:this.o.style, interactive:false, attributionControl:false, center:[c.lng, c.lat], zoom:m.getZoom() - 1, fadeDuration:0});
+    // Icônes absentes du style (ex. « circle-11 ») : image vide plutôt qu'une erreur en console
+    this._gl.on("styleimagemissing", e => { if(!this._gl.hasImage(e.id)) this._gl.addImage(e.id, {width:1, height:1, data:new Uint8Array(4)}); });
     m.on("move zoom moveend zoomend viewreset", this._up, this); m.on("resize", this._rs, this); m.on("zoomanim", this._anim, this);
     if(m.attributionControl && this.o.attribution) m.attributionControl.addAttribution(this.o.attribution);
     this._up();
@@ -163,6 +165,7 @@ function showMe(la, lo, acc){
 }
 function setStart(s, fly = true){
   S.start = s; S.results = null; S.view = "form"; routeLayer.clearLayers();
+  document.querySelector(".hint")?.remove();
   if(startMk){ map.removeLayer(startMk); startMk = null; }
   startMk = L.marker([s.lat, s.lng], {icon:L.divIcon({className:"", html:'<div class="pin"><span>GO</span></div>', iconSize:[40,40], iconAnchor:[4,40]}), zIndexOffset:900}).addTo(map);
   if(fly) map.flyTo([s.lat, s.lng], s.city ? 15 : 16, {duration:1.3});

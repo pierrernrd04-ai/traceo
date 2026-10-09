@@ -1,4 +1,6 @@
 /* Traceo — charte sombre et épurée : nuit bleu-vert, tracé vert, accents bleu lagon. Un seul thème, volontairement sombre. */
+/* L'attribut hidden doit toujours l'emporter sur les display:flex/grid des composants */
+[hidden]{display:none!important}
 :root{
   --bg:#07131A; --surface:#0E1E25; --surface-2:#14282F; --ink:#E6F2F0; --muted:#8AA4A3; --line:#1D3640;
   --accent:#25C98F; --accent-2:#1EA6D0; --accent-ink:#03140D; --soft:rgba(37,201,143,.14);
@@ -256,13 +258,13 @@ ul.checks li::before{content:"✓";width:22px;height:22px;flex:none;border-radiu
 .sheet{background:var(--surface);width:100%;max-width:480px;border-radius:28px 28px 0 0;padding:22px 18px calc(18px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:14px;max-height:92vh;overflow-y:auto;animation:slideUp .42s cubic-bezier(.2,.8,.2,1)}
 @media (min-width:700px){.modal{align-items:center}.sheet{border-radius:28px}}
 .sheet .x{align-self:flex-end;margin:-10px -6px -14px 0}
-.hero{height:170px;border-radius:22px;border:1px solid var(--line);background:radial-gradient(120% 100% at 80% 0%,#0F3B3A,var(--night) 62%);position:relative;overflow:hidden}
-.hero svg{position:absolute;inset:0;width:100%;height:100%}
-.hero .g{stroke:rgba(255,255,255,.08);stroke-width:2;fill:none}
-.hero .o{stroke:rgba(255,255,255,.22);stroke-width:4;fill:none;stroke-linecap:round;stroke-dasharray:6 8}
-.hero .n{stroke:var(--accent);stroke-width:6;fill:none;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:720;stroke-dashoffset:720;animation:heroDraw 2.6s .2s cubic-bezier(.6,.05,.3,1) forwards infinite alternate;filter:drop-shadow(0 0 8px rgba(37,201,143,.7))}
+div.hero{height:170px;border-radius:22px;border:1px solid var(--line);background:radial-gradient(120% 100% at 80% 0%,#0F3B3A,var(--night) 62%);position:relative;overflow:hidden}
+div.hero svg{position:absolute;inset:0;width:100%;height:100%}
+div.hero .g{stroke:rgba(255,255,255,.08);stroke-width:2;fill:none}
+div.hero .o{stroke:rgba(255,255,255,.22);stroke-width:4;fill:none;stroke-linecap:round;stroke-dasharray:6 8}
+div.hero .n{stroke:var(--accent);stroke-width:6;fill:none;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:720;stroke-dashoffset:720;animation:heroDraw 2.6s .2s cubic-bezier(.6,.05,.3,1) forwards infinite alternate;filter:drop-shadow(0 0 8px rgba(37,201,143,.7))}
 @keyframes heroDraw{to{stroke-dashoffset:0}}
-.hero .me2{fill:var(--blue);stroke:#fff;stroke-width:3}
+div.hero .me2{fill:var(--blue);stroke:#fff;stroke-width:3}
 .dots{display:flex;gap:6px;justify-content:center}
 .dots i{width:8px;height:8px;border-radius:4px;background:var(--line);transition:all .3s}
 .dots i.on{width:26px;background:var(--accent)}
@@ -504,8 +506,8 @@ ul.checks li::before{content:"✓";width:22px;height:22px;flex:none;border-radiu
 .mobi2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .mobi2 .prog b{font-size:18px}
 /* Grandes villes */
-.citygrid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;max-height:48vh;overflow-y:auto}
-.citygrid button{display:flex;justify-content:space-between;align-items:center;gap:8px;text-align:left;border:1px solid var(--line);background:var(--surface-2);border-radius:14px;padding:10px 12px;min-height:48px}
+.citygrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;max-height:48vh;overflow-y:auto}
+.citygrid button{display:flex;justify-content:space-between;align-items:center;gap:8px;text-align:left;border:1px solid var(--line);background:var(--surface-2);border-radius:14px;padding:10px 12px;min-height:48px;min-width:0}
 .citygrid b{font-size:14.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .citygrid small{font-size:11.5px;font-weight:800;color:var(--muted)}
 /* Date et heure */
@@ -711,4 +713,3 @@ ul.checks li::before{content:"✓";width:22px;height:22px;flex:none;border-radiu
 @keyframes wmRing{from{stroke-dashoffset:100}}
 .wm.roll .wm-dot{animation:wmPop .3s 1.25s both}
 @keyframes wmPop{from{opacity:0;r:0}}
-.splash[hidden]{display:none!important}
