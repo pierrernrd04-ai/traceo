@@ -19,7 +19,7 @@
 <script>
   // Anciens liens : l'app installée, le retour de PayPal et le diagnostic ouvrent directement l'app
   (function(){ var q = location.search, sa = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
-    if(sa || /[?&](source=app|paiement=|test|raster)/.test(q)) location.replace("app.html" + q + location.hash); })();
+    if(sa || /[?&](source=app|paiement=|test|finbeta|raster)/.test(q)) location.replace("app.html" + q + location.hash); })();
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
