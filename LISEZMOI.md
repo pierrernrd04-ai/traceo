@@ -8,10 +8,29 @@ Une boucle de course neuve à chaque sortie, depuis là où tu es.
 4. **Course guidée en direct.** Le nom des rues s'affiche, avec les virages annoncés à la voix, le chrono, la distance, l'allure et les calories.
 5. **Bilan.** Durée, distance, allure moyenne et calories brûlées, puis envoi sur Strava ou Garmin, fichier GPX ou image à partager.
 
+## Les adresses du site
+
+- **Page de vente** (à mettre sur Instagram) : https://pierrernrd04-ai.github.io/traceo/
+- **L'app** : https://pierrernrd04-ai.github.io/traceo/app.html
+
+Les liens de la page de vente ouvrent l'app. Une app déjà installée, le retour de PayPal (`?paiement=ok`) et le diagnostic (`?test`) passent directement dans l'app.
+
+### Passer à traceo.io
+
+Au 9 octobre 2026, `traceo.io` semblait libre, contrairement à `traceo.com`, `.fr` et `.app`.
+1. Achète `traceo.io` chez un registraire : Porkbun, Namecheap ou Gandi, environ 35 à 60 € par an.
+2. Dans la zone DNS du domaine, ajoute :
+   - quatre enregistrements **A** pour `@` : `185.199.108.153`, `185.199.109.153`, `185.199.110.153` et `185.199.111.153` ;
+   - un **CNAME** `www` vers `pierrernrd04-ai.github.io`.
+3. Sur GitHub, ouvre le dépôt > **Settings** > **Pages** > **Custom domain**, saisis `traceo.io`, puis coche **Enforce HTTPS** quand GitHub le propose (quelques minutes à quelques heures).
+4. Mets à jour l'adresse de retour du lien PayPal (`https://traceo.io/?paiement=ok`) et `og:url` / `og:image` dans `index.html`.
+
+La page de vente est alors sur `traceo.io` et l'app sur `traceo.io/app.html`.
+
 ## Sur iPhone : l'app par un simple lien (recommandé)
 
-L'app est en ligne sur **https://pierrernrd04-ai.github.io/traceo/**. GitHub Pages publie automatiquement la branche `main`.
-1. Ouvre ce lien dans **Safari** sur l'iPhone.
+L'app est en ligne sur **https://pierrernrd04-ai.github.io/traceo/app.html**. GitHub Pages publie automatiquement la branche `main`.
+1. Ouvre ce lien dans **Safari** sur l'iPhone. La page de vente ouvre aussi l'app avec « Ouvrir l'app ».
 2. Touche **Partager** (le carré avec la flèche), puis **« Sur l'écran d'accueil »**.
 3. Traceo apparaît avec son icône et s'ouvre en plein écran, avec son écran de démarrage, comme une vraie app.
 
@@ -35,7 +54,7 @@ Pour mettre à jour l'app plus tard : Workers & Pages > traceo > Créer un dépl
 
 Chaque paiement débloque Premium pour 31 jours. Les jours s'ajoutent si la personne reprend avant la fin, et un rappel s'affiche 3 jours avant l'échéance.
 1. Dans ton compte PayPal, crée un **lien de paiement** « Traceo Premium – 31 jours » à 4,99 €.
-2. Mets comme adresse de retour : `https://pierrernrd04-ai.github.io/traceo/?paiement=ok`.
+2. Mets comme adresse de retour : `https://pierrernrd04-ai.github.io/traceo/app.html?paiement=ok`.
 3. Colle le lien (`https://www.paypal.com/ncp/payment/PLB-…`) dans `PAYPAL_PAYMENT_LINK` de `config.js`, puis pousse sur `main`.
 
 Si PayPal renvoie la personne dans Safari plutôt que dans l'app de l'écran d'accueil, l'onglet Premium de l'app propose « J'ai payé, activer Premium ». Ce bouton n'apparaît que pendant 2 h après le clic sur « Payer avec PayPal ».
