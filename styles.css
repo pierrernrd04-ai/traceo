@@ -43,6 +43,11 @@ svg{flex:none}
 /* Tracé néon : halo flouté, bordure sombre, cœur en dégradé vert → cyan */
 .route-glow{filter:url(#tglow)}
 .route-core{stroke:url(#tgrad)}
+/* Carte vectorielle : le tracé est dessiné dans la carte, sous les noms des rues ; on masque la version SVG */
+.glroute .route-glow,.glroute .route-casing,.glroute .route-core,.glroute .route-flow,.glroute .live-svg{display:none}
+/* Carte de secours (Esri) teintée bleu nuit, noms des rues bien contrastés */
+.esri-base{filter:brightness(.78) sepia(.5) hue-rotate(150deg) saturate(1.8) contrast(1.05)}
+.esri-labels{filter:brightness(1.35) contrast(1.1)}
 .km{position:absolute;transform:translate(-50%,-50%);display:flex;align-items:baseline;gap:1px;font:700 9px var(--f-body);color:var(--muted);background:rgba(5,15,21,.88);padding:3px 7px 3px 6px;border-radius:999px;border:1.5px solid var(--accent);box-shadow:0 0 0 3px rgba(37,201,143,.15),0 2px 8px rgba(0,0,0,.5);white-space:nowrap;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}
 .km b{font:800 12px var(--f-display);color:var(--ink)}
 /* Vignettage : bords assombris et haut fondu sous la barre de recherche, pour faire ressortir le tracé */

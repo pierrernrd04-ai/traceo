@@ -124,7 +124,7 @@ const TraceoGL = window.L && L.Layer ? L.Layer.extend({
     m.getPane("tilePane").appendChild(this._c); const s = m.getSize(); this._c.style.width = s.x + "px"; this._c.style.height = s.y + "px";
     const c = m.getCenter();
     this._gl = new maplibregl.Map({container:this._c, style:this.o.style, interactive:false, attributionControl:false, center:[c.lng, c.lat], zoom:m.getZoom() - 1, fadeDuration:0, pixelRatio:Math.min(2, window.devicePixelRatio || 1), maxTileCacheSize:120, refreshExpiredTiles:false, trackResize:false});
-    this._gl.once("load", () => { this._c.style.opacity = 1; });
+    this._gl.once("load", () => { this._c.style.opacity = 1; this._ready = true; glSyncRoute(); glSyncLive(); });
     setTimeout(() => { if(this._c) this._c.style.opacity = 1; }, 4000);
     // Icônes absentes du style (ex. « circle-11 ») : image vide plutôt qu'une erreur en console
     this._gl.on("styleimagemissing", e => { if(!this._gl.hasImage(e.id)) this._gl.addImage(e.id, {width:1, height:1, data:new Uint8Array(4)}); });
@@ -146,8 +146,10 @@ const TraceoGL = window.L && L.Layer ? L.Layer.extend({
 }) : null;
 let tileUrl = null, base = null, glBroken = false;
 // Si la carte vectorielle plante (mémoire du téléphone, WebGL), on bascule tout seul sur la carte classique
-function glFail(){ if(glBroken) return; glBroken = true; console.warn("Carte vectorielle indisponible : carte classique"); setTimeout(setBase, 0); }
+function glFail(){ if(glBroken) return; glBroken = true; document.body.classList.remove("glroute"); console.warn("Carte vectorielle indisponible : carte classique"); setTimeout(setBase, 0); }
 async function setBase(){
+  // Calque des noms de rues de la carte classique : au-dessus des tracés (400), sous les repères (600)
+  if(!map.getPane("labels")){ const lp = map.createPane("labels"); lp.style.zIndex = 450; lp.style.pointerEvents = "none"; }
   if(base) map.removeLayer(base);
   if(PV){ const p = PV.baseLayer(); tileUrl = p.tileUrl; base = p.layer.addTo(map); return; }
   if(C.GOOGLE_MAPS_KEY){
@@ -164,7 +166,7 @@ async function setBase(){
     try{
       const sup = maplibregl.supported ? maplibregl.supported() : true;
       if(sup){
-        tileUrl = (z, x, y) => `https://${"abcd"[(x+y)%4]}.basemaps.cartocdn.com/${style}/${z}/${x}/${y}@2x.png`;  // pour l'affiche et le hors-ligne
+        tileUrl = (z, x, y) => `https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/${z}/${y}/${x}`;  // pour l'affiche de secours
         const styleUrl = C.MAP_STYLE_URL || "https://tiles.openfreemap.org/styles/dark";
         const st = await traceoStyleJSON(styleUrl).catch(() => styleUrl);
         base = new TraceoGL({style:st, attribution:'© <a href="https://openfreemap.org">OpenFreeMap</a> © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'}).addTo(map);
@@ -174,7 +176,14 @@ async function setBase(){
       }
     }catch(e){ console.warn("MapLibre indisponible, carte raster", e); }
   }
-  tileUrl = (z, x, y) => `https://${"abcd"[(x+y)%4]}.basemaps.cartocdn.com/${style}/${z}/${x}/${y}@2x.png`;
+  // Carte classique (si la carte vectorielle échoue) : fond sombre Esri + noms des rues dans un calque AU-DESSUS du tracé
+  const ESRI = "https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_";
+  tileUrl = (z, x, y) => `${ESRI}Base/MapServer/tile/${z}/${y}/${x}`;
+  base = L.layerGroup([
+    L.tileLayer(ESRI + "Base/MapServer/tile/{z}/{y}/{x}", {maxNativeZoom:16, maxZoom:20, crossOrigin:true, className:"esri-base", attribution:'© <a href="https://www.esri.com">Esri</a> © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'}),
+    L.tileLayer(ESRI + "Reference/MapServer/tile/{z}/{y}/{x}", {maxNativeZoom:16, maxZoom:20, crossOrigin:true, pane:"labels", className:"esri-labels"})
+  ]).addTo(map);
+  return;
   base = L.tileLayer(`https://{s}.basemaps.cartocdn.com/${style}/{z}/{x}/{y}{r}.png`, {subdomains:"abcd", maxZoom:20, crossOrigin:true, attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/attributions">CARTO</a>'}).addTo(map);
 }
 // Style de carte « Traceo nuit » : le style OpenFreeMap est retravaillé AVANT affichage (pas de flash),
@@ -211,7 +220,12 @@ async function traceoStyleJSON(url){
       delete ly["icon-image"]; pt["icon-opacity"] = 0;
       pt["text-halo-color"] = P.bg; pt["text-halo-width"] = 1.6; pt["text-halo-blur"] = .5;
       if(id === "water_name"){ pt["text-color"] = "#4B97AE"; ly["text-font"] = ["Noto Sans Italic"]; }
-      else if(/highway_name/.test(id)){ pt["text-color"] = "#8DB1B0"; ly["text-font"] = ["Noto Sans Regular"]; }
+      else if(/highway_name/.test(id)){
+        // Noms des rues : priorité absolue à la lisibilité (gras, clair, plus gros quand on zoome, répétés le long de la rue)
+        pt["text-color"] = ["interpolate", ["linear"], ["zoom"], 13, "#A9C7C5", 16, "#E3F1EF"]; pt["text-halo-color"] = "#03090D"; pt["text-halo-width"] = 2.2; pt["text-halo-blur"] = .3;
+        ly["text-font"] = ["Noto Sans Bold"]; ly["text-size"] = ["interpolate", ["linear"], ["zoom"], 12, 10.5, 14, 12, 16, 14.5, 18, 17];
+        ly["text-letter-spacing"] = .03; ly["symbol-spacing"] = 220; ly["text-max-angle"] = 35; ly["text-padding"] = 1;
+      }
       else if(/place_city|place_country|place_state/.test(id)){ pt["text-color"] = /country/.test(id) ? "#7FE3C3" : "#EAF5F3"; ly["text-font"] = ["Noto Sans Bold"]; if(/country|state/.test(id)){ ly["text-transform"] = "uppercase"; ly["text-letter-spacing"] = .12; } }
       else if(id === "place_town"){ pt["text-color"] = "#D3E4E2"; ly["text-font"] = ["Noto Sans Bold"]; }
       else if(/place_(village|suburb|other)/.test(id)){ pt["text-color"] = "#8AA4A3"; if(id === "place_suburb"){ ly["text-transform"] = "uppercase"; ly["text-letter-spacing"] = .1; } }
@@ -600,6 +614,50 @@ const curRoute = () => S.results?.[S.sel];
 function commitMemory(){ rebuildMemory(); }
 
 const routeSV = L.svg({padding:.5});
+// Carte vectorielle : la boucle et la trace courue sont dessinées DANS la carte, juste sous les noms des rues,
+// pour que les noms restent toujours lisibles par-dessus le tracé.
+const GLR = {route:null, live:[], anim:0};
+function glMap(){ const g = !glBroken && base && base._ready && base.getMaplibreMap && base.getMaplibreMap(); return g || null; }
+const NEON = [[0, "#2BE39B"], [.55, "#22D3C5"], [1, "#1EA6D0"]];
+// Dégradé le long du tracé, coupé à p (0 → 1) pour l'animation de dessin
+function glGrad(stops, p){
+  const e = ["interpolate", ["linear"], ["line-progress"]];
+  if(p >= .999){ for(const [t, c] of stops) e.push(t, c); return e; }
+  p = Math.max(p, .002); let last = stops[0][1];
+  for(const [t, c] of stops) if(t < p){ e.push(t, c); last = c; }
+  e.push(p, last, p + .001, "rgba(0,0,0,0)", 1, "rgba(0,0,0,0)");
+  return e;
+}
+function glLayers(g){
+  if(g.getSource("tr-route")) return;
+  // juste au-dessus de la dernière forme (routes, bâtiments…), donc sous tous les noms
+  const L0 = g.getStyle().layers, lastShape = L0.map(l => l.type !== "symbol").lastIndexOf(true), before = L0[lastShape + 1]?.id, ln = {"line-join":"round", "line-cap":"round"};
+  g.addSource("tr-route", {type:"geojson", lineMetrics:true, data:{type:"FeatureCollection", features:[]}});
+  g.addSource("tr-live", {type:"geojson", data:{type:"FeatureCollection", features:[]}});
+  g.addLayer({id:"tr-glow", type:"line", source:"tr-route", layout:ln, paint:{"line-color":"#25C98F", "line-width":20, "line-blur":9, "line-opacity":.55}}, before);
+  g.addLayer({id:"tr-case", type:"line", source:"tr-route", layout:ln, paint:{"line-color":"#02110B", "line-width":11, "line-opacity":.85}}, before);
+  g.addLayer({id:"tr-core", type:"line", source:"tr-route", layout:ln, paint:{"line-width":6, "line-gradient":glGrad(NEON, 1)}}, before);
+  g.addLayer({id:"tr-live-glow", type:"line", source:"tr-live", layout:ln, paint:{"line-color":"#4FA6FF", "line-width":16, "line-blur":7, "line-opacity":.5}}, before);
+  g.addLayer({id:"tr-live", type:"line", source:"tr-live", layout:ln, paint:{"line-color":"#4FA6FF", "line-width":5}}, before);
+}
+const lineFC = pts => ({type:"FeatureCollection", features:pts && pts.length > 1 ? [{type:"Feature", properties:{}, geometry:{type:"LineString", coordinates:pts.map(p => [p[1], p[0]])}}] : []});
+function glDraw(g, p){
+  try{ g.setPaintProperty("tr-core", "line-gradient", glGrad(NEON, p)); g.setPaintProperty("tr-case", "line-gradient", glGrad([[0, "#02110B"], [1, "#02110B"]], p)); g.setPaintProperty("tr-glow", "line-gradient", glGrad([[0, "#25C98F"], [1, "#25C98F"]], p)); }catch(e){}
+}
+function glSyncRoute(animate){
+  const g = glMap(); document.body.classList.toggle("glroute", !!g); if(!g) return false;
+  try{
+    glLayers(g); g.getSource("tr-route").setData(lineFC(GLR.route));
+    cancelAnimationFrame(GLR.anim);
+    if(animate && GLR.route){ const t0 = performance.now(), D = 1800, ease = t => t < .5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3)/2;
+      const step = now => { const t = Math.min(1, (now - t0)/D); glDraw(g, ease(t)); if(t < 1) GLR.anim = requestAnimationFrame(step); }; GLR.anim = requestAnimationFrame(step); }
+    else glDraw(g, 1);
+    return true;
+  }catch(e){ document.body.classList.remove("glroute"); return false; }
+}
+function glSyncLive(){ const g = glMap(); if(!g) return; try{ glLayers(g); g.getSource("tr-live").setData(lineFC(GLR.live)); }catch(e){} }
+{ const c1 = routeLayer.clearLayers.bind(routeLayer); routeLayer.clearLayers = () => { GLR.route = null; glSyncRoute(); return c1(); };
+  const c2 = liveLayer.clearLayers.bind(liveLayer); liveLayer.clearLayers = () => { GLR.live = []; glSyncLive(); return c2(); }; }
 // Dégradé vert → cyan et halo lumineux du tracé, déclarés une fois dans le calque SVG
 function routeDefs(){
   const svg = routeSV._container; if(!svg || svg.querySelector("#tgrad")) return;
@@ -612,12 +670,14 @@ function showRoute(r, fit = true){
   routeLayer.clearLayers(); routeLayer._r = r; setTimeout(() => loadPOIs(r), fit ? 1900 : 300);
   const sv = routeSV, acc = cssv("--accent"), o = {renderer:sv, lineJoin:"round", lineCap:"round", interactive:false};
   const glow = L.polyline(r.pts, {...o, color:acc, weight:20, opacity:.5, className:"route-glow"}).addTo(routeLayer); routeDefs();
-  const casing = L.polyline(r.pts, {...o, color:"#02110B", weight:11, opacity:.85}).addTo(routeLayer);
+  const casing = L.polyline(r.pts, {...o, color:"#02110B", weight:11, opacity:.85, className:"route-casing"}).addTo(routeLayer);
   const line = L.polyline(r.pts, {...o, color:acc, weight:6, className:"route-core"}).addTo(routeLayer);
   const flow = L.polyline(r.pts, {...o, color:"#fff", weight:3, opacity:0, className:"route-flow"}).addTo(routeLayer);
   let a = 0, next = 1000;
   for(let i = 1; i < r.pts.length; i++){ a += dist(r.pts[i-1], r.pts[i]); if(a >= next && a < r.len - 250){ L.marker(r.pts[i], {interactive:false, icon:L.divIcon({className:"", html:`<span class="km"><b>${next/1000}</b>km</span>`, iconSize:[0,0], iconAnchor:[0,0]})}).addTo(routeLayer); next += 1000; } }
   if(fit) map.flyToBounds(L.latLngBounds(r.pts), {...pad(), duration:1});
+  GLR.route = r.pts;
+  if(glMap()){ setTimeout(() => { if(routeLayer._r === r) glSyncRoute(true); }, fit ? 1050 : 40); return; }
   // Le tracé se dessine (halo, bordure et néon ensemble), puis des points blancs défilent dans le sens de la course
   setTimeout(() => { [glow, casing, line].forEach((pl, k) => { const p = pl._path; if(!p) return; p.style.setProperty("--len", p.getTotalLength()); p.classList.add("route-draw");
     if(k === 2) p.addEventListener("animationend", () => { [glow, casing, line].forEach(q => q._path?.classList.remove("route-draw")); flow.setStyle({opacity:.9}); }, {once:true}); }); }, fit ? 1050 : 40);
@@ -1435,8 +1495,8 @@ async function startRun(route){
   $("#gMute").innerHTML = S.voice ? I.sound : I.mute;
   // Trace déjà courue : bleu lumineux par-dessus la boucle (halo + cœur), dans le calque SVG du tracé
   liveLayer.clearLayers(); const lo = {renderer:routeSV, color:cssv("--blue"), lineCap:"round", lineJoin:"round", interactive:false};
-  run.glow = L.polyline([], {...lo, weight:16, opacity:.55, className:"route-glow"}).addTo(liveLayer); routeDefs();
-  run.line = L.polyline([], {...lo, weight:5, opacity:1}).addTo(liveLayer);
+  run.glow = L.polyline([], {...lo, weight:16, opacity:.55, className:"route-glow live-svg"}).addTo(liveLayer); routeDefs();
+  run.line = L.polyline([], {...lo, weight:5, opacity:1, className:"live-svg"}).addTo(liveLayer);
   if(!(await NATIVE?.keepAwake(true))){ try{ run.wake = await navigator.wakeLock?.request("screen"); }catch(e){} }
   run.watch = navigator.geolocation.watchPosition(onPos, err => { $("#hGps").textContent = err.code === 1 ? "GPS refusé" : "GPS perdu"; if(err.code === 1) permissionHelp(); }, {enableHighAccuracy:true, maximumAge:0, timeout:20000});
   run.timer = setInterval(tick, 1000); tick(); updateGuide();
@@ -1450,7 +1510,7 @@ function onPos(p){
   if(run.paused || acc > 45) return;
   if(run.last){ const d = dist(run.last, pt), dt = (p.timestamp - run.lastT)/1000; if(d < 3) return; if(dt > 0 && d/dt > 9) return; run.dist += d; if(alt != null && run.lastAlt != null && alt - run.lastAlt > 1) run.ascent += alt - run.lastAlt; }
   if(alt != null) run.lastAlt = alt; run.last = pt; run.lastT = p.timestamp;
-  run.gps.push({lat:r6(la), lng:r6(lo), t:p.timestamp, ele:alt != null ? Math.round(alt*10)/10 : null}); run.line.addLatLng(pt); run.glow?.addLatLng(pt);
+  run.gps.push({lat:r6(la), lng:r6(lo), t:p.timestamp, ele:alt != null ? Math.round(alt*10)/10 : null}); run.line.addLatLng(pt); run.glow?.addLatLng(pt); GLR.live.push(pt); glSyncLive();
   // progression sur la boucle : point le plus proche, en avançant
   const P = run.route.pts; let bi = run.idx, bd = 1e9; for(let i = run.idx; i < Math.min(P.length, run.idx + 150); i++){ const d = dist(P[i], pt); if(d < bd){ bd = d; bi = i; } }
   if(bd < 60){ run.idx = bi; run.along = run.cum[bi]; run.off = 0; } else run.off++;
