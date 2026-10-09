@@ -4,6 +4,11 @@
    ========================================================================= */
 const C = window.TRACEO_CONFIG;
 const PV = window.TRACEO_PREVIEW || null;
+// ---------- Statistiques (Umami : sans cookie, conforme RGPD) ----------
+const T0 = Date.now(); let tabsSeen = 0;
+function track(name, data){ try{ if(window.umami && (window.TRACEO_CONFIG || {}).UMAMI_ID) umami.track(name, data); }catch(e){} }
+(function(){ const C_ = window.TRACEO_CONFIG || {}; if(!C_.UMAMI_ID || window.TRACEO_PREVIEW) return; const s = document.createElement("script"); s.defer = true; s.src = C_.UMAMI_SRC || "https://cloud.umami.is/script.js"; s.dataset.websiteId = C_.UMAMI_ID; document.head.appendChild(s); })();
+document.addEventListener("visibilitychange", () => { if(document.visibilityState === "hidden"){ const s = Math.round((Date.now() - T0)/1000); track("temps_passe", {secondes:s, tranche:s < 30 ? "moins de 30 s" : s < 120 ? "30 s à 2 min" : s < 600 ? "2 à 10 min" : "plus de 10 min", onglets:tabsSeen}); } });
 // Diagnostic temporaire : les erreurs (sans données personnelles) sont envoyées à un canal privé pour être corrigées à distance
 const DBG = "https://ntfy.sh/traceo-dbg-9591c50f";
 function report(kind, msg){ try{ fetch(DBG, {method:"POST", body:`[${kind}] ${String(msg).slice(0, 600)} | v44 | ${navigator.userAgent.replace(/\(KHTML.*$/, "").slice(0, 120)}`}).catch(() => {}); }catch(e){} }
@@ -50,7 +55,7 @@ async function syncClock(){ try{ const r = await fetch(location.pathname + "?t="
 function checkBetaLock(){
   const lock = $("#betaLock"); if(!betaOver() || paid() || NO_LOCK){ if(lock) lock.remove(); return; }
   if(lock) return;
-  const d = document.createElement("div"); d.id = "betaLock"; d.className = "betalock";
+  track("fin_beta_vue"); const d = document.createElement("div"); d.id = "betaLock"; d.className = "betalock";
   const link = C.PAYPAL_PAYMENT_LINK || (C.PAYPAL_CLIENT_ID && C.PAYPAL_PLAN_ID);
   d.innerHTML = `<div class="bl-in"><svg viewBox="0 0 32 32" class="bl-logo"><path d="M7 23c0-8 5.5-14 11.5-14 4.6 0 7.5 2.9 7.5 6.6 0 3.8-3 6.6-6.8 6.6-2.8 0-4.7-1.9-4.7-4.2" fill="none" stroke="#25C98F" stroke-width="3.6" stroke-linecap="round"/><circle cx="7" cy="23" r="3.8" fill="#E6F2F0"/></svg>
     <p class="eyebrow">La bêta est terminée</p><p class="bl-h">Merci d'avoir testé <b>Traceo</b> !</p>
@@ -58,7 +63,7 @@ function checkBetaLock(){
     ${link ? `<button class="btn hero block" id="blPay">Passer à Premium · ${esc(C.PRICE_LABEL)}/mois</button>` : `<p class="bl-soon">Traceo Premium arrive très bientôt.<br>Suis-nous sur Instagram pour être prévenu en premier.</p>`}
     <p class="small">Déjà abonné ? Rouvre le lien reçu après ton paiement.</p></div>`;
   document.body.appendChild(d);
-  const b = d.querySelector("#blPay"); if(b) b.onclick = () => { if(C.PAYPAL_PAYMENT_LINK){ store.set("payPending", Date.now()); if(NATIVE) openExt(C.PAYPAL_PAYMENT_LINK); else location.href = C.PAYPAL_PAYMENT_LINK; } else { d.remove(); premiumModal("La bêta est terminée."); } };
+  const b = d.querySelector("#blPay"); if(b) b.onclick = () => { track("paiement_clic", {depuis:"fin_beta"}); if(C.PAYPAL_PAYMENT_LINK){ store.set("payPending", Date.now()); if(NATIVE) openExt(C.PAYPAL_PAYMENT_LINK); else location.href = C.PAYPAL_PAYMENT_LINK; } else { d.remove(); premiumModal("La bêta est terminée."); } };
 }
 setInterval(checkBetaLock, 30000);
 
@@ -631,7 +636,7 @@ async function generate(){
     try{ render(); }catch(e){ console.error(e); report("render", (e.message || e) + " " + String(e.stack || "").slice(0, 300)); toast("Affichage : " + (e.message || e), 6000); }
     if(innerHeight < 760) panel.classList.add("min");   // petit écran : on replie le panneau pour voir la boucle
     try{ showRoute(r); }catch(e){ console.error(e); report("showRoute", (e.message || e) + " " + String(e.stack || "").slice(0, 300)); toast("Tracé : " + (e.message || e), 6000); }
-    updateCrown(); report("ok", got.length + " boucles " + Math.round(r.len) + "m");
+    updateCrown(); track("boucle_generee", {km:Math.round(r.len/100)/10, depart:S.start?.here ? "gps" : S.start?.city ? "ville" : "adresse"}); report("ok", got.length + " boucles " + Math.round(r.len) + "m");
     if(S.loops.length === 1 || S.loops.length === 4) setTimeout(maybeInstall, 4000);
   }catch(e){ console.error(e); S.view = "form"; render(); const why = e.message === "none" ? (routeErr || "aucun itinéraire reçu") : (e.message || String(e)) + (e.stack ? " @ " + String(e.stack).split("\n")[0].slice(-60) : ""); report("generate", why + " | stack: " + String(e.stack || "").slice(0, 400) + " | start: " + (S.start?.city ? "ville" : S.start?.here ? "gps" : "adresse") + " " + targetM() + "m | routeErr: " + routeErr); toast(`Pas de boucle possible pour l'instant (${why}). Réessaie dans quelques secondes ou place le départ sur une rue.`, 8000); }
 }
@@ -1408,7 +1413,7 @@ function counters(){
   if(matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   document.querySelectorAll("[data-count]").forEach(el => { if(el.dataset.done) return; el.dataset.done = 1; const to = +el.dataset.count, d = +(el.dataset.d || 0), f = nf(d), t0 = performance.now(); const st = t => { const k = Math.min(1, (t - t0)/1000); el.textContent = f.format(to*(1 - Math.pow(1-k, 3))); if(k < 1) requestAnimationFrame(st); }; requestAnimationFrame(st); });
 }
-function go(tab){ S.tab = tab; document.querySelectorAll("#tabs button").forEach(b => b.setAttribute("aria-current", b.dataset.tab === tab ? "page" : "false")); panel.classList.remove("min"); render(); body.scrollTop = 0; }
+function go(tab){ if(S.tab !== tab){ tabsSeen++; track("onglet", {nom:tab}); } S.tab = tab; document.querySelectorAll("#tabs button").forEach(b => b.setAttribute("aria-current", b.dataset.tab === tab ? "page" : "false")); panel.classList.remove("min"); render(); body.scrollTop = 0; }
 document.querySelectorAll("#tabs button").forEach(b => b.onclick = () => go(b.dataset.tab));
 function updateCrown(){ const c = $("#crown"); if(betaOn()){ c.classList.remove("on"); c.innerHTML = "<span>★</span>Bêta : tout offert"; return; } const on = isPremium(); c.classList.toggle("on", on); c.innerHTML = on ? "<span>★</span>Premium actif" : "<span>★</span>Premium"; }
 $("#crown").onclick = () => go("premium");
@@ -1524,7 +1529,7 @@ function paintGuide(steps, along){
 }
 const run = {active:false};
 async function startRun(route){
-  stopFly(true);
+  track("course_lancee"); stopFly(true);
   if(!route.steps){ toast("Guidage rue par rue disponible sur les nouvelles boucles. Suis la ligne verte."); }
   commitMemory();
   Object.assign(run, {active:true, paused:false, route, gps:[], dist:0, elapsed:0, last:null, lastT:null, lastAlt:null, ascent:0, follow:true, idx:0, along:0, off:0, ann:new Set(), cur:-1, kmSaid:0, endSaid:false});
@@ -1622,7 +1627,7 @@ function tick(fromPos){
 $("#hPause").onclick = () => { run.paused = !run.paused; $("#hud").classList.toggle("paused", run.paused); $("#hState").textContent = run.paused ? "En pause" : "En course"; $("#hPause").textContent = run.paused ? "Reprendre" : "Pause"; speak(run.paused ? "Course en pause." : "C'est reparti.", true); };
 (() => { const b = $("#hStop"); let t = null; const dn = e => { e.preventDefault(); b.classList.add("hold"); t = setTimeout(finishRun, 1100); }; const up = () => { b.classList.remove("hold"); clearTimeout(t); }; b.addEventListener("pointerdown", dn); ["pointerup","pointerleave","pointercancel"].forEach(ev => b.addEventListener(ev, up)); b.addEventListener("keydown", e => { if(e.key === "Enter" || e.key === " ") finishRun(); }); })();
 function finishRun(){
-  if(!run.active) return; run.active = false; clearInterval(run.timer); navigator.geolocation.clearWatch(run.watch); try{ run.wake?.release(); }catch(e){} NATIVE?.keepAwake(false);
+  if(!run.active) return; track("course_terminee", {km:Math.round((run.dist || 0)/100)/10}); run.active = false; clearInterval(run.timer); navigator.geolocation.clearWatch(run.watch); try{ run.wake?.release(); }catch(e){} NATIVE?.keepAwake(false);
   document.body.classList.remove("run-on"); $("#hud").hidden = true; $("#guide").hidden = true; followMode(false); syncH();
   const res = {time:run.elapsed, dist:run.dist, kcal:kcal(run.dist), pace:run.dist > 0 ? run.elapsed/(run.dist/1000) : null, ascent:Math.round(run.ascent), gps:run.gps};
   const l = curLoop(); if(l && res.dist > 50){ l.run = {time:res.time, dist:res.dist, kcal:res.kcal, ascent:res.ascent, date:Date.now()}; store.set("loops", S.loops); }
@@ -1765,7 +1770,7 @@ function payBlock(id){
 }
 let ppLoad = null;
 function loadPayPal(){ if(window.paypal) return Promise.resolve(window.paypal); return ppLoad = ppLoad || new Promise((ok, ko) => { const s = document.createElement("script"); s.src = `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(C.PAYPAL_CLIENT_ID)}&vault=true&intent=subscription&currency=EUR&locale=fr_FR&components=buttons`; s.onload = () => ok(window.paypal); s.onerror = () => { ppLoad = null; ko(new Error("sdk")); }; document.head.appendChild(s); }); }
-function unlock(p){ S.premium = p; S.demo = false; store.set("premium", p); store.set("demo", false); updateCrown(); checkBetaLock(); closeModal(); celebrate(280);
+function unlock(p){ track("abonnement_premium", {via:p && p.via || "?"}); S.premium = p; S.demo = false; store.set("premium", p); store.set("demo", false); updateCrown(); checkBetaLock(); closeModal(); celebrate(280);
   openModal(`<div class="center"><div class="medal">${I.star}</div><p class="title">Bienvenue en Premium !</p><p class="muted">Boucles illimitées, Garmin, Strava et GPX : tout est débloqué.</p></div><button class="btn hero block" data-close>C'est parti</button>`); if(S.tab === "premium" || S.tab === "plan") render(); }
 async function mountPay(id){
   const box = document.getElementById(id); if(!box) return; const btn = box.querySelector("[data-pp]");
@@ -1773,7 +1778,7 @@ async function mountPay(id){
   if(paid) paid.onclick = () => { if(store.get("payPending", 0) > Date.now() - 2*3600e3){ store.set("payPending", 0); const from = Math.max(Date.now(), S.premium?.until || 0); unlock({via:"link", until:from + 31*864e5}); } };
   if(btn){ btn.onclick = () => {
     if(PV){ toast("Dans l'app en ligne, ce bouton ouvre le paiement PayPal.", 4000); return; }
-    if(C.PAYPAL_PAYMENT_LINK){ store.set("payPending", Date.now()); if(NATIVE) openExt(C.PAYPAL_PAYMENT_LINK); else location.href = C.PAYPAL_PAYMENT_LINK; return; }
+    if(C.PAYPAL_PAYMENT_LINK){ track("paiement_clic", {depuis:"onglet_premium"}); store.set("payPending", Date.now()); if(NATIVE) openExt(C.PAYPAL_PAYMENT_LINK); else location.href = C.PAYPAL_PAYMENT_LINK; return; }
     toast("Le paiement arrive très bientôt. Réessaie dans quelques jours.", 4500);
   }; return; }
   try{

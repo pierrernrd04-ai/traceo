@@ -33,6 +33,10 @@ window.TRACEO_CONFIG = {
   PAYMENT_API: "",                                   // optionnel : serveur de vérification (dossier server/)
   PRICE_LABEL: "4,99 €",
 
+  // ---------- Statistiques de visite (cloud.umami.is, gratuit) ----------
+  // Colle ici le « Website ID » de ton site Umami : visiteurs, temps passé, onglets, abonnements.
+  UMAMI_ID: "",
+
   // ---------- Montres et applis ----------
   STRAVA_UPLOAD_URL: "https://www.strava.com/upload/select",
   GARMIN_IMPORT_ACTIVITY_URL: "https://connect.garmin.com/modern/import-data",

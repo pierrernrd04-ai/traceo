@@ -345,6 +345,8 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:12px 24px;justify-content:space-bet
 <div class="sticky" id="sticky"><a class="btn hero" href="app.html">Trouver ma boucle · c'est parti</a></div>
 
 <script src="config.js"></script>
+<script>(function(){ const C = window.TRACEO_CONFIG || {}; if(!C.UMAMI_ID) return; const s = document.createElement("script"); s.defer = true; s.src = C.UMAMI_SRC || "https://cloud.umami.is/script.js"; s.dataset.websiteId = C.UMAMI_ID; document.head.appendChild(s);
+  document.addEventListener("click", e => { const a = e.target.closest("a,button"); if(a && window.umami) try{ umami.track("clic_page_vente", {cible:(a.textContent || a.getAttribute("href") || "").trim().slice(0, 40)}); }catch(x){} }); })();</script>
 <script>
 (function(){
   var C = window.TRACEO_CONFIG || {};
