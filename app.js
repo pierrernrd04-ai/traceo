@@ -6,7 +6,7 @@ const C = window.TRACEO_CONFIG;
 const PV = window.TRACEO_PREVIEW || null;
 // Diagnostic temporaire : les erreurs (sans données personnelles) sont envoyées à un canal privé pour être corrigées à distance
 const DBG = "https://ntfy.sh/traceo-dbg-9591c50f";
-function report(kind, msg){ try{ fetch(DBG, {method:"POST", body:`[${kind}] ${String(msg).slice(0, 600)} | v39 | ${navigator.userAgent.replace(/\(KHTML.*$/, "").slice(0, 120)}`}).catch(() => {}); }catch(e){} }
+function report(kind, msg){ try{ fetch(DBG, {method:"POST", body:`[${kind}] ${String(msg).slice(0, 600)} | v40 | ${navigator.userAgent.replace(/\(KHTML.*$/, "").slice(0, 120)}`}).catch(() => {}); }catch(e){} }
 // Affiche toute erreur à l'écran (bandeau rouge) : une capture suffit pour corriger
 (function(){ let n = 0; const show = m => { if(n++ > 3) return; const d = document.createElement("div"); d.style.cssText = "position:fixed;left:8px;right:8px;top:calc(env(safe-area-inset-top,0px) + 8px);z-index:9999;background:#B3263E;color:#fff;font:600 12px/1.35 system-ui;padding:8px 10px;border-radius:10px;white-space:pre-wrap"; d.textContent = "Erreur : " + m; d.onclick = () => d.remove(); (document.body || document.documentElement).appendChild(d); setTimeout(() => d.remove(), 15000); };
   window.addEventListener("error", e => { report("error", (e.message || "?") + " " + (e.filename || "") + ":" + (e.lineno || "") + ":" + (e.colno || "") + " " + (e.error && e.error.stack ? String(e.error.stack).slice(0, 300) : "")); if(/^Script error/.test(e.message || "") && window.glFail){ try{ glFail(); }catch(x){} return; } show((e.message || "?") + (e.filename ? " (" + e.filename.split("/").pop() + ":" + e.lineno + ")" : "")); });
@@ -207,6 +207,19 @@ const panel = $("#panel"), body = $("#panelBody");
 function syncH(){ document.documentElement.style.setProperty("--panel-h", (document.body.classList.contains("run-on") ? 0 : panel.offsetHeight) + "px"); const h = $("#hud"); if(!h.hidden) document.documentElement.style.setProperty("--hud-h", h.offsetHeight + "px"); }
 new ResizeObserver(syncH).observe(panel); new ResizeObserver(syncH).observe($("#hud"));
 const pad = () => ({paddingTopLeft:[24, 140], paddingBottomRight:[80, (document.body.classList.contains("run-on") ? $("#hud").offsetHeight : panel.offsetHeight) + 80]});
+// Cadrage sûr : sur petit écran, le panneau peut cacher presque toute la carte ; on borne les marges pour ne jamais calculer un zoom impossible (NaN)
+function fitSafe(bounds, o = {}){
+  try{
+    const s = map.getSize(); if(!s.x || !s.y || !bounds.isValid()) return;
+    let tl = L.point(o.paddingTopLeft || [0, 0]), br = L.point(o.paddingBottomRight || [0, 0]);
+    const room = (len, a, b) => { const keep = Math.max(120, len*.35), over = a + b - (len - keep); return over > 0 ? [Math.max(0, a - over*a/(a + b || 1)), Math.max(0, b - over*b/(a + b || 1))] : [a, b]; };
+    const [l, r] = room(s.x, tl.x, br.x), [t, b] = room(s.y, tl.y, br.y); tl = L.point(l, t); br = L.point(r, b);
+    const z = map.getBoundsZoom(bounds, false, tl.add(br));
+    if(!isFinite(z)){ map.setView(bounds.getCenter(), 14, {animate:false}); return; }
+    const opt = {paddingTopLeft:tl, paddingBottomRight:br, maxZoom:18};
+    if(o.duration && !(TraceoGL && base instanceof TraceoGL)) map.flyToBounds(bounds, {...opt, duration:o.duration}); else map.fitBounds(bounds, {...opt, animate:false});
+  }catch(e){ report("fit", e.message); try{ map.setView(bounds.getCenter(), 14, {animate:false}); }catch(x){} }
+}
 
 /* ---------- Localisation ---------- */
 let watchMe = null;
@@ -539,6 +552,7 @@ async function generate(){
     const r = S.results[0], l = {id:"l" + Date.now(), date:Date.now(), name:`Boucle du ${new Date().toLocaleDateString("fr-FR", {weekday:"long", day:"numeric", month:"long"})}`, place:(S.start.label || "").split(",").slice(-1)[0].trim(), start:S.start, pts:simplify(r.pts), len:r.len, newPct:Math.round(r.newLen/r.len*100), ascent:r.ascent, fav:false};
     S.loops.push(l); trimLoops(); store.set("loops", S.loops); S.loopId = l.id;
     try{ render(); }catch(e){ console.error(e); report("render", (e.message || e) + " " + String(e.stack || "").slice(0, 300)); toast("Affichage : " + (e.message || e), 6000); }
+    if(innerHeight < 760) panel.classList.add("min");   // petit écran : on replie le panneau pour voir la boucle
     try{ showRoute(r); }catch(e){ console.error(e); report("showRoute", (e.message || e) + " " + String(e.stack || "").slice(0, 300)); toast("Tracé : " + (e.message || e), 6000); }
     updateCrown(); report("ok", got.length + " boucles " + Math.round(r.len) + "m");
     if(S.loops.length === 1 || S.loops.length === 4) setTimeout(maybeInstall, 4000);
@@ -564,7 +578,7 @@ function showRoute(r, fit = true){
   const flow = L.polyline(r.pts, {renderer:sv, color:"#fff", weight:3, opacity:0, lineCap:"round", className:"route-flow", interactive:false}).addTo(routeLayer);
   let a = 0, next = 1000;
   for(let i = 1; i < r.pts.length; i++){ a += dist(r.pts[i-1], r.pts[i]); if(a >= next && a < r.len - 250){ L.marker(r.pts[i], {interactive:false, icon:L.divIcon({className:"", html:`<span class="km">${next/1000} km</span>`, iconSize:[0,0], iconAnchor:[14,10]})}).addTo(routeLayer); next += 1000; } }
-  if(fit) map.flyToBounds(L.latLngBounds(r.pts), {...pad(), duration:1});
+  if(fit) fitSafe(L.latLngBounds(r.pts), {...pad(), duration:1});
   setTimeout(() => { const p = line._path; if(!p) return; const len = p.getTotalLength(); p.style.setProperty("--len", len); p.classList.add("route-draw"); p.addEventListener("animationend", () => { p.classList.remove("route-draw"); flow.setStyle({opacity:.95}); }, {once:true}); }, fit ? 1050 : 40);
 }
 
@@ -1329,15 +1343,15 @@ function flyover(route){
     $("#fSteps").querySelectorAll(".rb").forEach(x => x.classList.toggle("on", x === b));
     map.flyTo(loc, 17, {duration:.8});
   });
-  map.flyToBounds(L.latLngBounds(route.pts), {paddingTopLeft:[24, 40], paddingBottomRight:[24, $("#fly").offsetHeight + 30], duration:.9});
+  fitSafe(L.latLngBounds(route.pts), {paddingTopLeft:[24, 40], paddingBottomRight:[24, $("#fly").offsetHeight + 30], duration:.9});
 }
 function stopFly(keepView){
   if(!fly.on) return; fly.on = false; stepLayer.clearLayers();
   document.body.classList.remove("fly-on"); $("#fly").hidden = true;
-  if(!keepView && fly.route) map.flyToBounds(L.latLngBounds(fly.route.pts), {...pad(), duration:.9});
+  if(!keepView && fly.route) fitSafe(L.latLngBounds(fly.route.pts), {...pad(), duration:.9});
 }
 $("#fClose").onclick = () => stopFly(false);
-$("#fCenter").onclick = () => { if(!fly.route) return; $("#fSteps").querySelectorAll(".rb").forEach(x => x.classList.remove("on")); map.flyToBounds(L.latLngBounds(fly.route.pts), {paddingTopLeft:[24, 40], paddingBottomRight:[24, $("#fly").offsetHeight + 30], duration:.8}); };
+$("#fCenter").onclick = () => { if(!fly.route) return; $("#fSteps").querySelectorAll(".rb").forEach(x => x.classList.remove("on")); fitSafe(L.latLngBounds(fly.route.pts), {paddingTopLeft:[24, 40], paddingBottomRight:[24, $("#fly").offsetHeight + 30], duration:.8}); };
 $("#hMusicBtn").onclick = musicSheet; $("#fMusic").onclick = musicSheet;
 $("#fStart").onclick = () => { const r = fly.route; startRun(r); };
 
