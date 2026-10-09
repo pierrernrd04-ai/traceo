@@ -6,7 +6,7 @@ const C = window.TRACEO_CONFIG;
 const PV = window.TRACEO_PREVIEW || null;
 // Diagnostic temporaire : les erreurs (sans données personnelles) sont envoyées à un canal privé pour être corrigées à distance
 const DBG = "https://ntfy.sh/traceo-dbg-9591c50f";
-function report(kind, msg){ try{ fetch(DBG, {method:"POST", body:`[${kind}] ${String(msg).slice(0, 600)} | v43 | ${navigator.userAgent.replace(/\(KHTML.*$/, "").slice(0, 120)}`}).catch(() => {}); }catch(e){} }
+function report(kind, msg){ try{ fetch(DBG, {method:"POST", body:`[${kind}] ${String(msg).slice(0, 600)} | v44 | ${navigator.userAgent.replace(/\(KHTML.*$/, "").slice(0, 120)}`}).catch(() => {}); }catch(e){} }
 // Affiche toute erreur à l'écran (bandeau rouge) : une capture suffit pour corriger
 (function(){ let n = 0; const show = m => { if(n++ > 3) return; const d = document.createElement("div"); d.style.cssText = "position:fixed;left:8px;right:8px;top:calc(env(safe-area-inset-top,0px) + 8px);z-index:9999;background:#B3263E;color:#fff;font:600 12px/1.35 system-ui;padding:8px 10px;border-radius:10px;white-space:pre-wrap"; d.textContent = "Erreur : " + m; d.onclick = () => d.remove(); (document.body || document.documentElement).appendChild(d); setTimeout(() => d.remove(), 15000); };
   window.addEventListener("error", e => { report("error", (e.message || "?") + " " + (e.filename || "") + ":" + (e.lineno || "") + ":" + (e.colno || "") + " " + (e.error && e.error.stack ? String(e.error.stack).slice(0, 300) : "")); if(/^Script error/.test(e.message || "") && window.glFail){ try{ glFail(); }catch(x){} return; } show((e.message || "?") + (e.filename ? " (" + e.filename.split("/").pop() + ":" + e.lineno + ")" : "")); });
@@ -148,6 +148,7 @@ let tileUrl = null, base = null, glBroken = false;
 // Si la carte vectorielle plante (mémoire du téléphone, WebGL), on bascule tout seul sur la carte classique
 function glFail(){ if(glBroken) return; glBroken = true; document.body.classList.remove("glroute"); console.warn("Carte vectorielle indisponible : carte classique"); setTimeout(setBase, 0); }
 async function setBase(){
+  document.body.classList.toggle("map-jour", MAP_MODE() === "jour"); document.body.classList.toggle("map-nuit", MAP_MODE() === "nuit");
   // Calque des noms de rues de la carte classique : au-dessus des tracés (400), sous les repères (600)
   if(!map.getPane("labels")){ const lp = map.createPane("labels"); lp.style.zIndex = 450; lp.style.pointerEvents = "none"; }
   if(base) map.removeLayer(base);
@@ -177,7 +178,7 @@ async function setBase(){
     }catch(e){ console.warn("MapLibre indisponible, carte raster", e); }
   }
   // Carte classique (si la carte vectorielle échoue) : fond sombre Esri + noms des rues dans un calque AU-DESSUS du tracé
-  const ESRI = "https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_";
+  const ESRI = `https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_${MAP_MODE() === "jour" ? "Light" : "Dark"}_Gray_`;
   tileUrl = (z, x, y) => `${ESRI}Base/MapServer/tile/${z}/${y}/${x}`;
   base = L.layerGroup([
     L.tileLayer(ESRI + "Base/MapServer/tile/{z}/{y}/{x}", {maxNativeZoom:16, maxZoom:20, crossOrigin:true, className:"esri-base", attribution:'© <a href="https://www.esri.com">Esri</a> © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'}),
@@ -186,30 +187,45 @@ async function setBase(){
   return;
   base = L.tileLayer(`https://{s}.basemaps.cartocdn.com/${style}/{z}/{x}/{y}{r}.png`, {subdomains:"abcd", maxZoom:20, crossOrigin:true, attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/attributions">CARTO</a>'}).addTo(map);
 }
-// Style de carte « Traceo nuit » : le style OpenFreeMap est retravaillé AVANT affichage (pas de flash),
-// noms en français, eau et parcs bien lisibles, routes hiérarchisées, plus aucun pictogramme parasite.
-const MAP_PAL = {bg:"#050F15", resid:"#07141B", wood:"#0A2A1F", park:"#0D3627", water:"#0A3D52", waterway:"#0E4A60", building:"#0C1C25", buildingLine:"#14303B",
-  path:"#1C3943", minor:"#14303A", major:"#1E4352", majorCase:"#061016", motor:"#27525F", motorCase:"#050D12", rail:"#1A2F38", border:"#2D5866"};
+// Styles de carte Traceo : le style OpenFreeMap est retravaillé AVANT affichage (pas de flash).
+// Priorité : des rues bien visibles et leurs noms lisibles, même en plein soleil.
+// « jour » (par défaut) : plan clair très contrasté. « nuit » : plan sombre.
+const MAP_MODE = () => store.get("mapMode", "jour") === "nuit" ? "nuit" : "jour";
+const PALS = {
+  jour:{bg:"#F1EEE7", resid:"#ECE8E0", wood:"#C9E2BC", park:"#BFE3AE", water:"#8FCBE6", waterway:"#7FC0DE", ice:"#F5FAFC", building:"#DED8CD", buildingLine:"#C7BFB1",
+    path:"#9C8C7C", minor:"#FFFFFF", minorCase:"#C9C0B2", major:"#FFF4CC", majorCase:"#D8B565", motor:"#FFD27A", motorCase:"#C98D2E", rail:"#CFCBC4", border:"#9C88B8",
+    aeroFill:"#E4E0DA", aeroLine:"#D2CCC4", street:"#1B252B", halo:"#FFFFFF", waterTxt:"#2C6E8A", city:"#0E1A20", town:"#24323A", village:"#4A5A62", country:"#0E7A5A"},
+  nuit:{bg:"#08151C", resid:"#0B1B23", wood:"#0E3326", park:"#114030", water:"#0F4A62", waterway:"#135A75", ice:"#13303C", building:"#13262F", buildingLine:"#1E3B47",
+    path:"#3D6573", minor:"#2A4D5A", minorCase:"#08151C", major:"#3B6B7C", majorCase:"#061016", motor:"#4C8394", motorCase:"#050D12", rail:"#2A4550", border:"#4B7A8A",
+    aeroFill:"#102029", aeroLine:"#1A303A", street:"#F2FAF9", halo:"#03090D", waterTxt:"#6FB9D2", city:"#FFFFFF", town:"#E1EEEC", village:"#A9C2C1", country:"#7FE3C3"}
+};
 const FR_NAME = ["coalesce", ["get", "name:fr"], ["get", "name:latin"], ["get", "name"]];
-let styleCache = null;
-async function traceoStyleJSON(url){
-  if(styleCache) return JSON.parse(styleCache);
-  const st = await fetchJSON(url, {}, 10000), P = MAP_PAL;
-  st.layers = st.layers.filter(l => !/^road_oneway|^aeroway-taxiway$/.test(l.id)).map(l => {
+const zw = (...a) => ["interpolate", ["exponential", 1.5], ["zoom"], ...a];   // largeur selon le zoom
+const styleCache = {};
+async function traceoStyleJSON(url, mode = MAP_MODE()){
+  if(styleCache[mode]) return JSON.parse(styleCache[mode]);
+  const st = await fetchJSON(url, {}, 10000), P = PALS[mode];
+  const out = [];
+  for(const l of st.layers){
     const id = l.id, pt = l.paint = l.paint || {}, ly = l.layout = l.layout || {};
+    if(/^road_oneway|^aeroway-taxiway$/.test(id)) continue;
     if(l.type === "background") pt["background-color"] = P.bg;
     else if(id === "water") pt["fill-color"] = P.water;
     else if(id === "waterway") pt["line-color"] = P.waterway;
     else if(id === "landuse_residential"){ pt["fill-color"] = P.resid; pt["fill-opacity"] = 1; }
     else if(id === "landcover_wood"){ pt["fill-color"] = P.wood; pt["fill-opacity"] = .9; }
     else if(id === "landuse_park"){ pt["fill-color"] = P.park; pt["fill-opacity"] = .95; }
-    else if(/glacier|ice_shelf/.test(id)) pt["fill-color"] = "#0E2530";
+    else if(/glacier|ice_shelf/.test(id)) pt["fill-color"] = P.ice;
     else if(id === "building"){ pt["fill-color"] = P.building; pt["fill-outline-color"] = P.buildingLine; pt["fill-opacity"] = ["interpolate", ["linear"], ["zoom"], 13, 0, 15, 1]; }
-    else if(/^aeroway/.test(id)) (l.type === "fill" ? pt["fill-color"] = "#0B1A22" : pt["line-color"] = "#14262E");
-    else if(id === "highway_path"){ pt["line-color"] = P.path; pt["line-dasharray"] = [1.5, 1.5]; }
-    else if(id === "highway_minor") pt["line-color"] = P.minor;
-    else if(/major_casing/.test(id)) pt["line-color"] = P.majorCase;
-    else if(/major_(inner|subtle)/.test(id)) pt["line-color"] = P.major;
+    else if(/^aeroway/.test(id)) (l.type === "fill" ? pt["fill-color"] = P.aeroFill : pt["line-color"] = P.aeroLine);
+    else if(id === "highway_path"){ pt["line-color"] = P.path; pt["line-dasharray"] = [2, 1.4]; pt["line-width"] = zw(13, .8, 16, 2, 18, 3.5, 20, 6); pt["line-opacity"] = .95; }
+    else if(id === "highway_minor"){
+      // rues : bordure + intérieur, nettement plus larges pour être vues d'un coup d'œil
+      out.push({...l, id:"highway_minor_casing", paint:{"line-color":P.minorCase, "line-width":zw(12, 1.2, 14, 3.2, 16, 8, 18, 17, 20, 34), "line-opacity":1}});
+      pt["line-color"] = P.minor; pt["line-opacity"] = 1; pt["line-width"] = zw(12, .6, 14, 2, 16, 6, 18, 14, 20, 30);
+    }
+    else if(/major_casing/.test(id)){ pt["line-color"] = P.majorCase; pt["line-width"] = zw(10, 1.5, 13, 4, 16, 12, 18, 23, 20, 42); }
+    else if(/major_(inner|subtle)/.test(id)){ pt["line-color"] = P.major; pt["line-width"] = zw(10, .8, 13, 2.6, 16, 9.5, 18, 20, 20, 38); }
     else if(/motorway_casing/.test(id)) pt["line-color"] = P.motorCase;
     else if(/motorway_(inner|subtle)/.test(id)) pt["line-color"] = P.motor;
     else if(/pier/.test(id)) (l.type === "fill" ? pt["fill-color"] = P.minor : pt["line-color"] = P.minor);
@@ -218,27 +234,31 @@ async function traceoStyleJSON(url){
     if(l.type === "symbol"){
       if(ly["text-field"] && !/motorway/.test(id)) ly["text-field"] = FR_NAME;
       delete ly["icon-image"]; pt["icon-opacity"] = 0;
-      pt["text-halo-color"] = P.bg; pt["text-halo-width"] = 1.6; pt["text-halo-blur"] = .5;
-      if(id === "water_name"){ pt["text-color"] = "#4B97AE"; ly["text-font"] = ["Noto Sans Italic"]; }
+      pt["text-halo-color"] = P.halo; pt["text-halo-width"] = 1.8; pt["text-halo-blur"] = .3;
+      if(id === "water_name"){ pt["text-color"] = P.waterTxt; ly["text-font"] = ["Noto Sans Italic"]; }
       else if(/highway_name/.test(id)){
-        // Noms des rues : priorité absolue à la lisibilité (gras, clair, plus gros quand on zoome, répétés le long de la rue)
-        pt["text-color"] = ["interpolate", ["linear"], ["zoom"], 13, "#A9C7C5", 16, "#E3F1EF"]; pt["text-halo-color"] = "#03090D"; pt["text-halo-width"] = 2.2; pt["text-halo-blur"] = .3;
-        ly["text-font"] = ["Noto Sans Bold"]; ly["text-size"] = ["interpolate", ["linear"], ["zoom"], 12, 10.5, 14, 12, 16, 14.5, 18, 17];
-        ly["text-letter-spacing"] = .03; ly["symbol-spacing"] = 220; ly["text-max-angle"] = 35; ly["text-padding"] = 1;
+        // Noms des rues : priorité absolue (gras, foncés sur halo blanc le jour, grands, répétés le long de la rue)
+        pt["text-color"] = P.street; pt["text-halo-width"] = 2.6; pt["text-halo-blur"] = 0;
+        ly["text-font"] = ["Noto Sans Bold"]; ly["text-size"] = ["interpolate", ["linear"], ["zoom"], 12, 11, 14, 12.5, 15, 14, 16, 15.5, 18, 19];
+        ly["text-letter-spacing"] = .02; ly["symbol-spacing"] = 200; ly["text-max-angle"] = 38; ly["text-padding"] = 1;
       }
-      else if(/place_city|place_country|place_state/.test(id)){ pt["text-color"] = /country/.test(id) ? "#7FE3C3" : "#EAF5F3"; ly["text-font"] = ["Noto Sans Bold"]; if(/country|state/.test(id)){ ly["text-transform"] = "uppercase"; ly["text-letter-spacing"] = .12; } }
-      else if(id === "place_town"){ pt["text-color"] = "#D3E4E2"; ly["text-font"] = ["Noto Sans Bold"]; }
-      else if(/place_(village|suburb|other)/.test(id)){ pt["text-color"] = "#8AA4A3"; if(id === "place_suburb"){ ly["text-transform"] = "uppercase"; ly["text-letter-spacing"] = .1; } }
-      // texte centré sur le point, l'icône (rond) ayant disparu
+      else if(/place_city|place_country|place_state/.test(id)){ pt["text-color"] = /country/.test(id) ? P.country : P.city; ly["text-font"] = ["Noto Sans Bold"]; if(/country|state/.test(id)){ ly["text-transform"] = "uppercase"; ly["text-letter-spacing"] = .12; } }
+      else if(id === "place_town"){ pt["text-color"] = P.town; ly["text-font"] = ["Noto Sans Bold"]; }
+      else if(/place_(village|suburb|other)/.test(id)){ pt["text-color"] = P.village; ly["text-font"] = ["Noto Sans Bold"]; if(id === "place_suburb"){ ly["text-transform"] = "uppercase"; ly["text-letter-spacing"] = .1; } }
       if(/^place_(town|city|village)/.test(id)){ ly["text-anchor"] = "center"; ly["text-offset"] = [0, 0]; }
     }
-    return l;
-  });
-  styleCache = JSON.stringify(st);
+    out.push(l);
+  }
+  st.layers = out;
+  styleCache[mode] = JSON.stringify(st);
   return st;
 }
 setBase();
-try{ matchMedia("(prefers-color-scheme: dark)").addEventListener("change", setBase); }catch(e){}
+// Bouton soleil / lune : carte claire (par défaut, idéale en plein jour) ou carte nuit
+const MODE_IC = {jour:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/></svg>', nuit:'<svg viewBox="0 0 24 24"><path d="M20 14.5A8.5 8.5 0 019.5 4a8.5 8.5 0 1010.5 10.5z"/></svg>'};
+function paintModeBtn(){ const b = $("#fabMode"); if(!b) return; const m = MAP_MODE(); b.innerHTML = MODE_IC[m]; b.setAttribute("aria-label", m === "jour" ? "Passer en carte nuit" : "Passer en carte jour"); }
+paintModeBtn();
+$("#fabMode") && ($("#fabMode").onclick = () => { const m = MAP_MODE() === "jour" ? "nuit" : "jour"; store.set("mapMode", m); paintModeBtn(); setBase(); toast(m === "jour" ? "Carte jour : rues claires et noms bien lisibles." : "Carte nuit activée."); });
 const routeLayer = L.layerGroup().addTo(map), liveLayer = L.layerGroup().addTo(map);
 let meMk = null, accC = null, startMk = null;
 function showMe(la, lo, acc){
@@ -632,7 +652,9 @@ const routeSV = L.svg({padding:.5});
 // pour que les noms restent toujours lisibles par-dessus le tracé.
 const GLR = {route:null, live:[], anim:0};
 function glMap(){ const g = !glBroken && base && base._ready && base.getMaplibreMap && base.getMaplibreMap(); return g || null; }
-const NEON = [[0, "#2BE39B"], [.55, "#22D3C5"], [1, "#1EA6D0"]];
+const RC = () => MAP_MODE() === "jour"
+  ? {neon:[[0, "#00D98B"], [.55, "#00C9B8"], [1, "#00A6E0"]], glow:"#00C483", glowOp:.28, kase:"#0A5C44", live:"#2563EB"}
+  : {neon:[[0, "#2BE39B"], [.55, "#22D3C5"], [1, "#1EA6D0"]], glow:"#25C98F", glowOp:.55, kase:"#02110B", live:"#4FA6FF"};
 // Dégradé le long du tracé, coupé à p (0 → 1) pour l'animation de dessin
 function glGrad(stops, p){
   const e = ["interpolate", ["linear"], ["line-progress"]];
@@ -648,15 +670,18 @@ function glLayers(g){
   const L0 = g.getStyle().layers, lastShape = L0.map(l => l.type !== "symbol").lastIndexOf(true), before = L0[lastShape + 1]?.id, ln = {"line-join":"round", "line-cap":"round"};
   g.addSource("tr-route", {type:"geojson", lineMetrics:true, data:{type:"FeatureCollection", features:[]}});
   g.addSource("tr-live", {type:"geojson", data:{type:"FeatureCollection", features:[]}});
-  g.addLayer({id:"tr-glow", type:"line", source:"tr-route", layout:ln, paint:{"line-color":"#25C98F", "line-width":20, "line-blur":9, "line-opacity":.55}}, before);
-  g.addLayer({id:"tr-case", type:"line", source:"tr-route", layout:ln, paint:{"line-color":"#02110B", "line-width":11, "line-opacity":.85}}, before);
-  g.addLayer({id:"tr-core", type:"line", source:"tr-route", layout:ln, paint:{"line-width":6, "line-gradient":glGrad(NEON, 1)}}, before);
-  g.addLayer({id:"tr-live-glow", type:"line", source:"tr-live", layout:ln, paint:{"line-color":"#4FA6FF", "line-width":16, "line-blur":7, "line-opacity":.5}}, before);
-  g.addLayer({id:"tr-live", type:"line", source:"tr-live", layout:ln, paint:{"line-color":"#4FA6FF", "line-width":5}}, before);
+  const c = RC();
+  // tracé épais et bien bordé : visible d'un coup d'œil en courant
+  g.addLayer({id:"tr-glow", type:"line", source:"tr-route", layout:ln, paint:{"line-color":c.glow, "line-width":22, "line-blur":9, "line-opacity":c.glowOp}}, before);
+  g.addLayer({id:"tr-case", type:"line", source:"tr-route", layout:ln, paint:{"line-color":c.kase, "line-width":13, "line-opacity":.9}}, before);
+  g.addLayer({id:"tr-core", type:"line", source:"tr-route", layout:ln, paint:{"line-width":7.5, "line-gradient":glGrad(c.neon, 1)}}, before);
+  g.addLayer({id:"tr-live-glow", type:"line", source:"tr-live", layout:ln, paint:{"line-color":c.live, "line-width":18, "line-blur":7, "line-opacity":.45}}, before);
+  g.addLayer({id:"tr-live", type:"line", source:"tr-live", layout:ln, paint:{"line-color":c.live, "line-width":6}}, before);
 }
 const lineFC = pts => ({type:"FeatureCollection", features:pts && pts.length > 1 ? [{type:"Feature", properties:{}, geometry:{type:"LineString", coordinates:pts.map(p => [p[1], p[0]])}}] : []});
 function glDraw(g, p){
-  try{ g.setPaintProperty("tr-core", "line-gradient", glGrad(NEON, p)); g.setPaintProperty("tr-case", "line-gradient", glGrad([[0, "#02110B"], [1, "#02110B"]], p)); g.setPaintProperty("tr-glow", "line-gradient", glGrad([[0, "#25C98F"], [1, "#25C98F"]], p)); }catch(e){}
+  const c = RC();
+  try{ g.setPaintProperty("tr-core", "line-gradient", glGrad(c.neon, p)); g.setPaintProperty("tr-case", "line-gradient", glGrad([[0, c.kase], [1, c.kase]], p)); g.setPaintProperty("tr-glow", "line-gradient", glGrad([[0, c.glow], [1, c.glow]], p)); }catch(e){}
 }
 function glSyncRoute(animate){
   const g = glMap(); document.body.classList.toggle("glroute", !!g); if(!g) return false;
@@ -1666,11 +1691,12 @@ function rr(c, x, y, w, h, r){ c.beginPath(); c.moveTo(x+r, y); c.arcTo(x+w, y, 
 function fit(c, s, max){ s = String(s); if(c.measureText(s).width <= max) return s; while(s.length > 1 && c.measureText(s + "…").width > max) s = s.slice(0, -1); return s + "…"; }
 // Rend la zone de la boucle avec le style vectoriel de l'app, hors écran ; renvoie l'image et la projection
 async function glSnapshot(pts, W, H, pad){
-  if(PV || !window.maplibregl || !styleCache) return null;
+  if(PV || !window.maplibregl) return null;
+  const night = await traceoStyleJSON(C.MAP_STYLE_URL || "https://tiles.openfreemap.org/styles/dark", "nuit").catch(() => null); if(!night) return null;
   const k = 2, div = document.createElement("div"); div.style.cssText = `position:fixed;left:-10000px;top:0;width:${W/k}px;height:${H/k}px`; document.body.appendChild(div);
   let m;
   try{
-    m = new maplibregl.Map({container:div, style:JSON.parse(styleCache), interactive:false, attributionControl:false, preserveDrawingBuffer:true, pixelRatio:k, fadeDuration:0});
+    m = new maplibregl.Map({container:div, style:night, interactive:false, attributionControl:false, preserveDrawingBuffer:true, pixelRatio:k, fadeDuration:0});
     let a = 90, b = -90, d = 180, e = -180; for(const [la, lo] of pts){ a = Math.min(a, la); b = Math.max(b, la); d = Math.min(d, lo); e = Math.max(e, lo); }
     await new Promise(r => { m.once("load", r); setTimeout(r, 8000); });
     m.fitBounds([[d, a], [e, b]], {padding:{top:pad[0]/k, right:pad[1]/k, bottom:pad[2]/k, left:pad[3]/k}, duration:0, maxZoom:17});

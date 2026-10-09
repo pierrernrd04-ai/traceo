@@ -46,12 +46,17 @@ svg{flex:none}
 /* Carte vectorielle : le tracé est dessiné dans la carte, sous les noms des rues ; on masque la version SVG */
 .glroute .route-glow,.glroute .route-casing,.glroute .route-core,.glroute .route-flow,.glroute .live-svg{display:none}
 /* Carte de secours (Esri) teintée bleu nuit, noms des rues bien contrastés */
-.esri-base{filter:brightness(.78) sepia(.5) hue-rotate(150deg) saturate(1.8) contrast(1.05)}
-.esri-labels{filter:brightness(1.35) contrast(1.1)}
+.map-nuit .esri-base{filter:brightness(.78) sepia(.5) hue-rotate(150deg) saturate(1.8) contrast(1.05)}
+.map-nuit .esri-labels{filter:brightness(1.35) contrast(1.1)}
+.map-jour .esri-labels{filter:contrast(1.25) saturate(1.1)}
 .km{position:absolute;transform:translate(-50%,-50%);display:flex;align-items:baseline;gap:1px;font:700 9px var(--f-body);color:var(--muted);background:rgba(5,15,21,.88);padding:3px 7px 3px 6px;border-radius:999px;border:1.5px solid var(--accent);box-shadow:0 0 0 3px rgba(37,201,143,.15),0 2px 8px rgba(0,0,0,.5);white-space:nowrap;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}
 .km b{font:800 12px var(--f-display);color:var(--ink)}
 /* Vignettage : bords assombris et haut fondu sous la barre de recherche, pour faire ressortir le tracé */
 #map::after{content:"";position:absolute;inset:0;z-index:350;pointer-events:none;background:linear-gradient(to bottom,rgba(5,15,21,.78),rgba(5,15,21,0) 150px),radial-gradient(130% 95% at 50% 42%,transparent 55%,rgba(2,8,11,.6))}
+/* Carte jour : juste un léger voile sous la barre de recherche, rien sur la carte */
+.map-jour #map::after{background:linear-gradient(to bottom,rgba(5,15,21,.35),rgba(5,15,21,0) 120px)}
+.map-jour #map,.map-jour .leaflet-container{background:#F1EEE7}
+.map-jour .leaflet-control-attribution{background:rgba(255,255,255,.8)!important;color:#4A5A62!important}.map-jour .leaflet-control-attribution a{color:#4A5A62!important}
 /* Vue d'ensemble : étapes en petits points, numéros quand on zoome */
 body:not(.z-hi) .stepdot{transform:scale(.45);color:transparent;border-width:4px}
 .arrowmk{width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:11px solid #fff;filter:drop-shadow(0 0 1px rgba(0,0,0,.5))}
@@ -88,10 +93,13 @@ body:not(.z-hi) .stepdot{transform:scale(.45);color:transparent;border-width:4px
 .pill svg{width:16px;height:16px;stroke:var(--accent);fill:none;stroke-width:2}
 
 /* ---------- Bouton localisation ---------- */
-.fabs{position:fixed;right:12px;z-index:15;bottom:calc(var(--nav-h) + env(safe-area-inset-bottom,0px) + var(--panel-h,0px) + 14px);transition:bottom .35s cubic-bezier(.2,.8,.2,1)}
+.fabs{position:fixed;right:12px;z-index:15;display:flex;flex-direction:column;gap:10px;align-items:center;bottom:calc(var(--nav-h) + env(safe-area-inset-bottom,0px) + var(--panel-h,0px) + 14px);transition:bottom .35s cubic-bezier(.2,.8,.2,1)}
 .run-on .fabs{bottom:calc(var(--hud-h,300px) + 14px)}
 .fab{width:58px;height:58px;border-radius:50%;border:0;background:var(--surface);box-shadow:var(--shadow);display:grid;place-items:center}
 .fab svg{width:26px;height:26px}
+.fab.mode{width:46px;height:46px;color:var(--ink)}
+.fab.mode svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.map-jour .fab.mode{background:#FFFFFF;color:#1B252B;box-shadow:0 2px 10px rgba(0,0,0,.25)}
 .fab .nav{fill:var(--blue);transform:rotate(45deg);transform-origin:center}
 .fab.busy svg{animation:spin 1s linear infinite}
 .fab.done{background:var(--blue)}.fab.done .nav{fill:#fff}
