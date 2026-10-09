@@ -6,7 +6,7 @@ const C = window.TRACEO_CONFIG;
 const PV = window.TRACEO_PREVIEW || null;
 // Affiche toute erreur à l'écran (bandeau rouge) : une capture suffit pour corriger
 (function(){ let n = 0; const show = m => { if(n++ > 3) return; const d = document.createElement("div"); d.style.cssText = "position:fixed;left:8px;right:8px;top:calc(env(safe-area-inset-top,0px) + 8px);z-index:9999;background:#B3263E;color:#fff;font:600 12px/1.35 system-ui;padding:8px 10px;border-radius:10px;white-space:pre-wrap"; d.textContent = "Erreur : " + m; d.onclick = () => d.remove(); (document.body || document.documentElement).appendChild(d); setTimeout(() => d.remove(), 15000); };
-  window.addEventListener("error", e => show((e.message || "?") + (e.filename ? " (" + e.filename.split("/").pop() + ":" + e.lineno + ")" : "")));
+  window.addEventListener("error", e => { if(/^Script error/.test(e.message || "") && window.glFail){ try{ glFail(); }catch(x){} return; } show((e.message || "?") + (e.filename ? " (" + e.filename.split("/").pop() + ":" + e.lineno + ")" : "")); });
   window.addEventListener("unhandledrejection", e => { const r = e.reason; if(r && /abort|Failed to fetch|Load failed|NetworkError/i.test(String(r.message || r))) return; show(String(r && r.message || r)); }); })();             // aperçu dans Claude (carte et GPS simulés)
 const FRANCE = [[41.3, -5.3], [51.15, 9.7]];
 const TERR = ["fr","gp","mq","gf","re","yt","pm","bl","mf","wf","pf","nc","tf"];
@@ -109,9 +109,9 @@ const TraceoGL = window.L && L.Layer ? L.Layer.extend({
     try{ this._gl.remove(); }catch(e){} this._c.remove();
   },
   getMaplibreMap(){ return this._gl; },
-  _rs(){ const s = this._map.getSize(); this._c.style.width = s.x + "px"; this._c.style.height = s.y + "px"; this._gl.resize(); this._up(); },
-  _up(){ const m = this._map; if(!m || !this._gl) return; this._lp = m.containerPointToLayerPoint([0, 0]); L.DomUtil.setPosition(this._c, this._lp); const c = m.getCenter(); this._gl.jumpTo({center:[c.lng, c.lat], zoom:m.getZoom() - 1}); },
-  _anim(e){ const m = this._map, sc = m.getZoomScale(e.zoom), off = m._latLngBoundsToNewLayerBounds(m.getBounds(), e.zoom, e.center).min; L.DomUtil.setTransform(this._c, off, sc); }
+  _rs(){ const s = this._map.getSize(); this._c.style.width = s.x + "px"; this._c.style.height = s.y + "px"; try{ this._gl.resize(); }catch(e){} this._up(); },
+  _up(){ const m = this._map; if(!m || !this._gl) return; this._lp = m.containerPointToLayerPoint([0, 0]); L.DomUtil.setPosition(this._c, this._lp); const c = m.getCenter(); try{ this._gl.jumpTo({center:[c.lng, c.lat], zoom:m.getZoom() - 1}); this._bad = 0; }catch(e){ if(++this._bad > 3) glFail(); } },
+  _anim(e){ try{ const m = this._map, sc = m.getZoomScale(e.zoom), off = m._latLngBoundsToNewLayerBounds(m.getBounds(), e.zoom, e.center).min; L.DomUtil.setTransform(this._c, off, sc); }catch(x){} }
 }) : null;
 let tileUrl = null, base = null, glBroken = false;
 // Si la carte vectorielle plante (mémoire du téléphone, WebGL), on bascule tout seul sur la carte classique
