@@ -432,7 +432,8 @@ function osrmText(st){
 // Itinéraires piétons : OSRM (FOSSGIS) en priorité, Valhalla (FOSSGIS) en secours si OSRM sature ou refuse
 function decode6(s){ const o = []; let i = 0, la = 0, lo = 0; while(i < s.length){ for(const k of [0, 1]){ let r = 0, sh = 0, b; do{ b = s.charCodeAt(i++) - 63; r |= (b & 31) << sh; sh += 5; } while(b >= 32); const d = r & 1 ? ~(r >> 1) : r >> 1; if(k) lo += d; else la += d; } o.push([la/1e6, lo/1e6]); } return o; }
 const VTYPE = {9:"slight right", 10:"right", 11:"sharp right", 12:"uturn", 13:"uturn", 14:"sharp left", 15:"left", 16:"slight left"};
-async function routeValhalla(wps){
+async function routeValhalla(wps){ return queued("valhalla", () => routeValhalla0(wps)); }
+async function routeValhalla0(wps){
   const q = {locations:wps.map((p, i) => ({lat:+p[0].toFixed(6), lon:+p[1].toFixed(6), type:i === 0 || i === wps.length - 1 ? "break" : "through"})), costing:"pedestrian", directions_options:{language:"fr-FR", units:"kilometers"}};
   const j = await fetchJSON(`https://valhalla1.openstreetmap.de/route?json=${encodeURIComponent(JSON.stringify(q))}`, {}, 15000);
   const legs = j.trip?.legs; if(!legs?.length) return null;
@@ -445,7 +446,8 @@ async function routeValhalla(wps){
       steps.push({loc, type, mod:VTYPE[t] || "straight", name:(m.street_names || [])[0] || "", text:type === "arrive" ? "Arrivée : tu es revenu à ton point de départ" : m.instruction || ""}); } });
   return {pts, steps};
 }
-async function routeOSRM(wps){
+async function routeOSRM(wps){ return queued("osrm", () => routeOSRM0(wps), 1); }
+async function routeOSRM0(wps){
   const j = await fetchJSON(`${C.OSRM_FOOT}/route/v1/driving/${wps.map(p => p[1].toFixed(6) + "," + p[0].toFixed(6)).join(";")}?overview=full&geometries=geojson&steps=true&continue_straight=false`, {}, 10000);
   const rt = j.routes?.[0]; if(!rt) return null;
   const steps = [];
@@ -457,6 +459,13 @@ async function routeOSRM(wps){
   return {pts:rt.geometry.coordinates.map(x => [x[1], x[0]]), steps};
 }
 let osrmDown = 0;   // après un échec OSRM, on passe directement par Valhalla pendant 2 minutes
+// Les serveurs gratuits limitent à ~1 demande par seconde : toutes les demandes passent dans une file, espacées, avec nouvel essai si refus
+let routeQ = Promise.resolve(), lastRoute = {}, routeErr = "";
+function queued(host, fn, tries = 3){
+  const run = async () => { for(let k = 0; k < tries; k++){ const w = (lastRoute[host] || 0) + 1150 - Date.now(); if(w > 0) await new Promise(r => setTimeout(r, w)); lastRoute[host] = Date.now();
+      try{ return await fn(); }catch(e){ routeErr = host + " " + (e.message || e); if(!/HTTP (429|5\d\d)|abort|Failed|Load failed|NetworkError/i.test(String(e.message || e)) || k === tries - 1) throw e; await new Promise(r => setTimeout(r, 1500*(k + 1))); } } };
+  const p = routeQ.then(run, run); routeQ = p.catch(() => {}); return p;
+}
 async function routeFoot(wps){
   if(Date.now() - osrmDown > 120000){ try{ const r = await routeOSRM(wps); if(r) return r; }catch(e){ osrmDown = Date.now(); } }
   return routeValhalla(wps);
@@ -471,7 +480,7 @@ async function loopOSRM(start, target, brg){
     const c = {pts:rr.pts, steps:rr.steps, ascent:null};
     c.len = lineLen(c.pts);
     if(!best || Math.abs(c.len - target) < Math.abs(best.len - target)) best = c;
-    if(Math.abs(c.len - target)/target < .07) break;
+    if(Math.abs(c.len - target)/target < .1) break;
     r *= Math.max(.55, Math.min(1.6, target/c.len));
   }
   return best;
@@ -507,7 +516,7 @@ async function generate(){
     S.loops.push(l); trimLoops(); store.set("loops", S.loops); S.loopId = l.id;
     render(); showRoute(r); updateCrown();
     if(S.loops.length === 1 || S.loops.length === 4) setTimeout(maybeInstall, 4000);
-  }catch(e){ S.view = "form"; render(); toast("Pas de boucle possible depuis ce point. Vérifie ta connexion ou place le départ sur une rue.", 5000); }
+  }catch(e){ S.view = "form"; render(); toast(`Pas de boucle possible pour l'instant${routeErr ? " (" + routeErr + ")" : ""}. Réessaie dans quelques secondes ou place le départ sur une rue.`, 6500); }
 }
 function simplify(p, m = 6){ const o = []; let last = null; for(const x of p){ if(!last || dist(last, x) >= m){ o.push([r6(x[0]), r6(x[1])]); last = x; } } const e = p[p.length-1]; if(o[o.length-1][0] !== r6(e[0]) || o[o.length-1][1] !== r6(e[1])) o.push([r6(e[0]), r6(e[1])]); return o; }
 function trimLoops(){ if(S.loops.length > 120) S.loops = S.loops.filter((l, i) => l.fav || l.run || i > S.loops.length - 100); }
