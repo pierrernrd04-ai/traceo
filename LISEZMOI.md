@@ -48,6 +48,27 @@ La localisation, les cartes et PayPal ne marchent que sur une vraie adresse web 
 
 Pour mettre à jour l'app plus tard : Workers & Pages > traceo > Créer un déploiement, et renvoie le nouveau zip.
 
+## Chat : activer la vraie IA (Claude)
+
+Sans réglage, l'onglet **Chat** utilise l'assistant intégré : il comprend les demandes courantes et agit dans l'app. Pour des réponses libres par une vraie IA :
+1. Crée une clé API sur **console.anthropic.com** (API Keys) et ajoute un moyen de paiement. Le chat utilise Claude Opus 5.5, avec des réponses courtes.
+2. Crée un compte gratuit sur **dash.cloudflare.com**, puis déploie le serveur depuis un ordinateur :
+   ```
+   cd server && npm install && npx wrangler login && npx wrangler deploy
+   npx wrangler secret put ANTHROPIC_API_KEY
+   ```
+3. Colle l'adresse obtenue (`https://traceo-api.<ton-compte>.workers.dev`) dans `CHAT_API` de `config.js`, puis pousse sur `main`.
+
+Garde-fous du serveur : 12 messages par minute et par appareil au maximum, historique limité, sujets limités à la course et à l'app. Si l'IA ne répond pas, l'app bascule seule sur l'assistant intégré.
+
+## Informations légales
+
+La page `legal.html` regroupe les mentions légales, les CGV, la politique de confidentialité et les cookies. Avant le lancement commercial, complète les mentions surlignées en jaune :
+- ton **SIREN/SIRET** ;
+- ton **adresse** ;
+- la **mention TVA** (par exemple « TVA non applicable, art. 293 B du CGI » si tu es en franchise en base) ;
+- le **médiateur de la consommation**, obligatoire pour la vente aux particuliers.
+
 ## Encaisser avec PayPal
 
 ### Option rapide (celle utilisée) : lien de paiement à 4,99 €

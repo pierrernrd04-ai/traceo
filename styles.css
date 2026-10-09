@@ -769,3 +769,6 @@ div.hero .me2{fill:var(--blue);stroke:#fff;stroke-width:3}
 .chat-form .input{min-height:52px;font-size:16px}
 .chat-form .btn{min-height:52px;padding:0;border-radius:16px}
 .chat-form .btn svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linejoin:round}
+
+.consent{font-size:12px;line-height:1.4;color:var(--muted)}.consent a{color:var(--muted);text-decoration:underline}
+.betalock .consent{text-align:center}
