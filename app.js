@@ -192,7 +192,11 @@ try{ matchMedia("(prefers-color-scheme: dark)").addEventListener("change", setBa
 const routeLayer = L.layerGroup().addTo(map), liveLayer = L.layerGroup().addTo(map);
 let meMk = null, accC = null, startMk = null;
 function showMe(la, lo, acc){
-  if(!meMk) meMk = L.marker([la, lo], {icon:L.divIcon({className:"", html:'<div class="me"><i></i></div>', iconSize:[24,24], iconAnchor:[12,12]}), interactive:false, zIndexOffset:1000}).addTo(map); else meMk.setLatLng([la, lo]);
+  if(!meMk) meMk = L.marker([la, lo], {icon:L.divIcon({className:"", html:'<div class="me"><b></b><i></i></div>', iconSize:[24,24], iconAnchor:[12,12]}), interactive:false, zIndexOffset:1000}).addTo(map); else meMk.setLatLng([la, lo]);
+  // Cône de direction : orienté selon le déplacement (dès 6 m parcourus)
+  const prev = meMk._hdFrom, el = meMk.getElement()?.querySelector(".me");
+  if(!prev) meMk._hdFrom = [la, lo];
+  else if(dist(prev, [la, lo]) > 6){ if(el){ el.style.setProperty("--hd", bearing(prev, [la, lo]) + "deg"); el.classList.add("hd"); } meMk._hdFrom = [la, lo]; }
   if(acc){ if(!accC) accC = L.circle([la, lo], {radius:acc, color:cssv("--blue"), weight:1, opacity:.35, fillOpacity:.08, interactive:false}).addTo(map); else accC.setLatLng([la, lo]).setRadius(acc); }
 }
 function setStart(s, fly = true){
