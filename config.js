@@ -38,7 +38,7 @@ window.TRACEO_CONFIG = {
 
   // ---------- Statistiques de visite (cloud.umami.is, gratuit) ----------
   // Colle ici le « Website ID » de ton site Umami : visiteurs, temps passé, onglets, abonnements.
-  UMAMI_ID: "",
+  UMAMI_ID: "aaaca4cf-0a2c-4648-9f5e-028d269e6b15",
 
   // ---------- Montres et applis ----------
   STRAVA_UPLOAD_URL: "https://www.strava.com/upload/select",
