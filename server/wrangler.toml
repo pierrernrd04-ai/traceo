@@ -1,8 +1,9 @@
 # Déploiement : cd server && npx wrangler deploy
-# Puis : npx wrangler secret put PAYPAL_SECRET
-name = "traceo-pay"
+# Puis : npx wrangler secret put ANTHROPIC_API_KEY (chat) et, si abonnement PayPal, PAYPAL_SECRET
+name = "traceo-api"
 main = "worker.js"
 compatibility_date = "2025-09-01"
+compatibility_flags = ["nodejs_compat"]
 
 [vars]
 PAYPAL_ENV = "live"

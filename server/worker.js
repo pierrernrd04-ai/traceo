@@ -1,4 +1,6 @@
-// Traceo — serveur de vérification des abonnements PayPal (Cloudflare Workers, offre gratuite).
+// Traceo — serveur de l'app (Cloudflare Workers, offre gratuite) :
+//   POST /paypal/verify  vérification des abonnements PayPal
+//   POST /chat           coach IA du chat (Claude, via le SDK Anthropic)
 //
 // L'app appelle POST /paypal/verify {subscription_id} et reçoit {active:true|false}.
 // Le serveur demande l'état de l'abonnement directement à PayPal avec ta clé secrète,
@@ -9,10 +11,13 @@
 //   PAYPAL_SECRET     Secret de la même app (à mettre en « Secret », pas en texte)
 //   PAYPAL_PLAN_ID    identifiant du plan à 4,99 €/mois (P-…)
 //   PAYPAL_ENV        live (par défaut) ou sandbox pour les essais
+//   ANTHROPIC_API_KEY clé API Anthropic pour le chat (à mettre en « Secret »)
 //   APP_ORIGIN        adresse(s) de l'app, séparées par des virgules,
 //                     ex. https://traceo.pages.dev,https://localhost,capacitor://localhost
 
 // APPROVED : l'acheteur vient de valider, PayPal passe l'abonnement en ACTIVE quelques secondes après.
+import Anthropic from "@anthropic-ai/sdk";
+
 const ACTIVE = new Set(["ACTIVE", "APPROVED"]);
 let token = null;   // jeton PayPal gardé en mémoire tant que le worker reste chaud
 
@@ -20,7 +25,8 @@ export default {
   async fetch(req, env){
     const url = new URL(req.url), cors = corsHeaders(req, env);
     if(req.method === "OPTIONS") return new Response(null, {status:204, headers:cors});
-    if(url.pathname === "/" || url.pathname === "/health") return json({ok:true, service:"traceo-pay"}, 200, cors);
+    if(url.pathname === "/" || url.pathname === "/health") return json({ok:true, service:"traceo"}, 200, cors);
+    if(url.pathname === "/chat") return chat(req, env, cors);
     if(url.pathname !== "/paypal/verify") return json({error:"not_found"}, 404, cors);
     if(req.method !== "POST") return json({error:"method_not_allowed"}, 405, cors);
 
@@ -85,4 +91,51 @@ function corsHeaders(req, env){
 
 function json(body, status, headers){
   return new Response(JSON.stringify(body), {status, headers:{...headers, "Content-Type":"application/json; charset=utf-8", "Cache-Control":"no-store"}});
+}
+
+/* ---------- Coach IA du chat ---------- */
+const SYSTEM = `Tu es le coach de Traceo, une app de course à pied qui dessine des boucles neuves dans les vraies rues, depuis la position de la personne, partout en France.
+Réponds en français, en tutoyant, de façon chaleureuse, concrète et brève : 2 à 6 phrases, ou une courte liste. Pas de titres.
+Tu aides sur : choix de distance, d'allure et de durée ; entraînement (5 km, 10 km, semi, marathon) ; échauffement et récupération ; nutrition et hydratation du coureur ; motivation ; utilisation de l'app.
+Ce que fait l'app : écran Courir (se localiser ou choisir une ville, choisir une distance de 2 à 42 km ou une durée de 10 min à 4 h, « Générer ma boucle », feuille de route, guidage vocal rue par rue), onglet Coach (nutrition, hydratation, programmes, routines d'échauffement guidées), Boucles (historique), Premium, Profil (poids, allure, voix). Export Strava, Garmin et GPX. Carte jour ou nuit avec le bouton soleil/lune.
+Premium : 4,99 € pour 31 jours, payé par PayPal (compte ou carte), sans renouvellement automatique. Bêta gratuite jusqu'au 10 octobre 2026 à 15 h.
+Santé : tu n'es pas médecin. Pour une douleur vive, persistante, une gêne thoracique ou un malaise, conseille d'arrêter et de consulter un professionnel de santé.
+Reste dans ton rôle de coach running et d'aide sur l'app ; pour toute autre demande, recentre poliment.`;
+const hits = new Map();   // limite simple par adresse IP (par instance du worker)
+function limited(ip){
+  const now = Date.now(), h = (hits.get(ip) || []).filter(t => now - t < 60e3); h.push(now); hits.set(ip, h);
+  if(hits.size > 5000) hits.clear();
+  return h.length > 12;   // 12 messages par minute
+}
+async function chat(req, env, cors){
+  if(req.method !== "POST") return json({error:"method_not_allowed"}, 405, cors);
+  if(!env.ANTHROPIC_API_KEY) return json({error:"chat_not_configured"}, 503, cors);
+  if(limited(req.headers.get("CF-Connecting-IP") || "?")) return json({error:"rate_limited", reply:"Tu vas un peu vite : réessaie dans une minute."}, 429, cors);
+  let body; try{ body = await req.json(); }catch(e){ return json({error:"bad_json"}, 400, cors); }
+  // historique : 12 derniers messages, alternance user/assistant, 1 500 caractères max par message
+  const msgs = (Array.isArray(body.messages) ? body.messages : []).slice(-12)
+    .filter(m => m && (m.role === "user" || m.role === "assistant") && typeof m.content === "string" && m.content.trim())
+    .map(m => ({role:m.role, content:m.content.slice(0, 1500)}));
+  while(msgs.length && msgs[0].role !== "user") msgs.shift();
+  if(!msgs.length || msgs[msgs.length - 1].role !== "user") return json({error:"bad_messages"}, 400, cors);
+  const ctx = body.context && typeof body.context === "object" ? JSON.stringify(body.context).slice(0, 600) : "{}";
+  const client = new Anthropic({apiKey:env.ANTHROPIC_API_KEY});
+  try{
+    const res = await client.beta.messages.create({
+      model:"claude-opus-5-5",
+      max_tokens:1024,
+      output_config:{effort:"low"},
+      betas:["server-side-fallback-2026-07-01"],
+      fallbacks:"default",
+      system:[{type:"text", text:SYSTEM, cache_control:{type:"ephemeral"}}],
+      messages:[...msgs.slice(0, -1), {role:"user", content:`Contexte de l'app (réglages actuels) : ${ctx}\n\n${msgs[msgs.length - 1].content}`}]
+    });
+    if(res.stop_reason === "refusal") return json({reply:"Je ne peux pas t'aider sur ce point. Pose-moi une question sur ta course ou sur l'app !"}, 200, cors);
+    const reply = res.content.filter(b => b.type === "text").map(b => b.text).join("").trim();
+    return json({reply:reply || "Je n'ai pas de réponse pour l'instant, reformule ta question ?"}, 200, cors);
+  }catch(e){
+    if(e instanceof Anthropic.RateLimitError) return json({error:"busy"}, 503, cors);
+    if(e instanceof Anthropic.APIError) return json({error:"ai_error", code:e.status}, 502, cors);
+    return json({error:"ai_unreachable"}, 502, cors);
+  }
 }

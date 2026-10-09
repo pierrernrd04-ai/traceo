@@ -1,0 +1,8 @@
+{
+  "name": "traceo-server",
+  "private": true,
+  "type": "module",
+  "scripts": { "deploy": "wrangler deploy" },
+  "dependencies": { "@anthropic-ai/sdk": "^0.133.0" },
+  "devDependencies": { "wrangler": "^4" }
+}

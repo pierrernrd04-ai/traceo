@@ -30,7 +30,10 @@ window.TRACEO_CONFIG = {
   // Option 2, la plus rapide : un lien de paiement PayPal à 4,99 € (Premium débloqué 31 jours).
   PAYPAL_PAYMENT_LINK: "https://www.paypal.com/ncp/payment/423Z9M8RCJPF2",
   PAYPAL_MANAGE_URL: "https://www.paypal.com/myaccount/autopay/",
-  PAYMENT_API: "",                                   // optionnel : serveur de vérification (dossier server/)
+  PAYMENT_API: "",
+  // Chat IA (Claude) : adresse du serveur server/worker.js une fois déployé avec ta clé Anthropic,
+  // ex. "https://traceo-api.<ton-compte>.workers.dev". Vide : le chat utilise l'assistant intégré.
+  CHAT_API: "",                                   // optionnel : serveur de vérification (dossier server/)
   PRICE_LABEL: "4,99 €",
 
   // ---------- Statistiques de visite (cloud.umami.is, gratuit) ----------
