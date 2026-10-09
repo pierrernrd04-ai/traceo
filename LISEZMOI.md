@@ -8,7 +8,16 @@ Une boucle de course neuve à chaque sortie, depuis là où tu es.
 4. **Course guidée en direct.** Le nom des rues s'affiche, avec les virages annoncés à la voix, le chrono, la distance, l'allure et les calories.
 5. **Bilan.** Durée, distance, allure moyenne et calories brûlées, puis envoi sur Strava ou Garmin, fichier GPX ou image à partager.
 
-## Mettre l'app en ligne depuis ton téléphone (5 min)
+## Sur iPhone : l'app par un simple lien (recommandé)
+
+L'app est en ligne sur **https://pierrernrd04-ai.github.io/traceo/**. GitHub Pages publie automatiquement la branche `main`.
+1. Ouvre ce lien dans **Safari** sur l'iPhone.
+2. Touche **Partager** (le carré avec la flèche), puis **« Sur l'écran d'accueil »**.
+3. Traceo apparaît avec son icône et s'ouvre en plein écran, avec son écran de démarrage, comme une vraie app.
+
+C'est gratuit, sans Mac et sans validation d'Apple. Chaque mise à jour du dépôt arrive toute seule chez les utilisateurs. Le paiement PayPal y est autorisé, contrairement à l'App Store (voir plus bas).
+
+## Mettre l'app en ligne ailleurs (Cloudflare, 5 min)
 
 La localisation, les cartes et PayPal ne marchent que sur une vraie adresse web en https. L'aperçu dans Claude les bloque tous.
 
@@ -22,12 +31,16 @@ Pour mettre à jour l'app plus tard : Workers & Pages > traceo > Créer un dépl
 
 ## Encaisser avec PayPal
 
-### Option rapide : lien de paiement à 4,99 €
+### Option rapide (celle utilisée) : lien de paiement à 4,99 €
 
-Le lien débloque Premium 31 jours.
-1. Dans ton compte PayPal, crée un **lien de paiement** « Traceo Premium – 1 mois » à 4,99 €.
-2. Mets comme adresse de retour : `https://traceo.pages.dev/?paiement=ok`.
-3. Colle le lien dans `PAYPAL_PAYMENT_LINK` de `config.js`, puis redéploie.
+Chaque paiement débloque Premium pour 31 jours. Les jours s'ajoutent si la personne reprend avant la fin, et un rappel s'affiche 3 jours avant l'échéance.
+1. Dans ton compte PayPal, crée un **lien de paiement** « Traceo Premium – 31 jours » à 4,99 €.
+2. Mets comme adresse de retour : `https://pierrernrd04-ai.github.io/traceo/?paiement=ok`.
+3. Colle le lien (`https://www.paypal.com/ncp/payment/PLB-…`) dans `PAYPAL_PAYMENT_LINK` de `config.js`, puis pousse sur `main`.
+
+Si PayPal renvoie la personne dans Safari plutôt que dans l'app de l'écran d'accueil, l'onglet Premium de l'app propose « J'ai payé, activer Premium ». Ce bouton n'apparaît que pendant 2 h après le clic sur « Payer avec PayPal ».
+
+Limite : ce mode fonctionne sur la confiance. L'app ne peut pas vérifier elle-même le paiement auprès de PayPal. Pour une vérification stricte, passe à l'abonnement ci-dessous, contrôlé par le serveur.
 
 ### Option abonnement : renouvellement automatique chaque mois
 
@@ -95,8 +108,9 @@ L'identifiant de l'app est `fr.traceo.app`. Tu peux le changer dans `capacitor.c
 
 Il faut un Mac avec Xcode et un compte Apple Developer (99 €/an). Lance `npm run ios`, choisis ton équipe dans **Signing & Capabilities**, puis **Product > Archive**.
 
+**Attention :** Apple refuse les apps de l'App Store qui vendent un abonnement numérique par PayPal (règle 3.1.1). La version App Store devrait passer par l'achat intégré d'Apple (15 à 30 % de commission), par exemple avec RevenueCat. Pour garder PayPal, utilise le lien web ci-dessus. Pour faire tester l'app native à quelques personnes sans publication, utilise **TestFlight**, depuis le même compte Apple Developer.
+
 ### À savoir pour la version app
 
-- **Paiement :** pour un abonnement vendu *dans* l'app, Apple et Google imposent en général leur propre système de paiement. Tant que `BETA: true`, tout est gratuit et la question ne se pose pas. Avant de passer `BETA: false` dans l'app, il faudra brancher Google Play Billing et l'achat intégré Apple, par exemple avec RevenueCat. Le lien PayPal ouvre le navigateur et le retour `?paiement=ok` arrive sur le site web, pas dans l'app.
-- **Spotify :** la connexion Spotify revient sur le site web, pas dans l'app. La musique reste pilotable depuis l'app Spotify.
+- **Paiement :** pour un abonnement vendu *dans* une app des stores, Apple et Google imposent leur propre système de paiement. L'APK installé directement et le lien web peuvent utiliser PayPal. Dans l'app native, le lien PayPal s'ouvre dans le navigateur intégré. Au retour, on active Premium avec « J'ai payé, activer Premium ».
 - **Écran verrouillé :** l'écran reste allumé pendant la course. Si on le verrouille, le suivi GPS se met en pause jusqu'au retour dans l'app.

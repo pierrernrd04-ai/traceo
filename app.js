@@ -1130,12 +1130,13 @@ function viewPremium(){
       <ul class="checks"><li>Boucles illimitées, partout en France</li><li>Envoi sur ta montre Garmin</li><li>Envoi de tes courses sur Strava</li><li>Export GPX pour toutes les montres</li><li>Image de ta boucle à partager</li></ul>
       <p class="small">La version gratuite gardera 3 boucles par semaine, guidage compris.</p></div>`;
   const on = isPremium() && !S.demo && S.premium;
-  return `<div class="plan pro"><p class="eyebrow" style="color:var(--gold)">Traceo Premium</p><p class="title">Une boucle neuve à chaque sortie, sans limite.</p>
+  const left = on && S.premium.until ? Math.max(0, Math.ceil((S.premium.until - Date.now())/864e5)) : null;
+  return `${on ? `<div class="plan pro"><p class="eyebrow" style="color:var(--gold)">★ Premium actif</p><p class="title" style="font-size:24px">Tout Traceo est débloqué.</p>${left != null ? `<p class="muted">Encore <b>${left} jour${left > 1 ? "s" : ""}</b>, jusqu'au ${new Date(S.premium.until).toLocaleDateString("fr-FR", {day:"numeric", month:"long"})}.</p>` : ""}</div>` : ""}<div class="plan pro"><p class="eyebrow" style="color:var(--gold)">Traceo Premium</p><p class="title">Une boucle neuve à chaque sortie, sans limite.</p>
       <p class="price">${C.PRICE_LABEL}<small> / mois</small></p>
       <ul class="checks"><li>Boucles illimitées, partout en France</li><li>Envoi sur ta montre Garmin</li><li>Envoi de tes courses sur Strava</li><li>Export GPX pour toutes les montres</li><li>Image de ta boucle à partager</li></ul>
-      ${on ? `<p><b>Premium actif</b>${S.premium.until ? ` jusqu'au ${new Date(S.premium.until).toLocaleDateString("fr-FR")}` : ""}.</p>${S.premium.via === "sub" ? `<a class="btn block night" href="${C.PAYPAL_MANAGE_URL}" target="_blank" rel="noopener">Gérer mon abonnement PayPal</a>` : S.premium.until && S.premium.until - Date.now() < 7*864e5 ? `<p class="small">Pour continuer après cette date, reprends 31 jours : ils s'ajoutent à ceux qui restent.</p>${payBlock("payMain")}` : ""}` : payBlock("payMain")}
+      ${on ? `${S.premium.via === "sub" ? `<a class="btn block night" href="${C.PAYPAL_MANAGE_URL}" target="_blank" rel="noopener">Gérer mon abonnement PayPal</a>` : S.premium.until && S.premium.until - Date.now() < 7*864e5 ? `<p class="small">Pour continuer après cette date, reprends 31 jours : ils s'ajoutent à ceux qui restent.</p>${payBlock("payMain")}` : ""}` : payBlock("payMain")}
     </div>
-    <div class="plan"><p class="eyebrow">Gratuit</p><p class="title" style="font-size:22px">3 boucles par semaine, guidage compris.</p><p class="small">Il te reste ${remaining()} boucle${remaining() > 1 ? "s" : ""} cette semaine.</p></div>`;
+    ${on ? "" : `<div class="plan"><p class="eyebrow">Gratuit</p><p class="title" style="font-size:22px">${C.FREE_PER_WEEK} boucles par semaine, guidage compris.</p><p class="small">Il te reste ${remaining()} boucle${remaining() > 1 ? "s" : ""} cette semaine.</p></div>`}`;
 }
 function viewMe(){
   return `<p class="eyebrow">Profil</p><p class="title">Tes réglages</p>
@@ -1354,7 +1355,10 @@ async function startRun(route){
   voiceStart();
   document.body.classList.add("run-on"); $("#hud").hidden = false; $("#hud").classList.remove("paused"); $("#guide").hidden = false; $("#hPause").textContent = "Pause";
   $("#gMute").innerHTML = S.voice ? I.sound : I.mute;
-  liveLayer.clearLayers(); run.line = L.polyline([], {color:cssv("--blue"), weight:5, opacity:.9, lineCap:"round", interactive:false}).addTo(liveLayer);
+  // Trace déjà courue : bleu lumineux par-dessus la boucle (halo + cœur), dans le calque SVG du tracé
+  liveLayer.clearLayers(); const lo = {renderer:routeSV, color:cssv("--blue"), lineCap:"round", lineJoin:"round", interactive:false};
+  run.glow = L.polyline([], {...lo, weight:16, opacity:.55, className:"route-glow"}).addTo(liveLayer); routeDefs();
+  run.line = L.polyline([], {...lo, weight:5, opacity:1}).addTo(liveLayer);
   if(!(await NATIVE?.keepAwake(true))){ try{ run.wake = await navigator.wakeLock?.request("screen"); }catch(e){} }
   run.watch = navigator.geolocation.watchPosition(onPos, err => { $("#hGps").textContent = err.code === 1 ? "GPS refusé" : "GPS perdu"; if(err.code === 1) permissionHelp(); }, {enableHighAccuracy:true, maximumAge:0, timeout:20000});
   run.timer = setInterval(tick, 1000); tick(); updateGuide();
@@ -1368,7 +1372,7 @@ function onPos(p){
   if(run.paused || acc > 45) return;
   if(run.last){ const d = dist(run.last, pt), dt = (p.timestamp - run.lastT)/1000; if(d < 3) return; if(dt > 0 && d/dt > 9) return; run.dist += d; if(alt != null && run.lastAlt != null && alt - run.lastAlt > 1) run.ascent += alt - run.lastAlt; }
   if(alt != null) run.lastAlt = alt; run.last = pt; run.lastT = p.timestamp;
-  run.gps.push({lat:r6(la), lng:r6(lo), t:p.timestamp, ele:alt != null ? Math.round(alt*10)/10 : null}); run.line.addLatLng(pt);
+  run.gps.push({lat:r6(la), lng:r6(lo), t:p.timestamp, ele:alt != null ? Math.round(alt*10)/10 : null}); run.line.addLatLng(pt); run.glow?.addLatLng(pt);
   // progression sur la boucle : point le plus proche, en avançant
   const P = run.route.pts; let bi = run.idx, bd = 1e9; for(let i = run.idx; i < Math.min(P.length, run.idx + 150); i++){ const d = dist(P[i], pt); if(d < bd){ bd = d; bi = i; } }
   if(bd < 60){ run.idx = bi; run.along = run.cum[bi]; run.off = 0; } else run.off++;
@@ -1548,7 +1552,10 @@ function premiumModal(msg){
 const subReady = () => !!(C.PAYPAL_CLIENT_ID && C.PAYPAL_PLAN_ID);
 function payBlock(id){
   const live = !PV && (subReady() || C.PAYPAL_PAYMENT_LINK);
+  // Retour de PayPal arrivé ailleurs (ex. Safari au lieu de l'app sur l'écran d'accueil) : activation manuelle, 2 h maximum après le clic
+  const pending = !subReady() && C.PAYPAL_PAYMENT_LINK && store.get("payPending", 0) > Date.now() - 2*3600e3;
   return `<div class="paybox" id="${id}">${live && subReady() ? `<div class="skel" style="height:52px"></div>` : `<button class="btn block paypal" data-pp>Payer avec <b>PayPal</b></button>`}</div>
+    ${pending ? `<button class="btn soft block" data-paid>J'ai payé, activer Premium</button>` : ""}
     <p class="small">${subReady() ? "Paiement sécurisé par PayPal : compte PayPal ou carte bancaire. Sans engagement, résiliable à tout moment." : "Paiement sécurisé par PayPal (compte PayPal ou carte bancaire). Un paiement = 31 jours de Premium, sans abonnement ni renouvellement automatique."}</p>`;
 }
 let ppLoad = null;
@@ -1557,6 +1564,8 @@ function unlock(p){ S.premium = p; S.demo = false; store.set("premium", p); stor
   openModal(`<div class="center"><div class="medal">${I.star}</div><p class="title">Bienvenue en Premium !</p><p class="muted">Boucles illimitées, Garmin, Strava et GPX : tout est débloqué.</p></div><button class="btn hero block" data-close>C'est parti</button>`); if(S.tab === "premium" || S.tab === "plan") render(); }
 async function mountPay(id){
   const box = document.getElementById(id); if(!box) return; const btn = box.querySelector("[data-pp]");
+  const paid = box.parentElement?.querySelector("[data-paid]");
+  if(paid) paid.onclick = () => { if(store.get("payPending", 0) > Date.now() - 2*3600e3){ store.set("payPending", 0); const from = Math.max(Date.now(), S.premium?.until || 0); unlock({via:"link", until:from + 31*864e5}); } };
   if(btn){ btn.onclick = () => {
     if(PV){ toast("Dans l'app en ligne, ce bouton ouvre le paiement PayPal.", 4000); return; }
     if(C.PAYPAL_PAYMENT_LINK){ store.set("payPending", Date.now()); if(NATIVE) openExt(C.PAYPAL_PAYMENT_LINK); else location.href = C.PAYPAL_PAYMENT_LINK; return; }
@@ -1806,7 +1815,9 @@ async function deleteCityMap(key){
 }
 
 /* ---------- Démarrage ---------- */
+const fromPay = new URLSearchParams(location.search).get("paiement") === "ok";
+document.addEventListener("visibilitychange", () => { if(!document.hidden && S.tab === "premium" && modal.hidden && store.get("payPending", 0) > Date.now() - 2*3600e3) render(); });
 rebuildMemory(); render(); payOnLaunch();
 if("serviceWorker" in navigator && location.protocol === "https:" && !PV && !NATIVE) navigator.serviceWorker.register("sw.js").catch(() => {});
 // À l'ouverture : un écran d'accueil motivant. Pas de localisation automatique : l'utilisateur choisit son départ.
-if(new URLSearchParams(location.search).has("test")) setTimeout(checkApp, 300); else splash(!store.get("onboarded", false));
+if(new URLSearchParams(location.search).has("test")) setTimeout(checkApp, 300); else if(!fromPay) splash(!store.get("onboarded", false));
