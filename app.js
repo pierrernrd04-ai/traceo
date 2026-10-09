@@ -6,7 +6,7 @@ const C = window.TRACEO_CONFIG;
 const PV = window.TRACEO_PREVIEW || null;
 // Diagnostic temporaire : les erreurs (sans données personnelles) sont envoyées à un canal privé pour être corrigées à distance
 const DBG = "https://ntfy.sh/traceo-dbg-9591c50f";
-function report(kind, msg){ try{ fetch(DBG, {method:"POST", body:`[${kind}] ${String(msg).slice(0, 600)} | v38 | ${navigator.userAgent.replace(/\(KHTML.*$/, "").slice(0, 120)}`}).catch(() => {}); }catch(e){} }
+function report(kind, msg){ try{ fetch(DBG, {method:"POST", body:`[${kind}] ${String(msg).slice(0, 600)} | v39 | ${navigator.userAgent.replace(/\(KHTML.*$/, "").slice(0, 120)}`}).catch(() => {}); }catch(e){} }
 // Affiche toute erreur à l'écran (bandeau rouge) : une capture suffit pour corriger
 (function(){ let n = 0; const show = m => { if(n++ > 3) return; const d = document.createElement("div"); d.style.cssText = "position:fixed;left:8px;right:8px;top:calc(env(safe-area-inset-top,0px) + 8px);z-index:9999;background:#B3263E;color:#fff;font:600 12px/1.35 system-ui;padding:8px 10px;border-radius:10px;white-space:pre-wrap"; d.textContent = "Erreur : " + m; d.onclick = () => d.remove(); (document.body || document.documentElement).appendChild(d); setTimeout(() => d.remove(), 15000); };
   window.addEventListener("error", e => { report("error", (e.message || "?") + " " + (e.filename || "") + ":" + (e.lineno || "") + ":" + (e.colno || "") + " " + (e.error && e.error.stack ? String(e.error.stack).slice(0, 300) : "")); if(/^Script error/.test(e.message || "") && window.glFail){ try{ glFail(); }catch(x){} return; } show((e.message || "?") + (e.filename ? " (" + e.filename.split("/").pop() + ":" + e.lineno + ")" : "")); });
@@ -1587,9 +1587,21 @@ async function mountPay(id){
   }catch(e){ box.innerHTML = `<p class="small">PayPal ne s'est pas chargé. Vérifie ta connexion.</p>`; }
 }
 async function verifySub(id){ const r = await fetch(C.PAYMENT_API.replace(/\/$/, "") + "/paypal/verify", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({subscription_id:id})}); return r.json(); }
+// Retour de PayPal sans redirection automatique : on propose d'activer Premium si un paiement vient d'être lancé
+function askPaid(){
+  const t = store.get("payPending", 0); if(!t || t < Date.now() - 6*3600e3 || paid() || $("#paidBox")) return;
+  const d = document.createElement("div"); d.id = "paidBox"; d.className = "betalock"; d.style.zIndex = 99;
+  d.innerHTML = `<div class="bl-in"><div class="medal">${I.star}</div><p class="bl-h">Paiement effectué ?</p><p class="muted">Si tu viens de régler <b>Traceo Premium</b> sur PayPal, active-le ici : 31 jours de boucles illimitées.</p>
+    <button class="btn hero block" id="paidYes">Oui, j'ai payé : activer Premium</button><button class="btn night block" id="paidNo">Pas encore</button></div>`;
+  document.body.appendChild(d);
+  $("#paidYes").onclick = () => { store.set("payPending", 0); d.remove(); unlock({via:"link", until:Date.now() + 31*864e5}); };
+  $("#paidNo").onclick = () => { store.set("payPending", 0); d.remove(); checkBetaLock(); };
+}
+document.addEventListener("visibilitychange", () => { if(document.visibilityState === "visible") setTimeout(askPaid, 600); });
 async function payOnLaunch(){
   const u = new URLSearchParams(location.search);
   if(u.get("paiement") === "ok" && store.get("payPending", 0) > Date.now() - 2*3600e3){ store.set("payPending", 0); history.replaceState(null, "", location.pathname); unlock({via:"link", until:Date.now() + 31*864e5}); return; }
+  askPaid();
   if(S.premium?.via === "sub" && C.PAYMENT_API && Date.now() - (S.premium.checked || 0) > 6*3600e3){ try{ const j = await verifySub(S.premium.id); if(j.active === false){ S.premium = null; store.set("premium", null); toast("Ton abonnement Premium a pris fin."); } else { S.premium.checked = Date.now(); store.set("premium", S.premium); } updateCrown(); }catch(e){} }
 }
 
