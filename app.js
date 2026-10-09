@@ -6,7 +6,7 @@ const C = window.TRACEO_CONFIG;
 const PV = window.TRACEO_PREVIEW || null;
 // Diagnostic temporaire : les erreurs (sans données personnelles) sont envoyées à un canal privé pour être corrigées à distance
 const DBG = "https://ntfy.sh/traceo-dbg-9591c50f";
-function report(kind, msg){ try{ fetch(DBG, {method:"POST", body:`[${kind}] ${String(msg).slice(0, 600)} | v41 | ${navigator.userAgent.replace(/\(KHTML.*$/, "").slice(0, 120)}`}).catch(() => {}); }catch(e){} }
+function report(kind, msg){ try{ fetch(DBG, {method:"POST", body:`[${kind}] ${String(msg).slice(0, 600)} | v42 | ${navigator.userAgent.replace(/\(KHTML.*$/, "").slice(0, 120)}`}).catch(() => {}); }catch(e){} }
 // Affiche toute erreur à l'écran (bandeau rouge) : une capture suffit pour corriger
 (function(){ let n = 0; const show = m => { if(n++ > 3) return; const d = document.createElement("div"); d.style.cssText = "position:fixed;left:8px;right:8px;top:calc(env(safe-area-inset-top,0px) + 8px);z-index:9999;background:#B3263E;color:#fff;font:600 12px/1.35 system-ui;padding:8px 10px;border-radius:10px;white-space:pre-wrap"; d.textContent = "Erreur : " + m; d.onclick = () => d.remove(); (document.body || document.documentElement).appendChild(d); setTimeout(() => d.remove(), 15000); };
   window.addEventListener("error", e => { report("error", (e.message || "?") + " " + (e.filename || "") + ":" + (e.lineno || "") + ":" + (e.colno || "") + " " + (e.error && e.error.stack ? String(e.error.stack).slice(0, 300) : "")); if(/^Script error/.test(e.message || "") && window.glFail){ try{ glFail(); }catch(x){} return; } show((e.message || "?") + (e.filename ? " (" + e.filename.split("/").pop() + ":" + e.lineno + ")" : "")); });
@@ -40,14 +40,15 @@ const S = {
 // Fin de la bêta : on se fie à l'heure du serveur (changer l'heure du téléphone ne suffit pas à prolonger la bêta)
 let srvSkew = 0;
 const nowT = () => Math.max(Date.now(), Date.now() + srvSkew);
-const FORCE_END = /[?&]finbeta\b/.test(location.search);   // test : ?finbeta simule la fin de la bêta
+const FORCE_END = /[?&](finbeta|testpremium)\b/.test(location.search);   // test : ?finbeta simule la fin de la bêta
+const NO_LOCK = /[?&]testpremium\b/.test(location.search);   // test : ?testpremium montre l'app payante sans écran de blocage
 const betaOver = () => FORCE_END || (!!C.BETA_END && nowT() >= Date.parse(C.BETA_END));
 const betaOn = () => !!C.BETA && !betaOver();
 const paid = () => !!(S.premium && (!S.premium.until || S.premium.until > nowT()));
 const isPremium = () => betaOn() || S.demo || paid();
 async function syncClock(){ try{ const r = await fetch(location.pathname + "?t=" + Date.now(), {method:"HEAD", cache:"no-store"}); const d = Date.parse(r.headers.get("date")); if(d) srvSkew = d - Date.now(); }catch(e){} checkBetaLock(); }
 function checkBetaLock(){
-  const lock = $("#betaLock"); if(!betaOver() || paid()){ if(lock) lock.remove(); return; }
+  const lock = $("#betaLock"); if(!betaOver() || paid() || NO_LOCK){ if(lock) lock.remove(); return; }
   if(lock) return;
   const d = document.createElement("div"); d.id = "betaLock"; d.className = "betalock";
   const link = C.PAYPAL_PAYMENT_LINK || (C.PAYPAL_CLIENT_ID && C.PAYPAL_PLAN_ID);
@@ -1161,7 +1162,7 @@ function viewMine(){
       : `<div class="empty"><p>${S.favOnly ? "Pas encore de favorite." : "Aucune boucle pour l'instant."}</p><button class="btn hero" data-go="plan">${I.route}Générer ma première boucle</button></div>`}`;
 }
 function viewPremium(){
-  if(C.BETA) return `<div class="plan pro"><p class="eyebrow" style="color:var(--gold)">Version bêta</p><p class="title">Tout Traceo est offert pendant la bêta.</p>
+  if(betaOn()) return `<div class="plan pro"><p class="eyebrow" style="color:var(--gold)">Version bêta</p><p class="title">Tout Traceo est offert pendant la bêta.</p>
       <p class="muted">Boucles illimitées, guidage vocal, Garmin, Strava, GPX et image à partager : tout est ouvert, sans compte et sans paiement. Merci de tester l'app avant son lancement.</p></div>
     <div class="plan"><p class="eyebrow">Au lancement</p><p class="title" style="font-size:22px">Traceo Premium · ${C.PRICE_LABEL} / mois</p>
       <ul class="checks"><li>Boucles illimitées, partout en France</li><li>Envoi sur ta montre Garmin</li><li>Envoi de tes courses sur Strava</li><li>Export GPX pour toutes les montres</li><li>Image de ta boucle à partager</li></ul>
@@ -1225,7 +1226,7 @@ function wire(){
       go("plan"); showRoute(S.results[0]);
     });
   }
-  if(S.tab === "premium" && !C.BETA) mountPay("payMain");
+  if(S.tab === "premium" && !betaOn()) mountPay("payMain");
   if(S.tab === "coach"){
     body.querySelectorAll("[data-routine]").forEach(b => b.onclick = () => playRoutine(b.dataset.routine));
     body.querySelectorAll("[data-mobi]").forEach(b => b.onclick = () => { S.mobi = b.dataset.mobi; render(); });
