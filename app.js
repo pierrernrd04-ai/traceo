@@ -429,21 +429,46 @@ function osrmText(st){
     default: return mod === "uturn" ? "Fais demi-tour" : mod === "straight" ? `Continue tout droit${on}` : `Tourne ${MOD[mod]}${on}`;
   }
 }
+// Itinéraires piétons : OSRM (FOSSGIS) en priorité, Valhalla (FOSSGIS) en secours si OSRM sature ou refuse
+function decode6(s){ const o = []; let i = 0, la = 0, lo = 0; while(i < s.length){ for(const k of [0, 1]){ let r = 0, sh = 0, b; do{ b = s.charCodeAt(i++) - 63; r |= (b & 31) << sh; sh += 5; } while(b >= 32); const d = r & 1 ? ~(r >> 1) : r >> 1; if(k) lo += d; else la += d; } o.push([la/1e6, lo/1e6]); } return o; }
+const VTYPE = {9:"slight right", 10:"right", 11:"sharp right", 12:"uturn", 13:"uturn", 14:"sharp left", 15:"left", 16:"slight left"};
+async function routeValhalla(wps){
+  const q = {locations:wps.map((p, i) => ({lat:+p[0].toFixed(6), lon:+p[1].toFixed(6), type:i === 0 || i === wps.length - 1 ? "break" : "through"})), costing:"pedestrian", directions_options:{language:"fr-FR", units:"kilometers"}};
+  const j = await fetchJSON(`https://valhalla1.openstreetmap.de/route?json=${encodeURIComponent(JSON.stringify(q))}`, {}, 15000);
+  const legs = j.trip?.legs; if(!legs?.length) return null;
+  const pts = [], steps = [];
+  legs.forEach((leg, li) => { const sh = decode6(leg.shape), off = pts.length ? pts.length - 1 : 0; pts.push(...(pts.length ? sh.slice(1) : sh));
+    for(const m of leg.maneuvers || []){ const t = m.type, last = li === legs.length - 1;
+      if([1, 2, 3].includes(t) && li > 0) continue; if([4, 5, 6].includes(t) && !last) continue;
+      const loc = sh[Math.min(m.begin_shape_index, sh.length - 1)];
+      const type = [1, 2, 3].includes(t) ? "depart" : [4, 5, 6].includes(t) ? "arrive" : [26, 27].includes(t) ? "roundabout" : "turn";
+      steps.push({loc, type, mod:VTYPE[t] || "straight", name:(m.street_names || [])[0] || "", text:type === "arrive" ? "Arrivée : tu es revenu à ton point de départ" : m.instruction || ""}); } });
+  return {pts, steps};
+}
+async function routeOSRM(wps){
+  const j = await fetchJSON(`${C.OSRM_FOOT}/route/v1/driving/${wps.map(p => p[1].toFixed(6) + "," + p[0].toFixed(6)).join(";")}?overview=full&geometries=geojson&steps=true&continue_straight=false`, {}, 10000);
+  const rt = j.routes?.[0]; if(!rt) return null;
+  const steps = [];
+  rt.legs.forEach((leg, li) => leg.steps.forEach(st => {
+    const t = st.maneuver.type;
+    if((t === "depart" && li > 0) || (t === "arrive" && li < rt.legs.length - 1)) return;
+    steps.push({loc:[st.maneuver.location[1], st.maneuver.location[0]], type:t, mod:st.maneuver.modifier || "straight", name:st.name || "", text:osrmText(st)});
+  }));
+  return {pts:rt.geometry.coordinates.map(x => [x[1], x[0]]), steps};
+}
+let osrmDown = 0;   // après un échec OSRM, on passe directement par Valhalla pendant 2 minutes
+async function routeFoot(wps){
+  if(Date.now() - osrmDown > 120000){ try{ const r = await routeOSRM(wps); if(r) return r; }catch(e){ osrmDown = Date.now(); } }
+  return routeValhalla(wps);
+}
 async function loopOSRM(start, target, brg){
   const s = [start.lat, start.lng]; let r = target/(2*Math.PI*1.22)*(0.9 + Math.random()*0.2), best = null;
-  for(let it = 0; it < 3; it++){
+  for(let it = 0; it < 2; it++){
     const k = 4, center = dest(s, brg, r), wps = [s];
     for(let i = 1; i < k; i++) wps.push(dest(center, (brg + 180 + i*360/k + (Math.random()-.5)*24) % 360, r*(0.85 + Math.random()*0.3)));
     wps.push(s);
-    const j = await fetchJSON(`${C.OSRM_FOOT}/route/v1/driving/${wps.map(p => p[1].toFixed(6) + "," + p[0].toFixed(6)).join(";")}?overview=full&geometries=geojson&steps=true&continue_straight=false`);
-    const rt = j.routes?.[0]; if(!rt) break;
-    const steps = [];
-    rt.legs.forEach((leg, li) => leg.steps.forEach(st => {
-      const t = st.maneuver.type;
-      if((t === "depart" && li > 0) || (t === "arrive" && li < rt.legs.length - 1)) return;
-      steps.push({loc:[st.maneuver.location[1], st.maneuver.location[0]], type:t, mod:st.maneuver.modifier || "straight", name:st.name || "", text:osrmText(st)});
-    }));
-    const c = {pts:rt.geometry.coordinates.map(x => [x[1], x[0]]), steps, ascent:null};
+    const rr = await routeFoot(wps); if(!rr || rr.pts.length < 4) break;
+    const c = {pts:rr.pts, steps:rr.steps, ascent:null};
     c.len = lineLen(c.pts);
     if(!best || Math.abs(c.len - target) < Math.abs(best.len - target)) best = c;
     if(Math.abs(c.len - target)/target < .07) break;
@@ -466,9 +491,10 @@ async function generate(){
   rebuildMemory();   // toutes les boucles déjà proposées : la nouvelle passera ailleurs
   S.view = "loading"; S.results = null; routeLayer.clearLayers(); panel.classList.remove("min"); render();
   try{
-    const b0 = Math.random()*360, n = PV ? 4 : 4;
-    const jobs = Array.from({length:n}, (_, i) => PV ? PV.loop(S.start, target, (b0 + i*90) % 360) : C.ORS_KEY ? loopORS(S.start, target) : loopOSRM(S.start, target, (b0 + i*90) % 360));
-    const got = (await Promise.allSettled(jobs)).filter(r => r.status === "fulfilled" && r.value && r.value.pts.length > 3).map(r => r.value);
+    const b0 = Math.random()*360, n = PV ? 4 : 3, wait = ms => new Promise(r => setTimeout(r, ms));
+    const jobs = Array.from({length:n}, (_, i) => PV ? PV.loop(S.start, target, (b0 + i*90) % 360) : C.ORS_KEY ? loopORS(S.start, target) : wait(i*350).then(() => loopOSRM(S.start, target, (b0 + i*120) % 360)));
+    let got = (await Promise.allSettled(jobs)).filter(r => r.status === "fulfilled" && r.value && r.value.pts.length > 3).map(r => r.value);
+    if(!got.length && !PV){ osrmDown = Date.now(); try{ const v = await loopOSRM(S.start, target, b0); if(v && v.pts.length > 3) got = [v]; }catch(e){} }
     if(!got.length) throw new Error("none");
     for(const c of got){
       c.newLen = newLen(c.pts); c.rep = repeatLen(c.pts);
