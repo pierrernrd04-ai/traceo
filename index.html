@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1">
+<title>Traceo</title>
+<meta name="description" content="Traceo génère une boucle de course nouvelle à chaque sortie, depuis là où tu es.">
+<meta name="theme-color" content="#07131A">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Traceo">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,200..800&family=Figtree:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" crossorigin="">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<!--APP-->
+<div id="map" aria-label="Carte"></div>
+
+<header class="top">
+  <div class="bar">
+    <button class="mark" id="brand" aria-label="Traceo">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M7 23c0-8 5.5-14 11.5-14 4.6 0 7.5 2.9 7.5 6.6 0 3.8-3 6.6-6.8 6.6-2.8 0-4.7-1.9-4.7-4.2" fill="none" stroke="currentColor" stroke-width="3.6" stroke-linecap="round"/><circle cx="7" cy="23" r="3.8" fill="#E6F2F0"/></svg>
+    </button>
+    <label class="search" for="q">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>
+      <input id="q" type="search" placeholder="Ville ou adresse de départ" autocomplete="off" enterkeyhint="search">
+      <button type="button" class="clear" id="qClear" aria-label="Effacer" hidden>×</button>
+    </label>
+  </div>
+  <div class="results" id="results" hidden></div>
+  <div class="rowchips">
+    <button class="pill" id="bigBtn"><svg viewBox="0 0 24 24"><path d="M3 21h18M5 21V9l5-3v15M10 21V4l9 4v13M14 10h2M14 14h2M7 12h1M7 16h1"/></svg>Villes</button>
+    <button class="pill" id="omBtn"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.2 3 14.8 0 18M12 3c-3 3.2-3 14.8 0 18"/></svg>Outre-mer et îles</button>
+    <button class="pill crown" id="crown"><span>★</span>Premium</button>
+  </div>
+</header>
+
+<div class="fabs">
+  <button class="fab locate" id="fabLocate" aria-label="Me localiser"><svg viewBox="0 0 24 24"><path d="M12 2.5L19.5 21 12 17 4.5 21z" class="nav"/></svg></button>
+</div>
+
+<section class="panel" id="panel">
+  <button class="grab" id="grab" aria-label="Agrandir ou réduire"><span></span></button>
+  <div class="panel-body" id="panelBody"></div>
+</section>
+
+<nav class="tabs" id="tabs" aria-label="Navigation">
+  <button data-tab="plan" aria-current="page"><svg viewBox="0 0 24 24"><path d="M5 18c0-6 4-11 9-11 3 0 5 2 5 5s-2 5-5 5c-2 0-3.5-1.5-3.5-3"/><circle cx="5" cy="18" r="2"/></svg><span>Courir</span></button>
+  <button data-tab="coach"><svg viewBox="0 0 24 24"><path d="M13 3L5 14h6l-1 7 8-11h-6z"/></svg><span>Coach</span></button>
+  <button data-tab="mine"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="M8 9h8M8 13h8M8 17h5"/></svg><span>Boucles</span></button>
+  <button data-tab="premium"><svg viewBox="0 0 24 24"><path d="M12 3l2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.4 6.7 19.4l1.2-6L3.4 9.3l6-.7z"/></svg><span>Premium</span></button>
+  <button data-tab="me"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg><span>Profil</span></button>
+</nav>
+
+<!-- Guidage en direct -->
+<div class="guide" id="guide" hidden>
+  <div class="turn" id="gIcon"></div>
+  <div class="gtxt"><b id="gDist">—</b><span id="gText">Suis la ligne verte</span><small id="gNow"></small></div>
+  <button class="mute" id="gMute" aria-label="Couper la voix"></button>
+</div>
+<section class="fly" id="fly" hidden>
+  <div class="fly-head"><span><span class="eyebrow" id="fTitle">Ta boucle</span><span class="fly-km" id="fOf"></span></span><button class="musicbtn" id="fMusic" aria-label="Musique"><svg viewBox="0 0 24 24"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg>Musique</button></div>
+  <p class="eyebrow">Feuille de route · touche une étape pour la voir</p>
+  <div class="roadbook" id="fSteps"></div>
+  <div class="fly-actions"><button class="btn soft" id="fCenter">Vue d'ensemble</button><button class="btn soft" id="fClose">Fermer</button></div>
+  <button class="btn hero block" id="fStart">Commencer la course</button>
+</section>
+<section class="hud" id="hud" hidden>
+  <div class="hud-top"><span class="live"><i></i><span id="hState">En course</span></span><span class="gps" id="hGps">GPS…</span><button class="musicbtn" id="hMusicBtn" aria-label="Musique"><svg viewBox="0 0 24 24"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg>Musique</button></div>
+  <div class="hmusic" id="hMusic" hidden></div>
+  <div class="hud-time" id="hTime">0:00</div>
+  <div class="hud-grid">
+    <div><b id="hDist">0,00</b><small>km</small></div>
+    <div><b id="hPace">–'––</b><small>allure /km</small></div>
+    <div><b id="hKcal">0</b><small>kcal</small></div>
+  </div>
+  <div class="hud-prog"><span id="hBar"></span></div>
+  <div class="hud-actions"><button class="btn soft" id="hPause">Pause</button><button class="btn stop" id="hStop"><span class="fill"></span>Maintenir pour terminer</button></div>
+</section>
+
+<div class="splash" id="splash" hidden></div>
+<div class="modal" id="modal" hidden><div class="sheet" role="dialog" aria-modal="true" id="sheet"></div></div>
+<canvas id="confetti" aria-hidden="true"></canvas>
+<div class="toast" id="toast" role="status" hidden></div>
+<!--/APP-->
+
+<script src="config.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js" crossorigin=""></script>
+<script src="app.js"></script>
+</body>
+</html>
