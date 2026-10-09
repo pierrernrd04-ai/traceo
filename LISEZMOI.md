@@ -48,18 +48,24 @@ La localisation, les cartes et PayPal ne marchent que sur une vraie adresse web 
 
 Pour mettre à jour l'app plus tard : Workers & Pages > traceo > Créer un déploiement, et renvoie le nouveau zip.
 
-## Chat : activer la vraie IA (Claude)
+## Chat : activer la vraie IA (Claude), depuis ton téléphone
 
-Sans réglage, l'onglet **Chat** utilise l'assistant intégré : il comprend les demandes courantes et agit dans l'app. Pour des réponses libres par une vraie IA :
-1. Crée une clé API sur **console.anthropic.com** (API Keys) et ajoute un moyen de paiement. Le chat utilise Claude Opus 5.5, avec des réponses courtes.
-2. Crée un compte gratuit sur **dash.cloudflare.com**, puis déploie le serveur depuis un ordinateur :
-   ```
-   cd server && npm install && npx wrangler login && npx wrangler deploy
-   npx wrangler secret put ANTHROPIC_API_KEY
-   ```
-3. Colle l'adresse obtenue (`https://traceo-api.<ton-compte>.workers.dev`) dans `CHAT_API` de `config.js`, puis pousse sur `main`.
+Sans réglage, l'onglet **Chat** utilise le cerveau intégré (`chat-brain.js`). Il fait les calculs (allures, chronos, VMA, zones cardiaques, gels, calories), prépare des plans, connaît une soixantaine de sujets running et suit le fil de la conversation. Pour répondre librement à **n'importe quelle** question, active la vraie IA. Tout se fait dans le navigateur du téléphone, en 15 minutes environ :
 
-Garde-fous du serveur : 12 messages par minute et par appareil au maximum, historique limité, sujets limités à la course et à l'app. Si l'IA ne répond pas, l'app bascule seule sur l'assistant intégré.
+1. **Anthropic** : sur **console.anthropic.com**, crée un compte, ajoute un moyen de paiement (facturation à l'usage), puis **API Keys > Create Key**. Copie la clé (`sk-ant-…`).
+2. **Cloudflare** (gratuit) : sur **dash.cloudflare.com**, crée un compte.
+   - Ouvre **Workers & Pages** une fois et choisis ton sous-domaine `workers.dev`.
+   - Copie ton **Account ID** (colonne de droite de la page d'accueil du compte).
+   - Va dans **Mon profil > Jetons API > Créer un jeton**, choisis le modèle **« Modifier les Workers Cloudflare »** et copie le jeton.
+3. **GitHub** : dans le dépôt `traceo`, ouvre **Settings > Secrets and variables > Actions > New repository secret** et crée trois secrets :
+   - `ANTHROPIC_API_KEY` ;
+   - `CLOUDFLARE_API_TOKEN` ;
+   - `CLOUDFLARE_ACCOUNT_ID`.
+4. Ouvre **Actions > Serveur (chat IA) > Run workflow**.
+
+Le serveur se déploie, le chat est testé, et son adresse s'écrit toute seule dans `config.js` (`CHAT_API`). En 2 minutes, le chat de l'app répond avec Claude.
+
+**Garde-fous** : 12 messages par minute et par appareil au maximum, historique limité, sujets limités à la course et à l'app. Si l'IA ne répond pas, le cerveau intégré prend le relais automatiquement.
 
 ## Informations légales
 

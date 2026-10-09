@@ -1,0 +1,87 @@
+# Met en ligne le serveur de Traceo (chat IA + vérification PayPal) sur Cloudflare Workers,
+# sans ordinateur : GitHub > Actions > « Serveur (chat IA) » > Run workflow.
+# Secrets à créer une fois (GitHub > Settings > Secrets and variables > Actions) :
+#   CLOUDFLARE_API_TOKEN   jeton Cloudflare (modèle « Edit Cloudflare Workers »)
+#   CLOUDFLARE_ACCOUNT_ID  identifiant du compte Cloudflare
+#   ANTHROPIC_API_KEY      clé API Anthropic (console.anthropic.com)
+# Une fois déployé, l'adresse du serveur est écrite automatiquement dans config.js (CHAT_API).
+name: Serveur (chat IA)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["server/**"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: server-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    steps:
+      - name: Vérifier les secrets
+        id: check
+        run: |
+          missing=""
+          [ -z "$CLOUDFLARE_API_TOKEN" ] && missing="$missing CLOUDFLARE_API_TOKEN"
+          [ -z "$CLOUDFLARE_ACCOUNT_ID" ] && missing="$missing CLOUDFLARE_ACCOUNT_ID"
+          [ -z "$ANTHROPIC_API_KEY" ] && missing="$missing ANTHROPIC_API_KEY"
+          if [ -n "$missing" ]; then
+            echo "::warning::Secrets manquants :$missing. Ajoute-les dans Settings > Secrets and variables > Actions, puis relance."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.check.outputs.ok == 'true'
+
+      - uses: actions/setup-node@v4
+        if: steps.check.outputs.ok == 'true'
+        with:
+          node-version: 22
+
+      - name: Installer les dépendances du serveur
+        if: steps.check.outputs.ok == 'true'
+        working-directory: server
+        run: npm install --no-audit --no-fund
+
+      - name: Déployer sur Cloudflare Workers
+        id: deploy
+        if: steps.check.outputs.ok == 'true'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: server
+          secrets: |
+            ANTHROPIC_API_KEY
+
+      - name: Tester le chat
+        if: steps.check.outputs.ok == 'true' && steps.deploy.outputs.deployment-url != ''
+        run: |
+          URL="${{ steps.deploy.outputs.deployment-url }}"
+          echo "Serveur : $URL"
+          curl -sS -X POST "$URL/chat" -H "Content-Type: application/json" -H "Origin: https://pierrernrd04-ai.github.io" \
+            -d '{"messages":[{"role":"user","content":"Quelle allure pour 10 km en 50 minutes ?"}]}' | tee /tmp/chat.json
+          grep -q '"reply"' /tmp/chat.json
+
+      - name: Brancher le chat IA dans l'app (config.js)
+        if: steps.check.outputs.ok == 'true' && steps.deploy.outputs.deployment-url != ''
+        run: |
+          URL="${{ steps.deploy.outputs.deployment-url }}"
+          if grep -q "CHAT_API: \"$URL\"" config.js; then echo "Déjà branché."; exit 0; fi
+          sed -i "s#CHAT_API: \"[^\"]*\"#CHAT_API: \"$URL\"#" config.js
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "Chat IA branché : CHAT_API = $URL"
+          git push
