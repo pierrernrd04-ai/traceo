@@ -235,7 +235,7 @@ ul.checks li::before{content:"✓";width:22px;height:22px;flex:none;border-radiu
 .switch input{width:26px;height:26px;accent-color:var(--accent)}
 
 /* ---------- Navigation ---------- */
-.tabs{position:fixed;left:0;right:0;bottom:0;z-index:19;display:grid;grid-template-columns:repeat(5,1fr);background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px);height:calc(var(--nav-h) + env(safe-area-inset-bottom,0px))}
+.tabs{position:fixed;left:0;right:0;bottom:0;z-index:19;display:grid;grid-template-columns:repeat(6,1fr);background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px);height:calc(var(--nav-h) + env(safe-area-inset-bottom,0px))}
 .tabs button{border:0;background:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:11.5px;font-weight:700;color:var(--muted);position:relative;z-index:0}
 .tabs svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
 .tabs button[aria-current="page"]{color:var(--ink)}
@@ -745,3 +745,27 @@ div.hero .me2{fill:var(--blue);stroke:#fff;stroke-width:3}
 .gate-msg{background:var(--surface-2);border:1px solid var(--line);border-radius:18px;padding:14px;display:flex;flex-direction:column;gap:10px;line-height:1.4}
 .gate .spin{display:inline-block;width:18px;height:18px;border-radius:50%;border:2.5px solid currentColor;border-right-color:transparent;animation:spin .8s linear infinite;vertical-align:-3px;margin-right:6px}
 .gate-on .tabs,.gate-on .panel,.gate-on .fabs{pointer-events:none}
+
+/* Chat */
+.tabs button[aria-current="page"]::before{width:52px}
+.chat-head{flex:none;display:flex;align-items:center;gap:12px}
+.chat-head>span:nth-child(2){flex:1;display:flex;flex-direction:column}
+.chat-head b{font-family:var(--f-display);font-size:20px}
+.chat-head small{color:var(--muted);font-size:12.5px;font-weight:600}
+.chat-av{width:44px;height:44px;border-radius:14px;display:grid;place-items:center;background:linear-gradient(135deg,#2BE39B,#1EA6D0);flex:none}
+.chat-av svg{width:24px;height:24px;fill:none;stroke:#03140D;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.chat-list{flex:none;display:flex;flex-direction:column;gap:10px;min-height:120px}
+.msg{max-width:88%;padding:11px 14px;border-radius:18px;line-height:1.45;font-size:15px;white-space:normal;word-wrap:break-word}
+.msg.msg-b{align-self:flex-start;background:var(--surface-2);border:1px solid var(--line);border-bottom-left-radius:6px}
+.msg.msg-u{align-self:flex-end;background:linear-gradient(135deg,var(--accent),var(--accent-2));color:var(--accent-ink);font-weight:600;border-bottom-right-radius:6px}
+.msg-act{display:flex;margin-top:10px;min-height:42px;width:100%;font-size:14px}
+.msg.typing{display:flex;gap:5px;padding:14px 16px}
+.msg.typing i{width:7px;height:7px;border-radius:50%;background:var(--muted);animation:typing 1s infinite}
+.msg.typing i:nth-child(2){animation-delay:.15s}.msg.typing i:nth-child(3){animation-delay:.3s}
+@keyframes typing{0%,60%,100%{opacity:.3;transform:none}30%{opacity:1;transform:translateY(-3px)}}
+.chat-sugg{flex:none;display:flex;flex-wrap:wrap;gap:8px}
+.chat-sugg .chip{font-size:13.5px}
+.chat-form{flex:none;display:grid;grid-template-columns:1fr 54px;gap:8px;padding:8px 0 4px;background:var(--surface)}
+.chat-form .input{min-height:52px;font-size:16px}
+.chat-form .btn{min-height:52px;padding:0;border-radius:16px}
+.chat-form .btn svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linejoin:round}

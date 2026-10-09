@@ -832,8 +832,90 @@ $("#grab").onclick = () => panel.classList.toggle("min");
 // Onglets du Coach : un seul écouteur sur le panneau, valable après chaque affichage
 body.addEventListener("click", e => { const b = e.target.closest("[data-ct]"); if(!b) return; e.preventDefault(); S.coachTab = b.dataset.ct; S.editProfile = false; render(); body.scrollTop = 0; });
 (() => { let y0 = null; const g = $("#grab"); g.addEventListener("touchstart", e => y0 = e.touches[0].clientY, {passive:true}); g.addEventListener("touchend", e => { if(y0 == null) return; const dy = e.changedTouches[0].clientY - y0; if(dy > 30) panel.classList.add("min"); if(dy < -30) panel.classList.remove("min"); y0 = null; }); })();
+/* ---------- Chat : le coach Traceo répond aux questions et agit dans l'app ---------- */
+// Avec CHAT_API (serveur server/worker.js + clé Anthropic) : vraie IA (Claude). Sans : assistant intégré, toujours disponible.
+const CHAT = {msgs:store.get("chat", []), busy:false};
+const CHAT_AI = () => !!C.CHAT_API;
+const CHAT_SUGG = ["Fais-moi une boucle de 5 km", "Quelle allure pour un 10 km en 50 min ?", "Que manger avant de courir ?", "Un échauffement rapide", "Comment marche Premium ?", "Installer l'app sur iPhone"];
+function viewChat(){
+  const hello = `Salut ! Je suis le coach Traceo. Demande-moi une boucle, une allure, un conseil nutrition ou d'échauffement, ou comment marche l'app.`;
+  const list = [{r:"a", t:hello}, ...CHAT.msgs];
+  return `<div class="chat-head"><span class="chat-av"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/><path d="M8 9.5h8M8 12.5h5"/></svg></span><span><b>Coach Traceo</b><small>${CHAT_AI() ? "Assistant IA · répond en quelques secondes" : "Assistant intégré · toujours disponible"}</small></span>${CHAT.msgs.length ? `<button class="linkbtn" id="chatClear">Effacer</button>` : ""}</div>
+    <div class="chat-list" id="chatList">${list.map(m => `<div class="msg ${m.r === "u" ? "msg-u" : "msg-b"}">${m.r === "u" ? esc(m.t) : fmtBot(m.t)}${m.act ? `<button class="btn soft msg-act" data-act="${esc(m.act)}">${esc(m.actLabel || "Ouvrir")}</button>` : ""}</div>`).join("")}${CHAT.busy ? `<div class="msg msg-b typing"><i></i><i></i><i></i></div>` : ""}</div>
+    ${CHAT.msgs.length < 2 ? `<div class="chat-sugg">${CHAT_SUGG.map(x => `<button class="chip" data-sugg="${esc(x)}">${esc(x)}</button>`).join("")}</div>` : ""}
+    <form class="chat-form" id="chatForm"><input id="chatIn" class="input" placeholder="Écris ta question…" autocomplete="off" enterkeyhint="send" maxlength="600"><button class="btn hero" aria-label="Envoyer"><svg viewBox="0 0 24 24"><path d="M4 12l16-8-6 16-2.5-6.5z"/></svg></button></form>`;
+}
+// Mise en forme simple des réponses : **gras** et retours à la ligne
+const fmtBot = t => esc(t).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/\n/g, "<br>");
+function wireChat(){
+  const L = $("#chatList"); if(L) L.scrollTop = L.scrollHeight; body.scrollTop = body.scrollHeight;
+  $("#chatForm").onsubmit = e => { e.preventDefault(); const v = $("#chatIn").value.trim(); if(v) chatSend(v); };
+  body.querySelectorAll("[data-sugg]").forEach(b => b.onclick = () => chatSend(b.dataset.sugg));
+  body.querySelectorAll("[data-act]").forEach(b => b.onclick = () => chatAct(b.dataset.act));
+  $("#chatClear") && ($("#chatClear").onclick = () => { CHAT.msgs = []; store.set("chat", []); render(); });
+}
+async function chatSend(text){
+  if(CHAT.busy) return;
+  CHAT.msgs.push({r:"u", t:text.slice(0, 600)}); CHAT.busy = true; render(); track("chat_message", {ia:CHAT_AI()});
+  let ans = null;
+  if(CHAT_AI()){
+    try{
+      const ctx = {depart:S.start?.label || null, distance_km:S.distKm, duree_min:S.durMin, mode:S.mode, allure_s_km:S.pace, poids_kg:S.weight, premium:isPremium(), beta:betaOn()};
+      const j = await fetchJSON(C.CHAT_API.replace(/\/$/, "") + "/chat", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({messages:CHAT.msgs.slice(-12).map(m => ({role:m.r === "u" ? "user" : "assistant", content:m.t})), context:ctx})}, 30000);
+      if(j && j.reply) ans = {t:j.reply};
+    }catch(e){}
+  }
+  if(!ans) ans = localCoach(text);
+  // une demande de boucle se traduit en action dans l'app
+  const km = ans.km;
+  CHAT.busy = false; CHAT.msgs.push({r:"a", t:ans.t, act:ans.act, actLabel:ans.actLabel}); CHAT.msgs = CHAT.msgs.slice(-40); store.set("chat", CHAT.msgs);
+  if(S.tab === "chat") render();
+  if(km){ S.mode = "dist"; S.distKm = km; store.set("mode", "dist"); store.set("distKm", km); }
+}
+function chatAct(a){
+  if(a === "gen"){ go("plan"); if(S.start) setTimeout(generate, 250); else showGate(); }
+  else if(a === "loc"){ go("plan"); locate(); }
+  else if(a === "premium") go("premium");
+  else if(a === "coach") go("coach");
+  else if(a === "install") installFlow();
+  else if(a === "me") go("me");
+}
+const PACE = s => paceTxt(s) + " /km";
+// Assistant intégré : comprend les demandes courantes et répond avec les données de l'app
+function localCoach(raw){
+  const t = plain(raw.toLowerCase()), num = (re) => { const m = t.match(re); return m ? parseFloat(m[1].replace(",", ".")) : null; };
+  const has = (...w) => w.some(x => t.includes(x));
+  // boucle de X km / X minutes
+  if(has("boucle", "parcours", "itineraire", "trajet", "genere", "course de") && (num(/(\d+(?:[.,]\d+)?)\s*(?:km|kilo)/) || num(/(\d+)\s*(?:min|minutes)/) || has("boucle", "parcours"))){
+    const km = num(/(\d+(?:[.,]\d+)?)\s*(?:km|kilo)/), mn = num(/(\d+)\s*(?:min|minutes)/);
+    if(mn && !km){ S.mode = "time"; S.durMin = Math.max(10, Math.min(240, Math.round(mn/5)*5)); store.set("mode", "time"); store.set("durMin", S.durMin);
+      return {t:`C'est noté : une boucle d'environ **${S.durMin} minutes**, soit ${km1(S.durMin*60/S.pace*1000)} km à ton allure (${PACE(S.pace)}).${S.start ? "" : "\nIl me faut d'abord ton point de départ."}`, act:"gen", actLabel:S.start ? "Tracer ma boucle" : "Choisir mon départ"}; }
+    const k = km ? Math.max(2, Math.min(42, Math.round(km*2)/2)) : S.distKm;
+    return {km:k, t:`Parfait : une boucle de **${nf(1).format(k).replace(",0", "")} km**, environ ${hmin(k*S.pace)} à ${PACE(S.pace)}, ${kcal(k*1000)} kcal.${S.start ? ` Départ : ${S.start.label}.` : "\nIl me faut d'abord ton point de départ."}`, act:"gen", actLabel:S.start ? "Tracer ma boucle" : "Choisir mon départ"};
+  }
+  // allure : objectif de temps sur une distance
+  if(has("allure", "rythme", "vitesse", "temps", "chrono", "objectif")){
+    const d = has("marathon") && !has("semi") ? 42.195 : has("semi") ? 21.1 : num(/(\d+(?:[.,]\d+)?)\s*(?:km|kilo)/);
+    const h = num(/(\d+)\s*h/) || 0, m = num(/(\d+)\s*(?:min|mn|')/) || 0;
+    if(d && (h || m)){ const sec = (h*3600 + m*60)/d;
+      return {t:`Pour **${nf(1).format(d).replace(",0", "")} km en ${h ? h + " h " : ""}${m ? m + " min" : ""}**, vise **${PACE(sec)}**, soit ${nf(1).format(3600/sec)} km/h.\nConseil : pars 5 à 10 secondes plus lent sur le premier kilomètre, puis cale-toi sur cette allure.`}; }
+    return {t:`Ton allure enregistrée est **${PACE(S.pace)}**. Tu peux la changer dans Profil.\nDonne-moi une distance et un temps, par exemple « allure pour 10 km en 50 min », et je te calcule le rythme à tenir.`, act:"me", actLabel:"Changer mon allure"};
+  }
+  if(has("manger", "nutrition", "repas", "gel", "glucide", "petit dej", "proteine", "faim")) return {t:`**Avant** : un repas léger 2 à 3 h avant (riz, pâtes, pain, banane), ou une collation 30 à 60 min avant si tu as faim.\n**Pendant** : rien à prévoir sous 1 h ; au-delà, 30 à 60 g de glucides par heure (gel, fruits secs).\n**Après** : dans l'heure, glucides et protéines (yaourt, banane, œufs, riz).\nTon plan détaillé est dans l'onglet Coach.`, act:"coach", actLabel:"Ouvrir le Coach"};
+  if(has("boire", "eau", "hydrat", "soif", "chaleur", "chaud")) return {t:`Bois 300 à 500 ml dans les 2 h avant. Pour moins d'une heure par temps doux, pas besoin d'emporter d'eau. Au-delà ou s'il fait chaud : 400 à 800 ml par heure, par petites gorgées, avec des électrolytes si tu transpires beaucoup.\nTraceo affiche les points d'eau proches de ta boucle.`};
+  if(has("echauff", "etire", "mobilite", "routine", "preparer")) return {t:`Échauffement express (8 min) : 3 min de marche rapide ou trot léger, puis 10 montées de genoux, 10 talons-fesses, 10 fentes, et 3 accélérations progressives de 15 secondes.\nLes routines guidées à la voix sont dans l'onglet Coach.`, act:"coach", actLabel:"Lancer une routine"};
+  if(has("blesse", "douleur", "mal ", "genou", "cheville", "tendon", "crampe", "point de cote")) return {t:`Si une douleur apparaît en courant, ralentis puis marche. Une douleur vive, qui augmente ou dure plus de quelques jours, demande l'avis d'un médecin ou d'un kiné.\nPour un point de côté : ralentis, respire profondément en expirant longuement, et appuie légèrement sous les côtes.\nJe ne remplace pas un avis médical.`};
+  if(has("premium", "prix", "payer", "paiement", "abonn", "paypal", "gratuit", "beta", "tarif")) return {t:betaOn() ? `Tout est gratuit pendant la bêta, jusqu'au **10 octobre à 15 h**. Ensuite, **Traceo Premium** coûte **${C.PRICE_LABEL}** pour 31 jours, payés par PayPal (compte PayPal ou carte), sans renouvellement automatique.` : `**Traceo Premium** : **${C.PRICE_LABEL}** pour 31 jours, payés par PayPal (compte PayPal ou carte bancaire). Pas de renouvellement automatique : tu reprends quand tu veux.`, act:"premium", actLabel:"Voir Premium"};
+  if(has("install", "ecran d accueil", "iphone", "android", "telecharg", "appli")) return {t:`Pas besoin de store. **iPhone** : ouvre Traceo dans Safari, touche Partager puis « Sur l'écran d'accueil ». **Android** : dans Chrome, menu ⋮ puis « Installer l'application ».`, act:"install", actLabel:"Installer Traceo"};
+  if(has("position", "localis", "gps", "depart", "ou je suis")) return {t:`Touche « Me localiser » et accepte la demande de ton téléphone : ta boucle part de là où tu es. Tu peux aussi choisir une ville ou faire un appui long sur la carte pour un départ précis.`, act:"loc", actLabel:"Me localiser"};
+  if(has("strava", "garmin", "gpx", "montre", "coros", "suunto", "polar")) return {t:`Après ta course : **Envoyer sur Strava** ou **Garmin** depuis le bilan. Pour suivre ta boucle sur ta montre, touche **Garmin** ou **GPX** sous la boucle, puis importe le fichier dans l'appli de ta montre.`};
+  if(has("plan", "entrainement", "marathon", "semi", "10 km", "progresser", "debut")) return {t:`Pour progresser : 3 sorties par semaine, dont une longue et tranquille, une avec du rythme (fractionné ou seuil) et une facile. Augmente ton volume de 10 % par semaine au maximum.\nLes programmes 5 km, 10 km, semi et marathon sont dans l'onglet Coach.`, act:"coach", actLabel:"Voir les programmes"};
+  if(has("motiv", "flemme", "fatigue", "envie")) return {t:`La meilleure sortie est celle que tu fais. Fixe-toi juste 15 minutes : une fois dehors, tu continueras souvent. Et avec Traceo, chaque boucle passe par des rues que tu n'as jamais courues.`, act:"gen", actLabel:"Une boucle de 3 km"};
+  if(has("bonjour", "salut", "hello", "coucou", "merci")) return {t:has("merci") ? `Avec plaisir, bonne course ! 🏃` : `Salut ! Dis-moi ce dont tu as besoin : une boucle, une allure, un conseil nutrition ou d'échauffement.`};
+  return {t:`Je peux t'aider pour :\n• **une boucle** (« boucle de 8 km », « 45 minutes »)\n• **une allure** (« allure pour 10 km en 50 min »)\n• **la nutrition, l'hydratation, l'échauffement**\n• **Premium, l'installation, Strava et Garmin**`};
+}
 function render(){
-  body.innerHTML = ({plan:viewPlan, coach:viewCoach, mine:viewMine, premium:viewPremium, me:viewMe})[S.tab]();
+  body.innerHTML = ({plan:viewPlan, coach:viewCoach, chat:viewChat, mine:viewMine, premium:viewPremium, me:viewMe})[S.tab]();
   wire(); counters(); updateCrown(); syncQBars();
 }
 function startCard(){
@@ -1432,6 +1514,7 @@ function wire(){
     });
   }
   if(S.tab === "premium" && !betaOn()) mountPay("payMain");
+  if(S.tab === "chat") wireChat();
   if(S.tab === "coach"){
     body.querySelectorAll("[data-routine]").forEach(b => b.onclick = () => playRoutine(b.dataset.routine));
     body.querySelectorAll("[data-mobi]").forEach(b => b.onclick = () => { S.mobi = b.dataset.mobi; render(); });
