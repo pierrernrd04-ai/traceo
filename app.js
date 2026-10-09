@@ -92,7 +92,9 @@ const TraceoGL = window.L && L.Layer ? L.Layer.extend({
     this._c = L.DomUtil.create("div", "leaflet-layer traceo-gl"); this._c.style.cssText = "position:absolute;pointer-events:none";
     m.getPane("tilePane").appendChild(this._c); const s = m.getSize(); this._c.style.width = s.x + "px"; this._c.style.height = s.y + "px";
     const c = m.getCenter();
-    this._gl = new maplibregl.Map({container:this._c, style:this.o.style, interactive:false, attributionControl:false, center:[c.lng, c.lat], zoom:m.getZoom() - 1, fadeDuration:0});
+    this._gl = new maplibregl.Map({container:this._c, style:this.o.style, interactive:false, attributionControl:false, center:[c.lng, c.lat], zoom:m.getZoom() - 1, fadeDuration:0, pixelRatio:Math.min(2, window.devicePixelRatio || 1), maxTileCacheSize:120, refreshExpiredTiles:false, trackResize:false});
+    let errs = 0; this._gl.on("error", () => { if(++errs > 25) glFail(); });
+    this._gl.getCanvas().addEventListener("webglcontextlost", e => { e.preventDefault(); glFail(); });
     m.on("move zoom moveend zoomend viewreset", this._up, this); m.on("resize", this._rs, this); m.on("zoomanim", this._anim, this);
     if(m.attributionControl && this.o.attribution) m.attributionControl.addAttribution(this.o.attribution);
     this._up();
@@ -104,10 +106,12 @@ const TraceoGL = window.L && L.Layer ? L.Layer.extend({
   },
   getMaplibreMap(){ return this._gl; },
   _rs(){ const s = this._map.getSize(); this._c.style.width = s.x + "px"; this._c.style.height = s.y + "px"; this._gl.resize(); this._up(); },
-  _up(){ const m = this._map; if(!m || !this._gl) return; this._off = m.containerPointToLayerPoint([0, 0]); L.DomUtil.setPosition(this._c, this._off); const c = m.getCenter(); this._gl.jumpTo({center:[c.lng, c.lat], zoom:m.getZoom() - 1}); },
-  _anim(e){ const m = this._map, sc = m.getZoomScale(e.zoom), off = m._latLngBoundsToNewLayerBounds(m.getBounds(), e.zoom, e.center).min; L.DomUtil.setTransform(this._c, off.subtract(this._off).add(this._off), sc); }
+  _up(){ const m = this._map; if(!m || !this._gl) return; this._lp = m.containerPointToLayerPoint([0, 0]); L.DomUtil.setPosition(this._c, this._lp); const c = m.getCenter(); this._gl.jumpTo({center:[c.lng, c.lat], zoom:m.getZoom() - 1}); },
+  _anim(e){ const m = this._map, sc = m.getZoomScale(e.zoom), off = m._latLngBoundsToNewLayerBounds(m.getBounds(), e.zoom, e.center).min; L.DomUtil.setTransform(this._c, off, sc); }
 }) : null;
-let tileUrl = null, base = null;
+let tileUrl = null, base = null, glBroken = false;
+// Si la carte vectorielle plante (mémoire du téléphone, WebGL), on bascule tout seul sur la carte classique
+function glFail(){ if(glBroken) return; glBroken = true; console.warn("Carte vectorielle indisponible : carte classique"); setTimeout(setBase, 0); }
 async function setBase(){
   if(base) map.removeLayer(base);
   if(PV){ const p = PV.baseLayer(); tileUrl = p.tileUrl; base = p.layer.addTo(map); return; }
@@ -121,7 +125,7 @@ async function setBase(){
   }
   const style = isDark() ? "dark_all" : "rastertiles/voyager";
   // Fond principal : carte vectorielle MapLibre (OpenFreeMap, gratuit, sans clé, usage commercial autorisé), aux couleurs de Traceo
-  if(window.maplibregl && TraceoGL && C.MAP_STYLE !== "raster"){
+  if(window.maplibregl && TraceoGL && C.MAP_STYLE !== "raster" && !glBroken){
     try{
       const sup = maplibregl.supported ? maplibregl.supported() : true;
       if(sup){
@@ -165,7 +169,7 @@ function setStart(s, fly = true){
   S.start = s; S.results = null; S.view = "form"; routeLayer.clearLayers();
   if(startMk){ map.removeLayer(startMk); startMk = null; }
   startMk = L.marker([s.lat, s.lng], {icon:L.divIcon({className:"", html:'<div class="pin"><span>GO</span></div>', iconSize:[40,40], iconAnchor:[4,40]}), zIndexOffset:900}).addTo(map);
-  if(fly) map.flyTo([s.lat, s.lng], s.city ? 15 : 16, {duration:1.3});
+  if(fly){ const z = s.city ? 15 : 16; if((TraceoGL && base instanceof TraceoGL) || map.distance(map.getCenter(), [s.lat, s.lng]) > 30000) map.setView([s.lat, s.lng], z, {animate:false}); else map.flyTo([s.lat, s.lng], z, {duration:1.3}); }
   setTimeout(() => saveCityMap(s), 2500);
   if(S.tab === "plan") render();
 }
@@ -217,7 +221,7 @@ async function reverseLabel(announce){
 $("#fabLocate").onclick = locate;
 $("#omBtn").onclick = () => {
   openModal(`<button class="iconbtn x" data-close aria-label="Fermer">${I.x}</button><p class="eyebrow">Toute la France</p><p class="title">Outre-mer et îles</p><div class="chips">${OUTREMER.map((t, i) => `<button class="chip" data-om="${i}">${esc(t[0])}</button>`).join("")}</div><p class="small">Ensuite, touche le bouton bleu pour te localiser ou tape une adresse.</p>`);
-  $("#sheet").querySelectorAll("[data-om]").forEach(b => b.onclick = () => { const t = OUTREMER[+b.dataset.om]; closeModal(); map.flyTo([t[1], t[2]], t[3], {duration:1.8}); });
+  $("#sheet").querySelectorAll("[data-om]").forEach(b => b.onclick = () => { const t = OUTREMER[+b.dataset.om]; closeModal(); map.setView([t[1], t[2]], t[3], {animate:false}); });
 };
 
 /* ---------- Choisir sa ville (toutes les communes de France) ---------- */
@@ -1806,7 +1810,7 @@ function tilesAround(lat, lng, km = 2.5){
   return out;
 }
 async function saveCityMap(s){
-  if(PV || !tileUrl || C.GOOGLE_MAPS_KEY || !("caches" in window) || !navigator.onLine) return;
+  if(PV || !tileUrl || C.GOOGLE_MAPS_KEY || (TraceoGL && base instanceof TraceoGL) || !("caches" in window) || !navigator.onLine) return;
   const maps = store.get("maps", []), key = `${s.lat.toFixed(2)},${s.lng.toFixed(2)}`;
   if(maps.some(m => m.key === key)) return;
   const urls = tilesAround(s.lat, s.lng), cache = await caches.open("traceo-tiles"); let done = 0, i = 0;
