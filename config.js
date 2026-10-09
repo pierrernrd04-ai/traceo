@@ -4,6 +4,8 @@ window.TRACEO_CONFIG = {
   // true : tout est gratuit et illimité pour tout le monde (l'onglet Premium présente l'offre à venir).
   // false : Premium et le paiement s'activent.
   BETA: true,
+  // Fin automatique de la bêta gratuite (heure de Paris). Après cette date, l'app est réservée aux abonnés Premium.
+  BETA_END: "2026-10-10T15:00:00+02:00",
 
   // ---------- Carte et adresses ----------
   // Clé Google Maps Platform ("Map Tiles API" + "Places API (New)").

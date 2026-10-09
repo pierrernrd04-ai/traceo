@@ -713,3 +713,11 @@ ul.checks li::before{content:"✓";width:22px;height:22px;flex:none;border-radiu
 @keyframes wmPop{from{opacity:0;r:0}}
 .splash[hidden]{display:none!important}
 [hidden]{display:none!important}
+/* Écran de fin de bêta */
+.betalock{position:fixed;inset:0;z-index:95;display:grid;place-items:center;padding:24px;background:radial-gradient(80% 50% at 80% 10%,#0F3B3A 0%,transparent 60%),linear-gradient(180deg,#07131A,#040B0F);animation:fade .4s both}
+.bl-in{max-width:420px;width:100%;display:flex;flex-direction:column;gap:14px;text-align:center;align-items:center}
+.bl-logo{width:84px;height:84px;margin-bottom:6px}
+.bl-h{font-family:"Bricolage Grotesque",sans-serif;font-size:30px;font-weight:800;line-height:1.1;color:var(--ink)}.bl-h b{color:var(--accent)}
+.bl-in .muted{font-size:16px;line-height:1.45}
+.bl-soon{background:var(--soft);border:1px solid rgba(37,201,143,.35);color:var(--ink);border-radius:16px;padding:14px 16px;font-weight:600;line-height:1.45}
+.bl-in .btn{width:100%}
