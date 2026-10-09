@@ -436,7 +436,7 @@ async function routeValhalla(wps){ return queued("valhalla", () => routeValhalla
 async function routeValhalla0(wps){
   const q = {locations:wps.map((p, i) => ({lat:+p[0].toFixed(6), lon:+p[1].toFixed(6), type:i === 0 || i === wps.length - 1 ? "break" : "through"})), costing:"pedestrian", directions_options:{language:"fr-FR", units:"kilometers"}};
   const j = await fetchJSON(`https://valhalla1.openstreetmap.de/route?json=${encodeURIComponent(JSON.stringify(q))}`, {}, 15000);
-  const legs = j.trip?.legs; if(!legs?.length) return null;
+  const legs = j.trip?.legs; if(!legs?.length){ routeErr = "valhalla " + (j.error || j.status_message || "sans route"); return null; }
   const pts = [], steps = [];
   legs.forEach((leg, li) => { const sh = decode6(leg.shape), off = pts.length ? pts.length - 1 : 0; pts.push(...(pts.length ? sh.slice(1) : sh));
     for(const m of leg.maneuvers || []){ const t = m.type, last = li === legs.length - 1;
@@ -449,7 +449,7 @@ async function routeValhalla0(wps){
 async function routeOSRM(wps){ return queued("osrm", () => routeOSRM0(wps), 1); }
 async function routeOSRM0(wps){
   const j = await fetchJSON(`${C.OSRM_FOOT}/route/v1/driving/${wps.map(p => p[1].toFixed(6) + "," + p[0].toFixed(6)).join(";")}?overview=full&geometries=geojson&steps=true&continue_straight=false`, {}, 10000);
-  const rt = j.routes?.[0]; if(!rt) return null;
+  const rt = j.routes?.[0]; if(!rt){ routeErr = "osrm " + (j.code || "sans route"); return null; }
   const steps = [];
   rt.legs.forEach((leg, li) => leg.steps.forEach(st => {
     const t = st.maneuver.type;
@@ -476,7 +476,7 @@ async function loopOSRM(start, target, brg){
     const k = 4, center = dest(s, brg, r), wps = [s];
     for(let i = 1; i < k; i++) wps.push(dest(center, (brg + 180 + i*360/k + (Math.random()-.5)*24) % 360, r*(0.85 + Math.random()*0.3)));
     wps.push(s);
-    const rr = await routeFoot(wps); if(!rr || rr.pts.length < 4) break;
+    const rr = await routeFoot(wps); if(!rr || rr.pts.length < 4){ routeErr = routeErr || "itinéraire vide"; break; }
     const c = {pts:rr.pts, steps:rr.steps, ascent:null};
     c.len = lineLen(c.pts);
     if(!best || Math.abs(c.len - target) < Math.abs(best.len - target)) best = c;
@@ -496,7 +496,7 @@ async function loopORS(start, target){
 async function generate(){
   if(!S.start){ askLocation(); return; }
   if(!isPremium() && remaining() === 0){ premiumModal("Tes 3 boucles gratuites de la semaine sont utilisées. Elles reviennent lundi."); return; }
-  const target = targetM();
+  const target = targetM(); routeErr = "";
   rebuildMemory();   // toutes les boucles déjà proposées : la nouvelle passera ailleurs
   S.view = "loading"; S.results = null; routeLayer.clearLayers(); panel.classList.remove("min"); render();
   try{
@@ -514,9 +514,11 @@ async function generate(){
     if(!isPremium()){ S.week.n++; store.set("week", S.week); }
     const r = S.results[0], l = {id:"l" + Date.now(), date:Date.now(), name:`Boucle du ${new Date().toLocaleDateString("fr-FR", {weekday:"long", day:"numeric", month:"long"})}`, place:(S.start.label || "").split(",").slice(-1)[0].trim(), start:S.start, pts:simplify(r.pts), len:r.len, newPct:Math.round(r.newLen/r.len*100), ascent:r.ascent, fav:false};
     S.loops.push(l); trimLoops(); store.set("loops", S.loops); S.loopId = l.id;
-    render(); showRoute(r); updateCrown();
+    try{ render(); }catch(e){ console.error(e); toast("Affichage : " + (e.message || e), 6000); }
+    try{ showRoute(r); }catch(e){ console.error(e); toast("Tracé : " + (e.message || e), 6000); }
+    updateCrown();
     if(S.loops.length === 1 || S.loops.length === 4) setTimeout(maybeInstall, 4000);
-  }catch(e){ S.view = "form"; render(); toast(`Pas de boucle possible pour l'instant${routeErr ? " (" + routeErr + ")" : ""}. Réessaie dans quelques secondes ou place le départ sur une rue.`, 6500); }
+  }catch(e){ console.error(e); S.view = "form"; render(); const why = e.message === "none" ? (routeErr || "aucun itinéraire reçu") : (e.message || String(e)) + (e.stack ? " @ " + String(e.stack).split("\n")[0].slice(-60) : ""); toast(`Pas de boucle possible pour l'instant (${why}). Réessaie dans quelques secondes ou place le départ sur une rue.`, 8000); }
 }
 function simplify(p, m = 6){ const o = []; let last = null; for(const x of p){ if(!last || dist(last, x) >= m){ o.push([r6(x[0]), r6(x[1])]); last = x; } } const e = p[p.length-1]; if(o[o.length-1][0] !== r6(e[0]) || o[o.length-1][1] !== r6(e[1])) o.push([r6(e[0]), r6(e[1])]); return o; }
 function trimLoops(){ if(S.loops.length > 120) S.loops = S.loops.filter((l, i) => l.fav || l.run || i > S.loops.length - 100); }
