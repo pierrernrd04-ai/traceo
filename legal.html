@@ -58,9 +58,9 @@ footer{padding:30px 0 calc(30px + env(safe-area-inset-bottom,0px));color:var(--m
 <main class="wrap">
   <header class="top">
     <h1>Informations légales</h1>
-    <p class="muted">Dernière mise à jour : 9 octobre 2026</p>
+    <p class="muted">Dernière mise à jour : 10 octobre 2026</p>
     <nav class="toc" aria-label="Sommaire">
-      <a href="#mentions">Mentions légales</a><a href="#cgv">Conditions de vente</a><a href="#confidentialite">Confidentialité</a><a href="#cookies">Cookies</a>
+      <a href="#mentions">Mentions légales</a><a href="#cgv">Conditions de vente</a><a href="#ensemble">Ensemble</a><a href="#confidentialite">Confidentialité</a><a href="#cookies">Cookies</a>
     </nav>
   </header>
 
@@ -111,9 +111,32 @@ footer{padding:30px 0 calc(30px + env(safe-area-inset-bottom,0px));color:var(--m
     <p>Les présentes conditions sont soumises au droit français. En cas de litige, les tribunaux français sont compétents, sous réserve des règles protectrices applicables au consommateur.</p>
   </section>
 
+  <section id="ensemble">
+    <h2>Ensemble : règles et données</h2>
+    <p><b>Ensemble</b> est une fonction de Traceo Premium qui permet de voir les coureurs inscrits autour de soi, de signaler qu'on part courir, d'envoyer des invitations et des messages. Son utilisation est facultative et nécessite la création d'un compte.</p>
+    <h3>Données du compte</h3>
+    <table>
+      <tr><th>Donnée</th><th>Visible par les autres coureurs</th><th>Conservation</th></tr>
+      <tr><td>Prénom et nom</td><td>Prénom et initiale du nom uniquement</td><td>Jusqu'à la suppression du compte</td></tr>
+      <tr><td>Adresse e-mail</td><td>Jamais</td><td>Jusqu'à la suppression du compte ; sert uniquement à vous contacter au sujet de votre compte</td></tr>
+      <tr><td>Niveau et allure moyenne</td><td>Oui</td><td>Jusqu'à la suppression du compte</td></tr>
+      <tr><td>Position</td><td>Jamais exacte : seulement une distance arrondie (« moins de 1 km », « 2,5 km »…)</td><td>Arrondie à environ 300 m avant enregistrement ; n'est plus montrée 3 heures après votre dernière activité</td></tr>
+      <tr><td>Messages et invitations</td><td>Par le destinataire uniquement</td><td>Jusqu'à la suppression du compte de l'un des deux coureurs</td></tr>
+      <tr><td>Abonnement aux notifications</td><td>Jamais</td><td>Jusqu'à leur désactivation ou la suppression du compte</td></tr>
+    </table>
+    <p>Ces données sont traitées sur la base de votre consentement et de l'exécution du service, et hébergées par Cloudflare (Workers et Durable Objects). Vous pouvez à tout moment passer en mode <b>Invisible</b>, désactiver les notifications, ou <b>supprimer votre compte</b> (Ensemble &gt; Mon compte) : votre profil et vos messages sont alors effacés définitivement du serveur.</p>
+    <h3>Règles de bonne conduite</h3>
+    <ul>
+      <li>Ensemble est réservé aux personnes de 15 ans et plus, inscrites sous leur vrai prénom.</li>
+      <li>Respect, bienveillance : aucun propos insultant, discriminatoire, harcelant ou à caractère sexuel ; aucune publicité ni sollicitation commerciale.</li>
+      <li>Les rendez-vous se donnent dans des lieux publics. Chaque coureur reste responsable de sa sécurité et de ses rencontres ; Traceo met des utilisateurs en relation et n'organise pas les sorties.</li>
+      <li>Tout coureur peut être <b>bloqué</b> ou <b>signalé</b> depuis la conversation. Les signalements sont examinés et peuvent entraîner la suppression du compte concerné, sans remboursement en cas de manquement grave.</li>
+    </ul>
+  </section>
+
   <section id="confidentialite">
     <h2>Politique de confidentialité</h2>
-    <p>Traceo est conçu pour fonctionner <b>sans compte</b>. Vos boucles, vos réglages et vos conversations avec le coach sont enregistrés <b>sur votre appareil</b>, dans la mémoire de votre navigateur.</p>
+    <p>Traceo est conçu pour fonctionner <b>sans compte</b> (seule la fonction facultative Ensemble en demande un, voir <a href="#ensemble">ci-dessus</a>). Vos boucles, vos réglages et vos conversations avec le coach sont enregistrés <b>sur votre appareil</b>, dans la mémoire de votre navigateur.</p>
     <h3>Responsable du traitement</h3>
     <p>Pierre Renard EI, joignable à <a href="mailto:pierre.rnrd04@gmail.com">pierre.rnrd04@gmail.com</a>.</p>
     <h3>Données utilisées et finalités</h3>
@@ -122,15 +145,16 @@ footer{padding:30px 0 calc(30px + env(safe-area-inset-bottom,0px));color:var(--m
       <tr><td>Position GPS (avec votre accord)</td><td>Point de départ de la boucle, guidage pendant la course</td><td>Reste sur l'appareil ; les coordonnées nécessaires sont envoyées aux services de calcul d'itinéraire et d'adresses</td></tr>
       <tr><td>Zone approximative (d'après l'adresse IP)</td><td>Proposer une ville de départ si la position est refusée</td><td>Service GeoJS</td></tr>
       <tr><td>Boucles, courses, réglages, poids</td><td>Historique, calories, fonctionnement de l'app</td><td>Uniquement sur l'appareil</td></tr>
-      <tr><td>Messages du chat</td><td>Répondre à vos questions</td><td>Sur l'appareil ; lorsque l'assistant IA est activé, envoyés à Anthropic pour générer la réponse</td></tr>
+      <tr><td>Messages du chat</td><td>Répondre à vos questions</td><td>Sur l'appareil ; lorsque le coach IA est activé, envoyés avec votre historique de courses (distances, durées, allures) au serveur Traceo (Cloudflare) puis à Anthropic ou à Cloudflare Workers AI pour générer la réponse, sans être conservés par Traceo</td></tr>
+      <tr><td>Compte Ensemble (facultatif)</td><td>Mise en relation avec les coureurs proches</td><td>Serveur Traceo hébergé par Cloudflare, voir <a href="#ensemble">Ensemble</a></td></tr>
       <tr><td>Paiement</td><td>Achat de Premium</td><td>PayPal uniquement : Traceo ne reçoit aucune donnée bancaire</td></tr>
       <tr><td>Statistiques de visite anonymes</td><td>Comprendre l'usage et améliorer l'app</td><td>Umami (sans cookie), lorsqu'il est activé</td></tr>
       <tr><td>Rapports d'erreur techniques</td><td>Corriger les bugs</td><td>Message d'erreur et modèle de navigateur, sans donnée personnelle (service ntfy)</td></tr>
     </table>
     <h3>Services tiers</h3>
-    <p>Pour afficher la carte, calculer les boucles et trouver les adresses, l'application contacte les services suivants, qui reçoivent votre adresse IP et les informations techniques nécessaires à la requête : OpenFreeMap (cartes), Esri (carte de secours), FOSSGIS / OpenStreetMap (calcul d'itinéraires OSRM et Valhalla), Overpass API (points d'intérêt), IGN – Base Adresse Nationale et geo.api.gouv.fr (adresses et communes), Photon / Komoot (lieux), GeoJS (zone approximative), Google Fonts et unpkg (polices et bibliothèques), GitHub Pages (hébergement), PayPal (paiement) et, s'il est activé, Anthropic (assistant IA). Certains de ces prestataires sont situés hors de l'Union européenne, notamment aux États-Unis.</p>
+    <p>Pour afficher la carte, calculer les boucles et trouver les adresses, l'application contacte les services suivants, qui reçoivent votre adresse IP et les informations techniques nécessaires à la requête : OpenFreeMap (cartes), Esri (carte de secours), FOSSGIS / OpenStreetMap (calcul d'itinéraires OSRM et Valhalla), Overpass API (points d'intérêt), IGN – Base Adresse Nationale et geo.api.gouv.fr (adresses et communes), Photon / Komoot (lieux), GeoJS (zone approximative), Google Fonts et unpkg (polices et bibliothèques), GitHub Pages (hébergement), PayPal (paiement), Cloudflare (serveur du coach IA et d'Ensemble, notifications) et, s'il est activé, Anthropic (coach IA). Les notifications passent par le service de votre navigateur (Apple, Google ou Mozilla). Certains de ces prestataires sont situés hors de l'Union européenne, notamment aux États-Unis.</p>
     <h3>Durée de conservation</h3>
-    <p>Les données enregistrées sur votre appareil y restent jusqu'à ce que vous les supprimiez : <b>Profil &gt; Effacer mes données</b>, ou en effaçant les données du site dans votre navigateur. Traceo ne conserve pas de base de données des utilisateurs.</p>
+    <p>Les données enregistrées sur votre appareil y restent jusqu'à ce que vous les supprimiez : <b>Profil &gt; Effacer mes données</b>, ou en effaçant les données du site dans votre navigateur. En dehors des comptes Ensemble décrits ci-dessus, Traceo ne conserve pas de base de données des utilisateurs.</p>
     <h3>Vos droits</h3>
     <p>Vous disposez des droits d'accès, de rectification, d'effacement, d'opposition et de limitation sur vos données. Pour les exercer, écrivez à <a href="mailto:pierre.rnrd04@gmail.com">pierre.rnrd04@gmail.com</a>. Vous pouvez aussi saisir la <a href="https://www.cnil.fr" rel="noopener">CNIL</a>.</p>
     <h3>Mineurs</h3>

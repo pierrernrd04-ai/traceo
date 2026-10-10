@@ -176,6 +176,12 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:12px 24px;justify-content:space-bet
   .gallery{justify-content:center}
   .sticky{display:none}
 }
+.duo{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.duo-c{padding:24px}
+.duo-c h3{font-size:22px}
+.duo-c .mini{list-style:none;padding:0;margin:12px 0 0;display:flex;flex-direction:column;gap:6px;font-size:14px;color:#C3D6D4}
+.duo-c .mini li::before{content:"✓ ";color:#2BE39B;font-weight:900}
+@media (max-width:760px){.duo{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -259,6 +265,24 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:12px 24px;justify-content:space-bet
   </div>
 </section>
 
+<section style="padding-top:0" id="ensemble">
+  <div class="wrap">
+    <div class="sec-h reveal">
+      <p class="eyebrow">Nouveau · inclus dans Premium</p>
+      <h2>Ne cours plus jamais seul.</h2>
+      <p>Traceo, c'est aussi un coach IA dans ta poche et des coureurs autour de toi.</p>
+    </div>
+    <div class="duo">
+      <div class="feat duo-c reveal"><span class="ic"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c.8-3.6 3.2-5.5 6-5.5s5.2 1.9 6 5.5"/><circle cx="17" cy="9" r="2.6"/><path d="M16.5 14.6c2.3.2 4 1.9 4.5 5"/></svg></span><h3>Ensemble</h3>
+        <p>Crée ton profil de coureur et vois qui court près de chez toi. Touche <b>« Je pars courir »</b> : les coureurs à moins de 5 km reçoivent une notification. Invitations, messages, rendez-vous fixé en deux minutes.</p>
+        <ul class="mini"><li>Position toujours arrondie, jamais ton adresse</li><li>Mode invisible, blocage et signalement en un geste</li></ul></div>
+      <div class="feat duo-c reveal"><span class="ic"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/><path d="M8 9.5h8M8 12.5h5"/></svg></span><h3>Coach IA</h3>
+        <p>Il connaît tes dernières sorties : <b>séance du jour</b>, bilan de la semaine, prédiction de chronos, plan 10 km ou marathon, nutrition. Tu lui parles ou tu lui écris, il trace la boucle qui va avec.</p>
+        <ul class="mini"><li>« Qu'est-ce que je cours aujourd'hui ? »</li><li>« Conseils pour cette boucle »</li></ul></div>
+    </div>
+  </div>
+</section>
+
 <section style="padding-top:0">
   <div class="wrap">
     <div class="sec-h reveal">
@@ -290,6 +314,8 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:12px 24px;justify-content:space-bet
         <li>Guidage vocal et nom des rues en direct</li>
         <li>Envoi sur Strava et sur ta montre Garmin</li>
         <li>Export GPX pour toutes les montres</li>
+        <li><b>Ensemble</b> : coureurs autour de toi, invitations et messages</li>
+        <li><b>Coach IA</b> : séance du jour, bilan, plans et réponses à tout</li>
         <li>Coach nutrition, hydratation et entraînement</li>
         <li>Image de ta boucle à partager</li>
       </ul>

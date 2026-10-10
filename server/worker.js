@@ -1,6 +1,7 @@
 // Traceo — serveur de l'app (Cloudflare Workers, offre gratuite) :
 //   POST /paypal/verify  vérification des abonnements PayPal
-//   POST /chat           coach IA du chat (Claude, via le SDK Anthropic)
+//   POST /chat           coach IA du chat (Claude, via le SDK Anthropic ; à défaut, IA gratuite Cloudflare Workers AI)
+//   /social/*            « Ensemble » : comptes coureurs, coureurs autour de soi, invitations, messages, notifications
 //
 // L'app appelle POST /paypal/verify {subscription_id} et reçoit {active:true|false}.
 // Le serveur demande l'état de l'abonnement directement à PayPal avec ta clé secrète,
@@ -11,12 +12,15 @@
 //   PAYPAL_SECRET     Secret de la même app (à mettre en « Secret », pas en texte)
 //   PAYPAL_PLAN_ID    identifiant du plan à 4,99 €/mois (P-…)
 //   PAYPAL_ENV        live (par défaut) ou sandbox pour les essais
-//   ANTHROPIC_API_KEY clé API Anthropic pour le chat (à mettre en « Secret »)
+//   ANTHROPIC_API_KEY clé API Anthropic pour le chat (à mettre en « Secret ») ; sans elle, le chat utilise
+//                     l'IA gratuite de Cloudflare (liaison AI dans wrangler.toml)
 //   APP_ORIGIN        adresse(s) de l'app, séparées par des virgules,
 //                     ex. https://traceo.pages.dev,https://localhost,capacitor://localhost
 
 // APPROVED : l'acheteur vient de valider, PayPal passe l'abonnement en ACTIVE quelques secondes après.
 import Anthropic from "@anthropic-ai/sdk";
+import { Hub, social } from "./social.js";
+export { Hub };
 
 const ACTIVE = new Set(["ACTIVE", "APPROVED"]);
 let token = null;   // jeton PayPal gardé en mémoire tant que le worker reste chaud
@@ -27,6 +31,7 @@ export default {
     if(req.method === "OPTIONS") return new Response(null, {status:204, headers:cors});
     if(url.pathname === "/" || url.pathname === "/health") return json({ok:true, service:"traceo"}, 200, cors);
     if(url.pathname === "/chat") return chat(req, env, cors);
+    if(url.pathname.startsWith("/social/")) return social(req, env, cors);
     if(url.pathname !== "/paypal/verify") return json({error:"not_found"}, 404, cors);
     if(req.method !== "POST") return json({error:"method_not_allowed"}, 405, cors);
 
@@ -82,26 +87,32 @@ function corsHeaders(req, env){
   const ok = !allowed.length || allowed.includes(origin);
   return {
     "Access-Control-Allow-Origin":ok ? (origin || "*") : allowed[0],
-    "Access-Control-Allow-Methods":"POST, OPTIONS",
-    "Access-Control-Allow-Headers":"Content-Type",
+    "Access-Control-Allow-Methods":"GET, POST, OPTIONS",
+    "Access-Control-Allow-Headers":"Content-Type, Authorization",
     "Access-Control-Max-Age":"86400",
     "Vary":"Origin"
   };
 }
 
-function json(body, status, headers){
+export function json(body, status, headers){
   return new Response(JSON.stringify(body), {status, headers:{...headers, "Content-Type":"application/json; charset=utf-8", "Cache-Control":"no-store"}});
 }
 
 /* ---------- Coach IA du chat ---------- */
-const SYSTEM = `Tu es le coach de Traceo, une app de course à pied qui dessine des boucles neuves dans les vraies rues, depuis la position de la personne, partout en France.
-Réponds en français, en tutoyant, de façon chaleureuse, concrète et brève : 2 à 6 phrases, ou une courte liste. Pas de titres.
-Tu aides sur : choix de distance, d'allure et de durée ; entraînement (5 km, 10 km, semi, marathon) ; échauffement et récupération ; nutrition et hydratation du coureur ; motivation ; utilisation de l'app.
-Ce que fait l'app : écran Courir (se localiser ou choisir une ville, choisir une distance de 2 à 42 km ou une durée de 10 min à 4 h, « Générer ma boucle », feuille de route, guidage vocal rue par rue), onglet Coach (nutrition, hydratation, programmes, routines d'échauffement guidées), Boucles (historique), Premium, Profil (poids, allure, voix). Export Strava, Garmin et GPX. Carte jour ou nuit avec le bouton soleil/lune.
-Premium : 4,99 € pour 31 jours, payé par PayPal (compte ou carte), sans renouvellement automatique. Bêta gratuite jusqu'au 10 octobre 2026 à 15 h.
-Santé : tu n'es pas médecin. Pour une douleur vive, persistante, une gêne thoracique ou un malaise, conseille d'arrêter et de consulter un professionnel de santé.
-Le contexte fourni contient les réglages de la personne et, s'il y en a une, la boucle affichée (distance, dénivelé, rues, points d'eau) : sers-t'en pour personnaliser tes conseils (allure, durée, gels, hydratation).
-Actions : quand c'est utile, termine ta réponse par UNE action entre doubles crochets, que l'app transforme en bouton : [[boucle:6]] (préparer une boucle de 6 km), [[duree:45]] (boucle de 45 minutes), [[feuille]] (feuille de route de la boucle affichée), [[localiser]], [[onglet:premium]], [[onglet:coach]] (nutrition, programmes, routines), [[onglet:mine]] (historique). N'invente pas d'autres actions.
+const SYSTEM = `Tu es le coach running de Traceo, une app de course à pied qui dessine des boucles neuves dans les vraies rues, depuis la position de la personne, partout en France. Tu es un vrai entraîneur : précis, bienveillant, motivant, et tu t'appuies sur les données de la personne.
+
+Style : français, tutoiement, chaleureux et concret. Réponses courtes (2 à 7 phrases) ou une courte liste ; un plan de séances peut aller jusqu'à 10 lignes. Pas de titres markdown ; **gras** autorisé pour les chiffres clés. Termine souvent par une question ou une proposition pour garder le fil.
+
+Ce que tu sais faire : allures et chronos (prédictions de Riegel, VMA, zones cardio), plans d'entraînement (5 km, 10 km, semi, marathon, reprise, perte de poids), séance du jour adaptée à la fatigue et à l'historique, échauffement, récupération, renforcement, nutrition et hydratation du coureur, motivation, blessures courantes (conseils de prudence), et l'utilisation de l'app.
+
+Contexte fourni à chaque message (JSON) : profil (allure moyenne, poids, objectif, niveau), historique des dernières courses (date, km, durée, allure), volume de la semaine, programme d'entraînement suivi et séance prévue, boucle affichée (distance, dénivelé, rues, points d'eau), départ choisi. Sers-t'en systématiquement pour personnaliser : cite ses chiffres, compare à ses dernières sorties, adapte la charge (pas plus de +10 % de volume par semaine, une séance difficile suivie d'une facile). Si l'historique est vide, propose de commencer simplement.
+
+L'app : écran Courir (se localiser ou choisir une ville, distance de 2 à 42 km ou durée de 10 min à 4 h, « Générer ma boucle », feuille de route, guidage vocal rue par rue), onglet Coach (nutrition, hydratation, programmes, routines guidées), Chat (toi), Ensemble (coureurs autour de soi, invitations à courir, messages ; inclus dans Premium), Boucles (historique), Profil. Export Strava, Garmin, GPX. Carte jour ou nuit.
+Premium : 4,99 € pour 31 jours, payé par PayPal (compte ou carte), sans renouvellement automatique.
+
+Actions : quand c'est utile, termine ta réponse par UNE action entre doubles crochets, que l'app transforme en bouton : [[boucle:6]] (boucle de 6 km), [[duree:45]] (boucle de 45 minutes), [[feuille]] (feuille de route de la boucle affichée), [[localiser]], [[onglet:premium]], [[onglet:coach]] (nutrition, programmes, routines), [[onglet:mine]] (historique), [[onglet:ensemble]] (trouver des coureurs autour de soi). N'invente pas d'autres actions. Pour une séance du jour, propose presque toujours [[boucle:X]] ou [[duree:X]].
+
+Santé : tu n'es pas médecin. Douleur vive ou persistante, gêne thoracique, malaise, essoufflement anormal : conseille d'arrêter et de consulter. Pas de conseils de régime extrême.
 Reste dans ton rôle de coach running et d'aide sur l'app ; pour toute autre demande, recentre poliment.`;
 const hits = new Map();   // limite simple par adresse IP (par instance du worker)
 function limited(ip){
@@ -111,33 +122,53 @@ function limited(ip){
 }
 async function chat(req, env, cors){
   if(req.method !== "POST") return json({error:"method_not_allowed"}, 405, cors);
-  if(!env.ANTHROPIC_API_KEY) return json({error:"chat_not_configured"}, 503, cors);
+  if(!env.ANTHROPIC_API_KEY && !env.AI) return json({error:"chat_not_configured"}, 503, cors);
   if(limited(req.headers.get("CF-Connecting-IP") || "?")) return json({error:"rate_limited", reply:"Tu vas un peu vite : réessaie dans une minute."}, 429, cors);
   let body; try{ body = await req.json(); }catch(e){ return json({error:"bad_json"}, 400, cors); }
-  // historique : 12 derniers messages, alternance user/assistant, 1 500 caractères max par message
-  const msgs = (Array.isArray(body.messages) ? body.messages : []).slice(-12)
+  // historique : 16 derniers messages, alternance user/assistant, 1 500 caractères max par message
+  const msgs = (Array.isArray(body.messages) ? body.messages : []).slice(-16)
     .filter(m => m && (m.role === "user" || m.role === "assistant") && typeof m.content === "string" && m.content.trim())
     .map(m => ({role:m.role, content:m.content.slice(0, 1500)}));
   while(msgs.length && msgs[0].role !== "user") msgs.shift();
   if(!msgs.length || msgs[msgs.length - 1].role !== "user") return json({error:"bad_messages"}, 400, cors);
-  const ctx = body.context && typeof body.context === "object" ? JSON.stringify(body.context).slice(0, 1200) : "{}";
+  const ctx = body.context && typeof body.context === "object" ? JSON.stringify(body.context).slice(0, 3000) : "{}";
+  const last = {role:"user", content:`Contexte de l'app (profil, historique, boucle affichée) : ${ctx}\n\nMessage : ${msgs[msgs.length - 1].content}`};
+  let out = env.ANTHROPIC_API_KEY ? await claude(env, [...msgs.slice(0, -1), last]) : null;
+  if(!out || out.error) out = (env.AI && await workersAI(env, [...msgs.slice(0, -1), last])) || out;
+  if(!out) return json({error:"ai_unreachable"}, 502, cors);
+  if(out.error) return json(out, out.error === "busy" ? 503 : 502, cors);
+  return json(out, 200, cors);
+}
+async function claude(env, messages){
   const client = new Anthropic({apiKey:env.ANTHROPIC_API_KEY});
   try{
     const res = await client.beta.messages.create({
       model:"claude-opus-5-5",
-      max_tokens:1024,
+      max_tokens:2048,
       output_config:{effort:"low"},
       betas:["server-side-fallback-2026-07-01"],
       fallbacks:"default",
       system:[{type:"text", text:SYSTEM, cache_control:{type:"ephemeral"}}],
-      messages:[...msgs.slice(0, -1), {role:"user", content:`Contexte de l'app (réglages actuels) : ${ctx}\n\n${msgs[msgs.length - 1].content}`}]
+      messages
     });
-    if(res.stop_reason === "refusal") return json({reply:"Je ne peux pas t'aider sur ce point. Pose-moi une question sur ta course ou sur l'app !"}, 200, cors);
+    if(res.stop_reason === "refusal") return {reply:"Je ne peux pas t'aider sur ce point. Pose-moi une question sur ta course ou sur l'app !", engine:"claude"};
     const reply = res.content.filter(b => b.type === "text").map(b => b.text).join("").trim();
-    return json({reply:reply || "Je n'ai pas de réponse pour l'instant, reformule ta question ?"}, 200, cors);
+    return {reply:reply || "Je n'ai pas de réponse pour l'instant, reformule ta question ?", engine:"claude"};
   }catch(e){
-    if(e instanceof Anthropic.RateLimitError) return json({error:"busy"}, 503, cors);
-    if(e instanceof Anthropic.APIError) return json({error:"ai_error", code:e.status}, 502, cors);
-    return json({error:"ai_unreachable"}, 502, cors);
+    if(e instanceof Anthropic.RateLimitError) return {error:"busy"};
+    if(e instanceof Anthropic.APIError) return {error:"ai_error", code:e.status};
+    return {error:"ai_unreachable"};
   }
+}
+// IA gratuite de Cloudflare (Workers AI) : utilisée sans clé Anthropic, ou si Claude ne répond pas
+const CF_MODELS = ["@cf/meta/llama-3.3-70b-instruct-fp8-fast", "@cf/meta/llama-3.1-8b-instruct-fast"];
+async function workersAI(env, messages){
+  for(const model of CF_MODELS){
+    try{
+      const r = await env.AI.run(model, {messages:[{role:"system", content:SYSTEM}, ...messages], max_tokens:900, temperature:.5});
+      const reply = String(r?.response || "").trim();
+      if(reply) return {reply, engine:"workers-ai"};
+    }catch(e){}
+  }
+  return null;
 }

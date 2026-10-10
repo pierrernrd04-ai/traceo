@@ -8,7 +8,7 @@ const PV = window.TRACEO_PREVIEW || null;
 const T0 = Date.now(); let tabsSeen = 0;
 let track = function(name, data){ try{ if(window.umami && (window.TRACEO_CONFIG || {}).UMAMI_ID) umami.track(name, data); }catch(e){} }
 // Alertes en temps réel sur le téléphone du propriétaire (appli ntfy, canal privé ALERTS_TOPIC)
-const ALERT = {abonnement_premium:["💰 Nouvel abonné Premium !", "high", "moneybag"], paiement_clic:["👀 Quelqu'un ouvre le paiement PayPal", "default", "eyes"], fin_beta_vue:null, course_terminee:["🏃 Une course terminée avec Traceo", "low", "runner"]};
+const ALERT = {abonnement_premium:["💰 Nouvel abonné Premium !", "high", "moneybag"], paiement_clic:["👀 Quelqu'un ouvre le paiement PayPal", "default", "eyes"], fin_beta_vue:null, course_terminee:["🏃 Une course terminée avec Traceo", "low", "runner"], ensemble_compte:["🤝 Nouveau compte Ensemble", "default", "handshake"], ensemble_depart:["📣 Un coureur lance « Je pars courir »", "low", "loudspeaker"]};
 function alertOwner(name, data){ try{ const C_ = window.TRACEO_CONFIG || {}, a = ALERT[name]; if(!a || !C_.ALERTS_TOPIC || window.TRACEO_PREVIEW) return;
   const k = "traceo2:al:" + name + ":" + new Date().toDateString(); if(name !== "abonnement_premium"){ const c = +(localStorage.getItem(k) || 0); if(c >= 3) return; localStorage.setItem(k, c + 1); }
   fetch("https://ntfy.sh/" + C_.ALERTS_TOPIC, {method:"POST", body:a[0] + (data ? " · " + Object.entries(data).map(([x, y]) => x + " : " + y).join(", ") : "") + " · " + new Date().toLocaleTimeString("fr-FR", {hour:"2-digit", minute:"2-digit"}), headers:{"Title":"Traceo", "Priority":a[1], "Tags":a[2]}}).catch(() => {}); }catch(e){} }
@@ -17,7 +17,7 @@ const _track = track; track = (n, d) => { _track(n, d); alertOwner(n, d); };
 document.addEventListener("visibilitychange", () => { if(document.visibilityState === "hidden"){ const s = Math.round((Date.now() - T0)/1000); track("temps_passe", {secondes:s, tranche:s < 30 ? "moins de 30 s" : s < 120 ? "30 s à 2 min" : s < 600 ? "2 à 10 min" : "plus de 10 min", onglets:tabsSeen}); } });
 // Diagnostic temporaire : les erreurs (sans données personnelles) sont envoyées à un canal privé pour être corrigées à distance
 const DBG = "https://ntfy.sh/traceo-dbg-9591c50f";
-function report(kind, msg){ try{ fetch(DBG, {method:"POST", body:`[${kind}] ${String(msg).slice(0, 600)} | v48 | ${navigator.userAgent.replace(/\(KHTML.*$/, "").slice(0, 120)}`}).catch(() => {}); }catch(e){} }
+function report(kind, msg){ try{ fetch(DBG, {method:"POST", body:`[${kind}] ${String(msg).slice(0, 600)} | v49 | ${navigator.userAgent.replace(/\(KHTML.*$/, "").slice(0, 120)}`}).catch(() => {}); }catch(e){} }
 // Affiche toute erreur à l'écran (bandeau rouge) : une capture suffit pour corriger
 (function(){ let n = 0; const show = m => { if(n++ > 3) return; const d = document.createElement("div"); d.style.cssText = "position:fixed;left:8px;right:8px;top:calc(env(safe-area-inset-top,0px) + 8px);z-index:9999;background:#B3263E;color:#fff;font:600 12px/1.35 system-ui;padding:8px 10px;border-radius:10px;white-space:pre-wrap"; d.textContent = "Erreur : " + m; d.onclick = () => d.remove(); (document.body || document.documentElement).appendChild(d); setTimeout(() => d.remove(), 15000); };
   window.addEventListener("error", e => { report("error", (e.message || "?") + " " + (e.filename || "") + ":" + (e.lineno || "") + ":" + (e.colno || "") + " " + (e.error && e.error.stack ? String(e.error.stack).slice(0, 300) : "")); if(/^Script error/.test(e.message || "") && window.glFail){ try{ glFail(); }catch(x){} return; } show((e.message || "?") + (e.filename ? " (" + e.filename.split("/").pop() + ":" + e.lineno + ")" : "")); });
@@ -306,6 +306,7 @@ $("#fabMode") && ($("#fabMode").onclick = () => { const m = MAP_MODE() === "jour
 const routeLayer = L.layerGroup().addTo(map), liveLayer = L.layerGroup().addTo(map);
 let meMk = null, accC = null, startMk = null;
 function showMe(la, lo, acc){
+  S.here = [la, lo];
   if(!meMk) meMk = L.marker([la, lo], {icon:L.divIcon({className:"", html:'<div class="me"><b></b><i></i></div>', iconSize:[24,24], iconAnchor:[12,12]}), interactive:false, zIndexOffset:1000}).addTo(map); else meMk.setLatLng([la, lo]);
   // Cône de direction : orienté selon le déplacement (dès 6 m parcourus)
   const prev = meMk._hdFrom, el = meMk.getElement()?.querySelector(".me");
@@ -924,14 +925,15 @@ body.addEventListener("click", e => { const b = e.target.closest("[data-ct]"); i
 // Avec CHAT_API (serveur server/worker.js + clé Anthropic) : vraie IA (Claude). Sans : assistant intégré, toujours disponible.
 const CHAT = {msgs:store.get("chat", []), mem:store.get("chatMem", {}), busy:false};
 const CHAT_AI = () => !!C.CHAT_API;
-const CHAT_SUGG = ["Fais-moi une boucle de 5 km", "J'ai fait 10 km en 52 min, prédis mes chronos", "Allure pour un semi en 1h45", "Je débute, par où commencer ?", "Plan marathon en 4h", "J'ai mal au genou"];
+const CHAT_SUGG = ["Quelle séance aujourd'hui ?", "Mon bilan de la semaine", "Fais-moi une boucle de 5 km", "J'ai fait 10 km en 52 min, prédis mes chronos", "Allure pour un semi en 1h45", "Je débute, par où commencer ?", "Plan marathon en 4h", "J'ai mal au genou"];
 function viewChat(){
-  const hello = `Salut ! Je suis le coach Traceo. Je trace ta boucle, calcule tes allures, prédis tes chronos, prépare ton plan d'entraînement et réponds à tes questions sur la course, la nutrition, les blessures et l'app.`;
-  const list = [{r:"a", t:hello}, ...CHAT.msgs];
-  return `<div class="chat-head"><span class="chat-av"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/><path d="M8 9.5h8M8 12.5h5"/></svg></span><span><b>Coach Traceo</b><small>${CHAT_AI() ? "Coach IA · répond à toutes tes questions" : "Calculs, plans et conseils instantanés"}</small></span>${CHAT.msgs.length ? `<button class="linkbtn" id="chatClear">Effacer</button>` : ""}</div>
+  const td = todayAnswer(true), wk = weekStats(0);
+  const hello = `${hello2()} ! Je suis ton coach Traceo.${wk.n ? ` Ces 7 derniers jours : **${wk.n} sortie${wk.n > 1 ? "s" : ""}, ${km1(wk.dist)} km**.` : ""}\n**Ma proposition du jour** : ${td.short}\nDemande-moi une boucle, une allure, un plan, ton bilan ou un conseil nutrition.`;
+  const list = [{r:"a", t:hello, act:td.act, actLabel:td.actLabel}, ...CHAT.msgs];
+  return `<div class="chat-head"><span class="chat-av"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/><path d="M8 9.5h8M8 12.5h5"/></svg></span><span><b>Coach Traceo</b><small>${CHAT_AI() ? `<i class="ai-dot"></i>Coach IA en ligne · ${CHAT.engine === "claude" ? "Claude" : "répond à tout"}` : "Bilan, séance du jour, allures et plans"}</small></span>${CHAT.msgs.length ? `<button class="linkbtn" id="chatClear">Effacer</button>` : ""}</div>
     <div class="chat-list" id="chatList">${list.map(m => `<div class="msg ${m.r === "u" ? "msg-u" : "msg-b"}">${m.r === "u" ? esc(m.t) : fmtBot(m.t)}${m.act ? `<button class="btn soft msg-act" data-act="${esc(m.act)}">${esc(m.actLabel || "Ouvrir")}</button>` : ""}</div>`).join("")}${CHAT.busy ? `<div class="msg msg-b typing"><i></i><i></i><i></i></div>` : ""}</div>
     ${(() => { const last = CHAT.msgs[CHAT.msgs.length - 1], sg = CHAT.msgs.length < 2 ? CHAT_SUGG : !CHAT.busy && last && last.r === "a" && last.sugg ? last.sugg : []; return sg.length ? `<div class="chat-sugg">${sg.map(x => `<button class="chip" data-sugg="${esc(x)}">${esc(x)}</button>`).join("")}</div>` : ""; })()}
-    <form class="chat-form" id="chatForm"><input id="chatIn" class="input" placeholder="Écris ta question…" autocomplete="off" enterkeyhint="send" maxlength="600"><button class="btn hero" aria-label="Envoyer"><svg viewBox="0 0 24 24"><path d="M4 12l16-8-6 16-2.5-6.5z"/></svg></button></form>`;
+    <form class="chat-form ${SR ? "mic" : ""}" id="chatForm">${SR ? `<button type="button" class="btn soft" id="chatMic" aria-label="Dicter ma question"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0013 0M12 17.5V21"/></svg></button>` : ""}<input id="chatIn" class="input" placeholder="Écris ou dicte ta question…" autocomplete="off" enterkeyhint="send" maxlength="600"><button class="btn hero" aria-label="Envoyer"><svg viewBox="0 0 24 24"><path d="M4 12l16-8-6 16-2.5-6.5z"/></svg></button></form>`;
 }
 // Mise en forme simple des réponses : **gras** et retours à la ligne
 const fmtBot = t => esc(t).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/\n/g, "<br>");
@@ -940,6 +942,7 @@ function wireChat(){
   $("#chatForm").onsubmit = e => { e.preventDefault(); const v = $("#chatIn").value.trim(); if(v) chatSend(v); };
   body.querySelectorAll("[data-sugg]").forEach(b => b.onclick = () => chatSend(b.dataset.sugg));
   body.querySelectorAll("[data-act]").forEach(b => b.onclick = () => chatAct(b.dataset.act));
+  $("#chatMic") && ($("#chatMic").onclick = dictate);
   $("#chatClear") && ($("#chatClear").onclick = () => { CHAT.msgs = []; CHAT.mem = {}; store.set("chat", []); store.set("chatMem", {}); render(); });
 }
 async function chatSend(text){
@@ -948,9 +951,9 @@ async function chatSend(text){
   let ans = null;
   if(CHAT_AI()){
     try{
-      const ctx = {depart:S.start?.label || null, distance_km:S.distKm, duree_min:S.durMin, mode:S.mode, allure_s_km:S.pace, poids_kg:S.weight, premium:isPremium(), beta:betaOn(), boucle_affichee:loopCtx()};
+      const ctx = {date:new Date().toLocaleString("fr-FR", {weekday:"long", day:"numeric", month:"long", hour:"2-digit", minute:"2-digit"}), depart:S.start?.label || null, distance_km:S.distKm, duree_min:S.durMin, mode:S.mode, allure_moyenne:paceTxt(S.pace) + "/km", poids_kg:S.weight, premium:isPremium(), ...coachCtx(), boucle_affichee:loopCtx()};
       const j = await fetchJSON(C.CHAT_API.replace(/\/$/, "") + "/chat", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({messages:CHAT.msgs.slice(-12).map(m => ({role:m.r === "u" ? "user" : "assistant", content:m.t})), context:ctx})}, 30000);
-      if(j && j.reply) ans = aiActions(j.reply);
+      if(j && j.reply){ ans = aiActions(j.reply); CHAT.engine = j.engine || "ia"; }
     }catch(e){}
   }
   if(!ans) ans = brainAnswer(text);
@@ -967,12 +970,71 @@ function aiActions(reply){
     k = k.toLowerCase();
     if(k === "boucle" && v){ km = Math.max(2, Math.min(42, parseFloat(v.replace(",", ".")))); act = "gen"; actLabel = `Tracer ma boucle de ${nf(1).format(km).replace(",0", "")} km`; }
     else if(k === "duree" && v){ const mn = Math.max(10, Math.min(240, parseInt(v))); S.mode = "time"; S.durMin = mn; store.set("mode", "time"); store.set("durMin", mn); act = "gen"; actLabel = `Tracer ma boucle de ${mn} min`; }
-    else if(k === "onglet" && ["premium", "coach", "mine", "me"].includes(String(v))){ act = v; actLabel = {premium:"Voir Premium", coach:"Ouvrir le Coach", mine:"Mes boucles", me:"Mon profil"}[v]; }
+    else if(k === "onglet" && ["premium", "coach", "mine", "me", "ensemble"].includes(String(v))){ act = v; actLabel = {premium:"Voir Premium", coach:"Ouvrir le Coach", mine:"Mes boucles", me:"Mon profil", ensemble:"Trouver des coureurs"}[v]; }
     else if(k === "feuille"){ act = "fly"; actLabel = "Voir la feuille de route"; }
     else if(k === "localiser"){ act = "loc"; actLabel = "Me localiser"; }
     return "";
   }).trim();
   return {t:out, act, actLabel, km};
+}
+/* ---------- Coach : historique, bilan et séance du jour ---------- */
+const runsAll = () => S.loops.filter(l => l.run && l.run.dist > 300).map(l => ({date:l.run.date || l.id || 0, dist:l.run.dist, time:l.run.time, ascent:l.run.ascent || 0})).sort((a, b) => b.date - a.date);
+function weekStats(back){ const end = Date.now() - back*7*864e5, st = end - 7*864e5, r = runsAll().filter(x => x.date > st && x.date <= end); const dist = r.reduce((a, x) => a + x.dist, 0), time = r.reduce((a, x) => a + x.time, 0); return {n:r.length, dist, time, pace:dist ? time/(dist/1000) : null}; }
+const hello2 = () => { const h = new Date().getHours(); return h < 5 ? "Bonsoir" : h < 12 ? "Bonjour" : h < 18 ? "Salut" : "Bonsoir"; };
+function coachCtx(){
+  const runs = runsAll(), P = S.training ? PL()[S.training.plan] : null;
+  let prog = null;
+  if(P){ const w = curWeek(S.training, P), ses = P.gen(w), i = ses.findIndex((_, k) => !S.training.done[`${w}-${k}`]); prog = {nom:P.name, semaine:`${w}/${P.weeks}`, seance_prevue:i >= 0 ? `${ses[i].t}${ses[i].km ? " " + ses[i].km + " km" : ""} : ${ses[i].d}` : "semaine terminée"}; }
+  const w0 = weekStats(0), w1 = weekStats(1);
+  return {
+    profil:S.profile ? {objectif:GOALS[S.profile.goal] || S.profile.goal, niveau:LEVELS[S.profile.level] || S.profile.level, age:S.profile.age, sorties_par_semaine:S.profile.freq} : null,
+    historique:runs.slice(0, 8).map(x => ({date:new Date(x.date).toLocaleDateString("fr-FR", {weekday:"short", day:"numeric", month:"short"}), km:Math.round(x.dist/100)/10, duree:hmin(x.time), allure:paceTxt(x.time/(x.dist/1000)), denivele_m:x.ascent})),
+    semaine:{sorties:w0.n, km:Math.round(w0.dist/100)/10, semaine_precedente_km:Math.round(w1.dist/100)/10},
+    total:{sorties:runs.length, km:Math.round(runs.reduce((a, x) => a + x.dist, 0)/1000)},
+    programme:prog
+  };
+}
+function bilanAnswer(){
+  const runs = runsAll();
+  if(!runs.length) return {t:`Je n'ai encore aucune course enregistrée pour toi. Lance une boucle avec « Commencer » : distance, temps, allure et dénivelé s'enregistrent tout seuls, et je pourrai suivre ta progression.\nPour commencer, je te propose **25 minutes tranquilles**.`, act:"min:25", actLabel:"Tracer 25 min tranquilles", sugg:["Quelle séance aujourd'hui ?", "Je débute, par où commencer ?"]};
+  const w0 = weekStats(0), w1 = weekStats(1), best = runs.reduce((a, x) => x.time/(x.dist/1000) < a.time/(a.dist/1000) ? x : a), long = runs.reduce((a, x) => x.dist > a.dist ? x : a), tot = runs.reduce((a, x) => a + x.dist, 0);
+  const diff = w1.dist ? Math.round((w0.dist - w1.dist)/w1.dist*100) : null;
+  const trend = diff == null ? "" : diff > 25 ? `\n⚠️ Ton volume monte de **${diff} %** : garde une marge (+10 % par semaine environ) pour éviter la blessure.` : diff >= 0 ? `\nVolume en hausse de ${diff} % : progression bien dosée 👌` : `\nVolume en baisse de ${-diff} % par rapport à la semaine dernière.`;
+  return {t:`**Ces 7 derniers jours** : ${w0.n} sortie${w0.n > 1 ? "s" : ""}, **${km1(w0.dist)} km** en ${hmin(w0.time)}${w0.pace ? `, allure moyenne ${paceTxt(w0.pace)}/km` : ""}.\nSemaine précédente : ${w1.n} sortie${w1.n > 1 ? "s" : ""}, ${km1(w1.dist)} km.${trend}\n**Depuis le début** : ${runs.length} course${runs.length > 1 ? "s" : ""}, ${km1(tot)} km. Plus longue : ${km1(long.dist)} km. Meilleure allure : ${paceTxt(best.time/(best.dist/1000))}/km.`, sugg:["Quelle séance aujourd'hui ?", "Prédis mes chronos", "Plan 10 km"]};
+}
+function setDur(mn){ S.mode = "time"; S.durMin = mn; store.set("mode", "time"); store.set("durMin", mn); return {}; }
+// Séance du jour : programme suivi, sinon d'après les dernières courses (fatigue, régularité, jour de la semaine)
+function todayAnswer(quiet){
+  const runs = runsAll(), now = Date.now(), day = new Date().getDay(), wk = weekStats(0);
+  const avgKm = runs.length ? runs.slice(0, 5).reduce((a, x) => a + x.dist, 0)/Math.min(5, runs.length)/1000 : 0;
+  const since = runs.length ? (now - runs[0].date)/864e5 : 99, last3 = runs.filter(x => now - x.date < 3*864e5).length;
+  const km = v => Math.max(2, Math.min(42, Math.round(v*2)/2)), K = v => nf(1).format(v).replace(",0", "");
+  const out = (short, why, a) => { const o = {short, t:`**Séance du jour** : ${short}\n${why}`, sugg:["Mon bilan de la semaine", "Comment m'échauffer ?", "Quoi manger avant ?"]}; if(a){ if(a.km){ o.act = "km:" + a.km; o.actLabel = `Tracer ${K(a.km)} km`; } else if(a.min){ o.act = "min:" + a.min; o.actLabel = `Tracer ${a.min} min`; } else { o.act = a.act; o.actLabel = a.label; } } return o; };
+  if(S.training){ const P = PL()[S.training.plan], w = curWeek(S.training, P), ses = P.gen(w), i = ses.findIndex((_, k) => !S.training.done[`${w}-${k}`]);
+    if(i >= 0){ const x = ses[i]; return out(`${x.t}${x.km ? ` · ${K(x.km)} km` : ""} (programme « ${P.name} », semaine ${w}).`, x.d, x.km ? {km:x.km} : {min:45}); }
+    return out("repos ou footing libre : ta semaine de programme est bouclée 🎉", "Profites-en pour récupérer : mobilité, sommeil, hydratation.", {act:"coach", label:"Routine de mobilité"}); }
+  if(!runs.length) return out(`**25 minutes très faciles**, à une allure où tu peux parler.`, "Si besoin, alterne 3 min de course et 1 min de marche. L'objectif : finir avec l'envie de recommencer.", {min:25});
+  if(last3 >= 3 || (since < 1 && runs[0].dist/1000 > avgKm*1.3)) return out("**repos actif** : 20 min de marche ou de mobilité.", `Tu as beaucoup couru ces derniers jours (${last3} sortie${last3 > 1 ? "s" : ""} en 3 jours). La progression se fait aussi pendant la récupération.`, {act:"coach", label:"Routine de mobilité"});
+  if(since > 5) return out(`**reprise douce, ${K(km(avgKm*.8))} km** à ${paceTxt(S.pace + 30)}/km.`, `Ta dernière sortie date de ${Math.round(since)} jours : on relance la machine sans forcer.`, {km:km(avgKm*.8)});
+  const prev = weekStats(1);
+  if(prev.dist > 0 && wk.dist > prev.dist*1.3 && wk.n >= 2) return out(`**footing facile, ${K(km(avgKm*.8))} km** à ${paceTxt(S.pace + 40)}/km.`, `Ton volume a bondi cette semaine (${km1(wk.dist)} km contre ${km1(prev.dist)} km) : on consolide en douceur plutôt que d'en rajouter.`, {km:km(avgKm*.8)});
+  if((day === 0 || day === 6) && wk.n >= 1) return out(`**sortie longue, ${K(km(Math.max(avgKm*1.3, avgKm + 2)))} km** à ${paceTxt(S.pace + 30)}/km.`, "Le week-end, c'est le moment de l'endurance : allure confortable, et une gorgée d'eau toutes les 20 min si ça dépasse l'heure.", {km:km(Math.max(avgKm*1.3, avgKm + 2))});
+  if(since < 1.2) return out(`**footing de récupération, ${K(km(avgKm*.7))} km** très lent (${paceTxt(S.pace + 50)}/km).`, "Tu as couru hier : on garde les jambes en mouvement sans fatigue supplémentaire.", {km:km(avgKm*.7)});
+  if(wk.n >= 1 && day >= 2 && day <= 4) return out(`**séance de rythme** : 15 min d'échauffement, puis 6 × 1 min vite / 1 min lent, 10 min de retour au calme (≈ ${K(km(avgKm))} km).`, `Les accélérations à ${paceTxt(S.pace - 40)}/km améliorent ta vitesse ; le reste du temps, cours facile.`, {km:km(avgKm)});
+  return out(`**footing, ${K(km(avgKm))} km** à ton allure (${paceTxt(S.pace)}/km).`, "Régularité avant tout : c'est elle qui fait progresser.", {km:km(avgKm)});
+}
+// Dictée vocale (Safari, Chrome)
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition || null;
+let srOn = null;
+function dictate(){
+  if(srOn){ try{ srOn.stop(); }catch(e){} return; }
+  const r = new SR(); r.lang = "fr-FR"; r.interimResults = true; r.maxAlternatives = 1; srOn = r;
+  const btn = $("#chatMic"), inp = $("#chatIn"); btn?.classList.add("on"); inp.placeholder = "Je t'écoute…";
+  let final = "";
+  r.onresult = e => { let t = ""; for(const x of e.results){ t += x[0].transcript; if(x.isFinal) final = t; } inp.value = t; };
+  r.onerror = e => { if(e.error === "not-allowed") toast("Autorise le micro pour dicter ta question."); };
+  r.onend = () => { srOn = null; btn?.classList.remove("on"); inp.placeholder = "Écris ou dicte ta question…"; const v = (final || inp.value).trim(); if(v){ inp.value = ""; chatSend(v); } };
+  try{ r.start(); }catch(e){ srOn = null; btn?.classList.remove("on"); }
 }
 // La boucle à l'écran, résumée pour le chat (distance, dénivelé, rues, points d'eau)
 function loopCtx(){
@@ -982,6 +1044,9 @@ function loopCtx(){
 }
 // Cerveau intégré (chat-brain.js) : calculs, connaissances running et fil de la conversation
 function brainAnswer(text){
+  const pt = plain(text.toLowerCase());
+  if(/\b(bilan|mes stats|statistiques|ma semaine|ma progression|mes courses|mon historique|mes derniere|combien j ai couru|j ai couru combien)/.test(pt)) return bilanAnswer();
+  if(/(seance du jour|seance d aujourd|quoi faire aujourd|que faire aujourd|je fais quoi|qu est ce que je cours|aujourd hui je cours|programme du jour|entrainement du jour|que me conseilles|on fait quoi)/.test(pt)) return todayAnswer();
   if(!window.TraceoBrain) return localCoach(text);
   const ctx = {start:S.start?.label || null, distKm:S.distKm, pace:S.pace, weight:S.weight, premium:isPremium() && !betaOn(), beta:betaOn(), price:C.PRICE_LABEL, loop:loopCtx()};
   let out; try{ out = TraceoBrain.answer(text, ctx, CHAT.mem); }catch(e){ report("brain", e.message); return localCoach(text); }
@@ -990,6 +1055,8 @@ function brainAnswer(text){
   return out;
 }
 function chatAct(a){
+  const m = /^(km|min):([\d.]+)$/.exec(a);
+  if(m){ if(m[1] === "km"){ S.mode = "dist"; S.distKm = +m[2]; store.set("mode", "dist"); store.set("distKm", S.distKm); } else setDur(+m[2]); a = "gen"; }
   if(a === "gen3"){ S.mode = "dist"; S.distKm = 3; store.set("mode", "dist"); store.set("distKm", 3); a = "gen"; }
   if(a === "mine") return go("mine");
   if(a === "fly"){ const r = curRoute(); if(r){ go("plan"); setTimeout(() => flyover(r), 300); } return; }
@@ -1000,6 +1067,7 @@ function chatAct(a){
   else if(a === "coach") go("coach");
   else if(a === "install") installFlow();
   else if(a === "me") go("me");
+  else if(a === "ensemble") go("ensemble");
 }
 const PACE = s => paceTxt(s) + " /km";
 // Assistant intégré : comprend les demandes courantes et répond avec les données de l'app
@@ -1036,7 +1104,7 @@ function localCoach(raw){
   return {t:`Je peux t'aider pour :\n• **une boucle** (« boucle de 8 km », « 45 minutes »)\n• **une allure** (« allure pour 10 km en 50 min »)\n• **la nutrition, l'hydratation, l'échauffement**\n• **Premium, l'installation, Strava et Garmin**`};
 }
 function render(){
-  body.innerHTML = ({plan:viewPlan, coach:viewCoach, chat:viewChat, mine:viewMine, premium:viewPremium, me:viewMe})[S.tab]();
+  body.innerHTML = ({plan:viewPlan, coach:viewCoach, chat:viewChat, mine:viewMine, premium:viewPremium, me:viewMe, ensemble:() => window.viewEnsemble ? viewEnsemble() : ""})[S.tab]();
   wire(); counters(); updateCrown(); syncQBars();
 }
 function startCard(){
@@ -1576,13 +1644,13 @@ function viewPremium(){
   if(betaOn()) return `<div class="plan pro"><p class="eyebrow" style="color:var(--gold)">Version bêta</p><p class="title">Tout Traceo est offert pendant la bêta.</p>
       <p class="muted">Boucles illimitées, guidage vocal, Garmin, Strava, GPX et image à partager : tout est ouvert, sans compte et sans paiement. Merci de tester l'app avant son lancement.</p></div>
     <div class="plan"><p class="eyebrow">Au lancement</p><p class="title" style="font-size:22px">Traceo Premium · ${C.PRICE_LABEL} / mois</p>
-      <ul class="checks"><li>Boucles illimitées, partout en France</li><li>Envoi sur ta montre Garmin</li><li>Envoi de tes courses sur Strava</li><li>Export GPX pour toutes les montres</li><li>Image de ta boucle à partager</li></ul>
+      <ul class="checks"><li>Boucles illimitées, partout en France</li><li>Envoi sur ta montre Garmin</li><li>Envoi de tes courses sur Strava</li><li>Export GPX pour toutes les montres</li><li>Image de ta boucle à partager</li><li><b>Ensemble</b> : coureurs autour de toi, invitations et messages</li><li><b>Coach IA</b> personnalisé dans le chat</li></ul>
       <p class="small">La version gratuite gardera 3 boucles par semaine, guidage compris.</p></div>`;
   const on = isPremium() && !S.demo && S.premium;
   const left = on && S.premium.until ? Math.max(0, Math.ceil((S.premium.until - Date.now())/864e5)) : null;
   return `${on ? `<div class="plan pro"><p class="eyebrow" style="color:var(--gold)">★ Premium actif</p><p class="title" style="font-size:24px">Tout Traceo est débloqué.</p>${left != null ? `<p class="muted">Encore <b>${left} jour${left > 1 ? "s" : ""}</b>, jusqu'au ${new Date(S.premium.until).toLocaleDateString("fr-FR", {day:"numeric", month:"long"})}.</p>` : ""}</div>` : ""}<div class="plan pro"><p class="eyebrow" style="color:var(--gold)">Traceo Premium</p><p class="title">Une boucle neuve à chaque sortie, sans limite.</p>
       <p class="price">${C.PRICE_LABEL}<small> / mois</small></p>
-      <ul class="checks"><li>Boucles illimitées, partout en France</li><li>Envoi sur ta montre Garmin</li><li>Envoi de tes courses sur Strava</li><li>Export GPX pour toutes les montres</li><li>Image de ta boucle à partager</li></ul>
+      <ul class="checks"><li>Boucles illimitées, partout en France</li><li>Envoi sur ta montre Garmin</li><li>Envoi de tes courses sur Strava</li><li>Export GPX pour toutes les montres</li><li>Image de ta boucle à partager</li><li><b>Ensemble</b> : coureurs autour de toi, invitations et messages</li><li><b>Coach IA</b> personnalisé dans le chat</li></ul>
       ${on ? `${S.premium.via === "sub" ? `<a class="btn block night" href="${C.PAYPAL_MANAGE_URL}" target="_blank" rel="noopener">Gérer mon abonnement PayPal</a>` : S.premium.until && S.premium.until - Date.now() < 7*864e5 ? `<p class="small">Pour continuer après cette date, reprends 31 jours : ils s'ajoutent à ceux qui restent.</p>${payBlock("payMain")}` : ""}` : payBlock("payMain")}
     </div>
     ${on ? "" : `<div class="plan"><p class="eyebrow">Gratuit</p><p class="title" style="font-size:22px">${C.FREE_PER_WEEK} boucles par semaine, guidage compris.</p><p class="small">Il te reste ${remaining()} boucle${remaining() > 1 ? "s" : ""} cette semaine.</p></div>`}`;
@@ -1594,6 +1662,7 @@ function viewMe(){
     <label class="switch"><span><b>Guidage vocal</b><br><span class="small">Annonce la rue où tu es, chaque virage et chaque kilomètre.</span></span><input type="checkbox" id="vIn" ${S.voice ? "checked" : ""}></label>
     ${betaOn() || !PV ? "" : `<label class="switch"><span><b>Mode démo Premium</b><br><span class="small">Pour tout tester sans payer sur ce téléphone.</span></span><input type="checkbox" id="demoIn" ${S.demo ? "checked" : ""}></label>`}
     <div class="field"><label>Mes cartes hors connexion</label>${(() => { const m = store.get("maps", []); return m.length ? `<div class="list">${m.map(x => `<div class="wk"><span class="d">${I.route}</span><span class="b"><b>${esc(x.name)}</b><small>Enregistrée le ${new Date(x.date).toLocaleDateString("fr-FR")} · ${x.n} morceaux de carte</small></span><button class="iconbtn" data-delmap="${x.key}" aria-label="Supprimer">${I.x}</button></div>`).join("")}</div>` : `<p class="small">${PV ? "Dans l'app en ligne, le plan de chaque ville choisie s'enregistre ici automatiquement." : "Choisis une ville ou localise-toi : son plan s'enregistre ici automatiquement."}</p>`; })()}</div>
+    <button class="btn night block" data-go="premium">★ ${isPremium() && !betaOn() ? "Mon abonnement Premium" : "Traceo Premium · " + C.PRICE_LABEL}</button>
     <button class="btn hero block" id="ckBtn">${I.check}Vérifier que tout fonctionne</button>
     ${standalone ? "" : `<button class="btn night block" id="instBtn">${I.dl}Installer Traceo sur mon téléphone</button>`}
     <div class="row" id="resetRow"><button class="btn soft" id="reset">Effacer mes données</button></div>
@@ -1640,6 +1709,7 @@ function wire(){
   }
   if(S.tab === "premium" && !betaOn()) mountPay("payMain");
   if(S.tab === "chat") wireChat();
+  if(S.tab === "ensemble" && window.wireEnsemble) wireEnsemble();
   $("#askLoop") && ($("#askLoop").onclick = () => { go("chat"); chatSend("Conseils pour cette boucle"); });
   $("#dockSum") && ($("#dockSum").onclick = () => { panel.classList.remove("min"); syncH(); });
   if(S.tab === "plan"){
@@ -1690,7 +1760,7 @@ function counters(){
   if(matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   document.querySelectorAll("[data-count]").forEach(el => { if(el.dataset.done) return; el.dataset.done = 1; const to = +el.dataset.count, d = +(el.dataset.d || 0), f = nf(d), t0 = performance.now(); const st = t => { const k = Math.min(1, (t - t0)/1000); el.textContent = f.format(to*(1 - Math.pow(1-k, 3))); if(k < 1) requestAnimationFrame(st); }; requestAnimationFrame(st); });
 }
-function go(tab){ if(S.tab !== tab){ tabsSeen++; track("onglet", {nom:tab}); } S.tab = tab; document.querySelectorAll("#tabs button").forEach(b => b.setAttribute("aria-current", b.dataset.tab === tab ? "page" : "false")); panel.classList.remove("min"); render(); body.scrollTop = 0; }
+function go(tab){ if(S.tab !== tab){ tabsSeen++; track("onglet", {nom:tab}); } S.tab = tab; document.body.dataset.tab = tab; document.querySelectorAll("#tabs button").forEach(b => b.setAttribute("aria-current", b.dataset.tab === tab ? "page" : "false")); panel.classList.remove("min"); render(); body.scrollTop = 0; }
 document.querySelectorAll("#tabs button").forEach(b => b.onclick = () => go(b.dataset.tab));
 function updateCrown(){ const c = $("#crown"); if(betaOn()){ c.classList.remove("on"); c.innerHTML = "<span>★</span>Bêta : tout offert"; return; } const on = isPremium(); c.classList.toggle("on", on); c.innerHTML = on ? "<span>★</span>Premium actif" : "<span>★</span>Premium"; }
 $("#crown").onclick = () => go("premium");

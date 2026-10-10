@@ -1,5 +1,5 @@
-# Déploiement : cd server && npx wrangler deploy
-# Puis : npx wrangler secret put ANTHROPIC_API_KEY (chat) et, si abonnement PayPal, PAYPAL_SECRET
+# Déploiement automatique : GitHub > Actions > « Serveur (chat IA) » (voir .github/workflows/server.yml)
+# À la main : cd server && npx wrangler deploy, puis npx wrangler secret put ANTHROPIC_API_KEY (facultatif)
 name = "traceo-api"
 main = "worker.js"
 compatibility_date = "2025-09-01"
@@ -8,4 +8,19 @@ compatibility_flags = ["nodejs_compat"]
 [vars]
 PAYPAL_ENV = "live"
 APP_ORIGIN = "https://traceo.pages.dev,https://pierrernrd04-ai.github.io,https://localhost,capacitor://localhost"
+PUSH_SUBJECT = "https://pierrernrd04-ai.github.io/traceo/"
+ALERTS_TOPIC = "traceo-alertes-94082f64b4"
 # PAYPAL_CLIENT_ID et PAYPAL_PLAN_ID : à ajouter ici ou dans le tableau de bord Cloudflare
+
+# « Ensemble » : comptes, positions approximatives, messages (Durable Object SQLite, offre gratuite)
+[[durable_objects.bindings]]
+name = "HUB"
+class_name = "Hub"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Hub"]
+
+# IA gratuite de Cloudflare pour le chat quand il n'y a pas de clé Anthropic
+[ai]
+binding = "AI"

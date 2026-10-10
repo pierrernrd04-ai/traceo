@@ -48,24 +48,25 @@ La localisation, les cartes et PayPal ne marchent que sur une vraie adresse web 
 
 Pour mettre à jour l'app plus tard : Workers & Pages > traceo > Créer un déploiement, et renvoie le nouveau zip.
 
-## Chat : activer la vraie IA (Claude), depuis ton téléphone
+## Serveur Traceo : coach IA + Ensemble, depuis ton téléphone (10 min, gratuit)
 
-Sans réglage, l'onglet **Chat** utilise le cerveau intégré (`chat-brain.js`). Il fait les calculs (allures, chronos, VMA, zones cardiaques, gels, calories), prépare des plans, connaît une soixantaine de sujets running et suit le fil de la conversation. Pour répondre librement à **n'importe quelle** question, active la vraie IA. Tout se fait dans le navigateur du téléphone, en 15 minutes environ :
+Un seul serveur (Cloudflare Workers, offre gratuite) fait tourner **le coach IA du chat** et **Ensemble** (comptes coureurs, coureurs autour de soi, invitations, messages, notifications). Sans lui, le chat utilise le cerveau intégré (`chat-brain.js` : calculs, bilan, séance du jour, plans) et l'onglet Ensemble affiche « Ouverture imminente ».
 
-1. **Anthropic** : sur **console.anthropic.com**, crée un compte, ajoute un moyen de paiement (facturation à l'usage), puis **API Keys > Create Key**. Copie la clé (`sk-ant-…`).
-2. **Cloudflare** (gratuit) : sur **dash.cloudflare.com**, crée un compte.
+1. **Cloudflare** (gratuit) : sur **dash.cloudflare.com**, crée un compte.
    - Ouvre **Workers & Pages** une fois et choisis ton sous-domaine `workers.dev`.
    - Copie ton **Account ID** (colonne de droite de la page d'accueil du compte).
-   - Va dans **Mon profil > Jetons API > Créer un jeton**, choisis le modèle **« Modifier les Workers Cloudflare »** et copie le jeton.
-3. **GitHub** : dans le dépôt `traceo`, ouvre **Settings > Secrets and variables > Actions > New repository secret** et crée trois secrets :
-   - `ANTHROPIC_API_KEY` ;
+   - Va dans **Mon profil > Jetons API > Créer un jeton**, choisis le modèle **« Modifier les Workers Cloudflare »** (Edit Cloudflare Workers). Pour l'IA gratuite, ajoute la permission **Compte > Workers AI > Modifier**. Copie le jeton.
+2. **GitHub** : dans le dépôt `traceo`, ouvre **Settings > Secrets and variables > Actions > New repository secret** et crée :
    - `CLOUDFLARE_API_TOKEN` ;
-   - `CLOUDFLARE_ACCOUNT_ID`.
-4. Ouvre **Actions > Serveur (chat IA) > Run workflow**.
+   - `CLOUDFLARE_ACCOUNT_ID` ;
+   - facultatif, `ANTHROPIC_API_KEY` (console.anthropic.com > API Keys) : le coach passe alors sur **Claude**, l'IA la plus fine. Sans cette clé, il utilise l'**IA gratuite de Cloudflare** (Llama 3.3, environ 10 000 « neurones » offerts par jour, soit quelques centaines de réponses).
+3. Ouvre **Actions > Serveur (chat IA) > Run workflow**.
 
-Le serveur se déploie, le chat est testé, et son adresse s'écrit toute seule dans `config.js` (`CHAT_API`). En 2 minutes, le chat de l'app répond avec Claude.
+Le serveur se déploie, il est testé, et son adresse s'écrit toute seule dans `config.js` (`CHAT_API`). Deux minutes plus tard, le chat répond avec l'IA et Ensemble est ouvert à tous les abonnés Premium.
 
-**Garde-fous** : 12 messages par minute et par appareil au maximum, historique limité, sujets limités à la course et à l'app. Si l'IA ne répond pas, le cerveau intégré prend le relais automatiquement.
+**Garde-fous** : 12 messages de chat par minute et par appareil ; 40 messages Ensemble par heure et par compte ; « Je pars courir » prévient au plus une fois toutes les 20 minutes. Positions arrondies à ~300 m, cachées après 3 h d'inactivité. Blocage, signalement (alerte instantanée sur ton canal ntfy) et suppression de compte intégrés. Si l'IA ne répond pas, le cerveau intégré prend le relais automatiquement.
+
+**Notifications** : Android (Chrome) et ordinateur, directement. iPhone : à partir d'iOS 16.4, une fois Traceo ajouté à l'écran d'accueil.
 
 ## Informations légales
 
