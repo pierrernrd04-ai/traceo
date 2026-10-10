@@ -109,8 +109,8 @@ function filtered(){
 function view(){
   const s = DATA.stats, list = filtered();
   $("#app").innerHTML = `<header><h1><img src="icons/icon-192.png" alt="">Traceo Admin</h1><div class="acts"><button class="btn sm" id="rf">Actualiser</button><button class="btn sm" id="out">Quitter</button></div></header>
-    <div class="tiles">${[["Membres", s.members], ["Nouveaux (7 j)", s.new7], ["Actifs (24 h)", s.active24], ["En ligne", s.online], ["Premium", s.premium], ["Courses validées", s.runs], ["Récompenses à verser", s.rewards_due], ["Messages", s.messages], ["Signalements", s.reports]].map(([l, v]) => `<div class="tile"><b>${v}</b><span>${l}</span></div>`).join("")}</div>
-    <div class="tabs"><button data-t="members" aria-pressed="${TAB === "members"}">Membres (${DATA.members.length})</button><button data-t="rewards" aria-pressed="${TAB === "rewards"}">Récompenses (${DATA.rewards.filter(r => r.status !== "versee" && r.status !== "refusee").length})</button><button data-t="reports" aria-pressed="${TAB === "reports"}">Signalements (${DATA.reports.length})</button></div>
+    <div class="tiles">${[["Membres", s.members], ["Nouveaux (7 j)", s.new7], ["Actifs (24 h)", s.active24], ["En ligne", s.online], ["Premium", s.premium], ["Courses validées", s.runs], ["Diamants à activer", s.rewards_due], ["Messages", s.messages], ["Signalements", s.reports]].map(([l, v]) => `<div class="tile"><b>${v}</b><span>${l}</span></div>`).join("")}</div>
+    <div class="tabs"><button data-t="members" aria-pressed="${TAB === "members"}">Membres (${DATA.members.length})</button><button data-t="rewards" aria-pressed="${TAB === "rewards"}">Diamants (${DATA.rewards.filter(r => r.status !== "versee" && r.status !== "refusee").length})</button><button data-t="reports" aria-pressed="${TAB === "reports"}">Signalements (${DATA.reports.length})</button></div>
     ${TAB === "members" ? `<h2>Membres inscrits</h2>
       <div class="tools"><input class="input" id="q" placeholder="Rechercher : nom, identifiant, e-mail, ville…" value="${esc(QRY)}">
       <select class="input" id="sort" style="flex:0 0 auto;width:auto">${[["created", "Plus récents"], ["seen", "Dernière activité"], ["name", "Nom"], ["age", "Âge"]].map(([k, l]) => `<option value="${k}" ${SORT === k ? "selected" : ""}>${l}</option>`).join("")}</select>
@@ -135,8 +135,14 @@ function view(){
     const [id, st] = b.dataset.rw.split(":"), r = DATA.rewards.find(x => x.id === +id);
     const note = st === "refusee" ? prompt("Motif du refus (visible par toi seulement) :", "") : "";
     if(st === "refusee" && note === null) return;
-    if(st === "versee" && !confirm(`Confirmer que tu as envoyé ${r.amount} € à ${r.paypal || r.email} sur PayPal ?`)) return;
+    
     try{ await call("reward", {id:+id, status:st, note}); toast(st === "versee" ? "Marquée comme versée." : "Récompense refusée."); await load(); }catch(e){ toast("Erreur : " + e.message); }
+  });
+  document.querySelectorAll("[data-actdia]").forEach(b => b.onclick = async () => {
+    const dv = b.dataset.actdia; if(!/^[a-f0-9]{16}$/.test(dv)) return toast("Appareil inconnu.");
+    try{ const code = await signAct(dv, 31, "diamant"); const r = await fetch("https://ntfy.sh/traceo-act-" + dv, {method:"POST", body:code}); if(!r.ok) throw new Error("ntfy");
+      await call("reward", {id:+b.dataset.rid, status:"versee", note:"31 jours activés"}); toast("💎 31 jours de Premium activés sur son téléphone."); await load();
+    }catch(e){ toast(e.message === "no_key" ? "Colle d'abord ta clé de signature dans « Activer un Premium »." : "Échec : " + e.message); }
   });
   document.querySelectorAll("[data-runs]").forEach(b => b.onclick = async () => {
     const r = DATA.rewards.find(x => x.uid === b.dataset.runs), j = await call("runs?uid=" + encodeURIComponent(b.dataset.runs));
@@ -171,16 +177,51 @@ function view(){
     }catch(e){ toast("Erreur : " + e.message); }
   });
 }
-const RST = {a_reclamer:["En attente de l'e-mail PayPal", ""], demandee:["À verser", "prem"], versee:["Versée", "on"], refusee:["Refusée", "bad"]};
+const RST = {a_reclamer:["Gagné, pas encore utilisé", ""], demandee:["À activer", "prem"], versee:["Activé", "on"], refusee:["Refusé", "bad"]};
 function rewardsView(){
   const L = DATA.rewards;
-  return `<h2>Récompenses « 100 courses = 5 € »</h2><p class="small muted">Avant de verser : vérifie dans PayPal que le membre a bien payé son Premium, et regarde ses courses (bouton « Courses »). Puis envoie l'argent depuis PayPal (Envoyer › e-mail PayPal du membre) et marque-la « Versée ».</p>
-    ${L.length ? `<table><thead><tr><th>Membre</th><th>Palier</th><th>Montant</th><th>PayPal</th><th>Gagnée le</th><th>Statut</th><th></th></tr></thead><tbody>${L.map(r => `<tr><td class="who"><b>${esc(r.first || "")} ${esc(r.last || "")}</b><small>@${esc(r.pseudo || "supprimé")} · ${esc(r.email || "")}</small></td>
+  return `<h2>Diamants « 100 courses = 5 € de Premium »</h2><p class="small muted">Quand un membre utilise son diamant, tu reçois une notification. Touche « Activer 31 jours » : son Premium offert s'allume tout seul sur son téléphone. Le bouton « Courses » montre ses courses validées et refusées.</p>
+    ${L.length ? `<table><thead><tr><th>Membre</th><th>Palier</th><th>Valeur</th><th>Appareil</th><th>Gagnée le</th><th>Statut</th><th></th></tr></thead><tbody>${L.map(r => `<tr><td class="who"><b>${esc(r.first || "")} ${esc(r.last || "")}</b><small>@${esc(r.pseudo || "supprimé")} · ${esc(r.email || "")}</small></td>
       <td data-l="Palier">${r.milestone}e course<br><span class="muted small">${r.runs} validées · ${r.refused} refusées</span></td><td data-l="Montant"><b>${r.amount} €</b></td>
-      <td data-l="PayPal">${r.paypal ? `<a href="mailto:${esc(r.paypal)}">${esc(r.paypal)}</a>` : "–"}</td><td data-l="Gagnée le">${d(r.created)}</td>
+      <td data-l="Appareil">${r.paypal ? "TRC-" + esc(r.paypal.slice(0, 4).toUpperCase()) + "…" : "–"}</td><td data-l="Gagnée le">${d(r.created)}</td>
       <td data-l="Statut"><span class="tag ${RST[r.status]?.[1] || ""}">${RST[r.status]?.[0] || esc(r.status)}</span>${r.note ? `<br><span class="muted small">${esc(r.note)}</span>` : ""}</td>
-      <td><div class="acts"><button class="btn sm" data-runs="${r.uid}">Courses</button>${r.status === "demandee" ? `<a class="btn sm hero" href="https://www.paypal.com/myaccount/transfer/homepage/pay" target="_blank" rel="noopener">Ouvrir PayPal</a><button class="btn sm" data-rw="${r.id}:versee">Marquer versée</button>` : ""}${r.status === "demandee" || r.status === "a_reclamer" ? `<button class="btn sm danger" data-rw="${r.id}:refusee">Refuser</button>` : ""}</div></td></tr>`).join("")}</tbody></table>`
-    : `<div class="card empty">Aucune récompense pour l'instant. Tu recevras une notification ntfy dès qu'un membre atteint 100 courses.</div>`}`;
+      <td><div class="acts"><button class="btn sm" data-runs="${r.uid}">Courses</button>${r.status === "demandee" ? `<button class="btn sm hero" data-actdia="${esc(r.paypal || "")}" data-rid="${r.id}">Activer 31 jours</button>` : ""}${r.status === "demandee" || r.status === "a_reclamer" ? `<button class="btn sm danger" data-rw="${r.id}:refusee">Refuser</button>` : ""}</div></td></tr>`).join("")}</tbody></table>`
+    : `<div class="card empty">Aucun diamant pour l'instant. Tu recevras une notification dès qu'un membre atteint 100 courses.</div>`}`;
+}
+/* ---------- Activation sécurisée de Premium (fonctionne même sans serveur) ----------
+   La clé de signature reste sur cet appareil (localStorage). Elle signe « appareil | fin | type » ;
+   l'app vérifie avec la clé publique. Code envoyé à l'appareil par ntfy (canal propre à l'appareil). */
+const ACT_PUB = {"kty":"EC","crv":"P-256","x":"__6AWyNjAcpIy9E2jeaF-pVNzipouEcuYhBleromdtE","y":"WR7Y2cF2dCOReGhUEk7DEFkf2Bmh5rNc0NveDAggRzQ"};
+const b64e = u8 => btoa(String.fromCharCode(...u8)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+async function signAct(dev, days, kind){
+  const d = localStorage.getItem("traceoSignKey"); if(!d) throw new Error("no_key");
+  const key = await crypto.subtle.importKey("jwk", {...ACT_PUB, d, ext:true}, {name:"ECDSA", namedCurve:"P-256"}, false, ["sign"]);
+  const payload = new TextEncoder().encode(`${dev}|${Date.now() + days*864e5}|${kind}|${b64e(crypto.getRandomValues(new Uint8Array(6)))}`);
+  const sig = new Uint8Array(await crypto.subtle.sign({name:"ECDSA", hash:"SHA-256"}, key, payload));
+  return b64e(payload) + "." + b64e(sig);
+}
+function actView(dev, email){
+  const has = !!localStorage.getItem("traceoSignKey");
+  const box = document.createElement("div"); box.className = "card"; box.id = "actBox"; box.style.marginBottom = "18px";
+  box.innerHTML = `<h2 style="margin-top:0">Activer un Premium</h2>
+    ${has ? "" : `<p class="small" style="color:var(--gold)">Première fois sur cet appareil : colle ta clé de signature (donnée par Claude, à garder secrète).</p><input class="input" id="sk" placeholder="Clé de signature" autocomplete="off"><p></p>`}
+    <p class="small muted">1. Vérifie dans PayPal que le paiement de <b>${esc(email || "ce client")}</b> (4,99 €) est bien arrivé. 2. Touche « Activer » : le Premium s'allume tout seul sur son téléphone, et uniquement sur celui-là.</p>
+    <input class="input" id="dv" placeholder="Code appareil (TRC-XXXX-XXXX-XXXX-XXXX)" value="${dev ? "TRC-" + dev.toUpperCase().match(/.{4}/g).join("-") : ""}">
+    <p></p><div class="acts"><select class="input" id="dur" style="width:auto"><option value="31">31 jours (paiement 4,99 €)</option><option value="31d">31 jours (diamant 5 €)</option><option value="62">62 jours</option><option value="7">7 jours (geste commercial)</option></select><button class="btn hero" id="actGo">Activer</button></div>`;
+  const host = $("#app"); host.prepend(box);
+  $("#actGo").onclick = async () => {
+    if($("#sk")){ const k = $("#sk").value.trim(); if(!/^[A-Za-z0-9_-]{40,50}$/.test(k)) return toast("Clé de signature invalide."); localStorage.setItem("traceoSignKey", k); }
+    const dv = $("#dv").value.trim().toLowerCase().replace(/^trc-/, "").replace(/-/g, "");
+    if(!/^[a-f0-9]{16}$/.test(dv)) return toast("Code appareil invalide (16 caractères après TRC-).");
+    const v = $("#dur").value, days = parseInt(v), kind = v.endsWith("d") ? "diamant" : days === 7 ? "geste" : "paiement";
+    try{
+      const code = await signAct(dv, days, kind);
+      const r = await fetch("https://ntfy.sh/traceo-act-" + dv, {method:"POST", body:code});
+      if(!r.ok) throw new Error("ntfy " + r.status);
+      toast(`Premium activé pour ${days} jours sur l'appareil TRC-${dv.slice(0, 4).toUpperCase()}…`); $("#actGo").textContent = "Activé ✓"; $("#actGo").disabled = true;
+      if(location.hash) history.replaceState(null, "", location.pathname);
+    }catch(e){ toast(e.message === "no_key" ? "Colle d'abord ta clé de signature." : "Échec : " + e.message); if(e.name === "DataError" || e.name === "OperationError"){ localStorage.removeItem("traceoSignKey"); toast("Clé de signature incorrecte, recolle-la."); } }
+  };
 }
 // même étirement du mot de passe que dans l'app (ensemble.js)
 async function pwKey(pw){
@@ -188,6 +229,11 @@ async function pwKey(pw){
   const bits = await crypto.subtle.deriveBits({name:"PBKDF2", salt:new TextEncoder().encode("traceo-ensemble-v1"), iterations:150000, hash:"SHA-256"}, k, 256);
   return [...new Uint8Array(bits)].map(b => b.toString(16).padStart(2, "0")).join("");
 }
+const H = new URLSearchParams(location.hash.slice(1));
+const showAct = () => { if(!$("#actBox")) actView(H.get("act") || "", H.get("e") || ""); };
+const _view = view, _login = loginView;
+view = function(){ _view(); showAct(); };
+loginView = function(err){ _login(err); showAct(); };
 if(KEY && API) load().catch(() => { KEY = ""; loginView(); }); else loginView();
 </script>
 </body>

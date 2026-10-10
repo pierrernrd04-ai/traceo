@@ -1,3 +1,4 @@
+/*! Traceo © 2026 Pierre Renard EI. Tous droits réservés. Reproduction interdite sans autorisation écrite. */
 /* Traceo — charte sombre et épurée : nuit bleu-vert, tracé vert, accents bleu lagon. Un seul thème, volontairement sombre. */
 /* L'attribut hidden doit toujours l'emporter sur les display:flex/grid des composants */
 [hidden]{display:none!important}
@@ -917,3 +918,5 @@ body[data-tab="chat"] .fab.ask{display:none}
 .rw-rules ul{margin:8px 0 0;padding-left:18px;color:var(--muted)}
 .rw-rules a{color:var(--accent)}
 .rw-res{margin:6px 0 2px;text-align:center}
+body:has(#betaLock) #modal{z-index:120}
+.code{font-family:ui-monospace,Menlo,monospace;letter-spacing:.04em;color:var(--ink);background:var(--surface-2);padding:2px 7px;border-radius:7px}

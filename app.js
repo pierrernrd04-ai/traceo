@@ -1,3 +1,4 @@
+/*! Traceo © 2026 Pierre Renard EI. Tous droits réservés. Reproduction interdite sans autorisation écrite. */
 "use strict";
 /* =========================================================================
    Traceo — une boucle de course nouvelle à chaque sortie, depuis là où tu es.
@@ -17,7 +18,7 @@ const _track = track; track = (n, d) => { _track(n, d); alertOwner(n, d); };
 document.addEventListener("visibilitychange", () => { if(document.visibilityState === "hidden"){ const s = Math.round((Date.now() - T0)/1000); track("temps_passe", {secondes:s, tranche:s < 30 ? "moins de 30 s" : s < 120 ? "30 s à 2 min" : s < 600 ? "2 à 10 min" : "plus de 10 min", onglets:tabsSeen}); } });
 // Diagnostic temporaire : les erreurs (sans données personnelles) sont envoyées à un canal privé pour être corrigées à distance
 const DBG = "https://ntfy.sh/traceo-dbg-9591c50f";
-function report(kind, msg){ try{ fetch(DBG, {method:"POST", body:`[${kind}] ${String(msg).slice(0, 600)} | v52 | ${navigator.userAgent.replace(/\(KHTML.*$/, "").slice(0, 120)}`}).catch(() => {}); }catch(e){} }
+function report(kind, msg){ try{ fetch(DBG, {method:"POST", body:`[${kind}] ${String(msg).slice(0, 600)} | v53 | ${navigator.userAgent.replace(/\(KHTML.*$/, "").slice(0, 120)}`}).catch(() => {}); }catch(e){} }
 // Affiche toute erreur à l'écran (bandeau rouge) : une capture suffit pour corriger
 (function(){ let n = 0; const show = m => { if(n++ > 3) return; const d = document.createElement("div"); d.style.cssText = "position:fixed;left:8px;right:8px;top:calc(env(safe-area-inset-top,0px) + 8px);z-index:9999;background:#B3263E;color:#fff;font:600 12px/1.35 system-ui;padding:8px 10px;border-radius:10px;white-space:pre-wrap"; d.textContent = "Erreur : " + m; d.onclick = () => d.remove(); (document.body || document.documentElement).appendChild(d); setTimeout(() => d.remove(), 15000); };
   window.addEventListener("error", e => { report("error", (e.message || "?") + " " + (e.filename || "") + ":" + (e.lineno || "") + ":" + (e.colno || "") + " " + (e.error && e.error.stack ? String(e.error.stack).slice(0, 300) : "")); if(/^Script error/.test(e.message || "") && window.glFail){ try{ glFail(); }catch(x){} return; } show((e.message || "?") + (e.filename ? " (" + e.filename.split("/").pop() + ":" + e.lineno + ")" : "")); });
@@ -68,8 +69,10 @@ function checkBetaLock(){
     <p class="muted">La version gratuite de test est fermée. Continue avec <b>Traceo Premium</b> : une boucle neuve à chaque sortie, guidage vocal, coach nutrition, export Strava et Garmin.</p>
     ${link ? `<button class="btn hero block" id="blPay">Passer à Premium · ${esc(C.PRICE_LABEL)}/mois</button>` : `<p class="bl-soon">Traceo Premium arrive très bientôt.<br>Suis-nous sur Instagram pour être prévenu en premier.</p>`}
     ${link ? `<p class="small consent">En payant, tu demandes l'accès immédiat à Premium et renonces à ton droit de rétractation (art. L221-28 du Code de la consommation). <a href="legal.html#cgv" target="_blank" rel="noopener">Conditions de vente</a></p>` : ""}
-    <p class="small">Déjà abonné ? Rouvre le lien reçu après ton paiement.</p></div>`;
+    ${link ? `<button class="btn night block" id="blAct">${store.get("actPending", null) ? "⏳ Vérification de mon paiement en cours" : "J'ai déjà payé : activer mon Premium"}</button>` : ""}
+    <p class="small">Chaque paiement est vérifié puis activé sur ton téléphone, en général en quelques minutes.</p></div>`;
   document.body.appendChild(d);
+  const ba = d.querySelector("#blAct"); if(ba) ba.onclick = () => requestActivation();
   const b = d.querySelector("#blPay"); if(b) b.onclick = () => { track("paiement_clic", {depuis:"fin_beta"}); if(C.PAYPAL_PAYMENT_LINK){ store.set("payPending", Date.now()); if(NATIVE) openExt(C.PAYPAL_PAYMENT_LINK); else location.href = C.PAYPAL_PAYMENT_LINK; } else { d.remove(); premiumModal("La bêta est terminée."); } };
 }
 setInterval(checkBetaLock, 30000);
@@ -1653,13 +1656,13 @@ function viewPremium(){
   if(betaOn()) return rw + `<div class="plan pro"><p class="eyebrow" style="color:var(--gold)">Version bêta</p><p class="title">Tout Traceo est offert pendant la bêta.</p>
       <p class="muted">Boucles illimitées, guidage vocal, Garmin, Strava, GPX et image à partager : tout est ouvert, sans compte et sans paiement. Merci de tester l'app avant son lancement.</p></div>
     <div class="plan"><p class="eyebrow">Au lancement</p><p class="title" style="font-size:22px">Traceo Premium · ${C.PRICE_LABEL} / mois</p>
-      <ul class="checks"><li>Boucles illimitées, partout en France</li><li>Envoi sur ta montre Garmin</li><li>Envoi de tes courses sur Strava</li><li>Export GPX pour toutes les montres</li><li>Image de ta boucle à partager</li><li><b>5 € offerts</b> toutes les 100 courses</li><li><b>Ensemble</b> : coureurs autour de toi, invitations et messages</li><li><b>Coach IA</b> personnalisé dans le chat</li></ul>
+      <ul class="checks"><li>Boucles illimitées, partout en France</li><li>Envoi sur ta montre Garmin</li><li>Envoi de tes courses sur Strava</li><li>Export GPX pour toutes les montres</li><li>Image de ta boucle à partager</li><li><b>💎 Un diamant de 5 €</b> toutes les 100 courses (31 jours offerts)</li><li><b>Ensemble</b> : coureurs autour de toi, invitations et messages</li><li><b>Coach IA</b> personnalisé dans le chat</li></ul>
       <p class="small">La version gratuite gardera 3 boucles par semaine, guidage compris.</p></div>`;
   const on = isPremium() && !S.demo && S.premium;
   const left = on && S.premium.until ? Math.max(0, Math.ceil((S.premium.until - Date.now())/864e5)) : null;
   return `${rw}${on ? `<div class="plan pro"><p class="eyebrow" style="color:var(--gold)">★ Premium actif</p><p class="title" style="font-size:24px">Tout Traceo est débloqué.</p>${left != null ? `<p class="muted">Encore <b>${left} jour${left > 1 ? "s" : ""}</b>, jusqu'au ${new Date(S.premium.until).toLocaleDateString("fr-FR", {day:"numeric", month:"long"})}.</p>` : ""}</div>` : ""}<div class="plan pro"><p class="eyebrow" style="color:var(--gold)">Traceo Premium</p><p class="title">Une boucle neuve à chaque sortie, sans limite.</p>
       <p class="price">${C.PRICE_LABEL}<small> / mois</small></p>
-      <ul class="checks"><li>Boucles illimitées, partout en France</li><li>Envoi sur ta montre Garmin</li><li>Envoi de tes courses sur Strava</li><li>Export GPX pour toutes les montres</li><li>Image de ta boucle à partager</li><li><b>5 € offerts</b> toutes les 100 courses</li><li><b>Ensemble</b> : coureurs autour de toi, invitations et messages</li><li><b>Coach IA</b> personnalisé dans le chat</li></ul>
+      <ul class="checks"><li>Boucles illimitées, partout en France</li><li>Envoi sur ta montre Garmin</li><li>Envoi de tes courses sur Strava</li><li>Export GPX pour toutes les montres</li><li>Image de ta boucle à partager</li><li><b>💎 Un diamant de 5 €</b> toutes les 100 courses (31 jours offerts)</li><li><b>Ensemble</b> : coureurs autour de toi, invitations et messages</li><li><b>Coach IA</b> personnalisé dans le chat</li></ul>
       ${on ? `${S.premium.via === "sub" ? `<a class="btn block night" href="${C.PAYPAL_MANAGE_URL}" target="_blank" rel="noopener">Gérer mon abonnement PayPal</a>` : S.premium.until && S.premium.until - Date.now() < 7*864e5 ? `<p class="small">Pour continuer après cette date, reprends 31 jours : ils s'ajoutent à ceux qui restent.</p>${payBlock("payMain")}` : ""}` : payBlock("payMain")}
     </div>
     ${on ? "" : `<div class="plan"><p class="eyebrow">Gratuit</p><p class="title" style="font-size:22px">${C.FREE_PER_WEEK} boucles par semaine, guidage compris.</p><p class="small">Il te reste ${remaining()} boucle${remaining() > 1 ? "s" : ""} cette semaine.</p></div>`}`;
@@ -1995,7 +1998,7 @@ function summary(res, l){
   const ok = res.dist > 50, name = l?.name || "Course Traceo";
   openModal(`<button class="iconbtn x" data-close aria-label="Fermer">${I.x}</button>
     <div class="center"><div class="medal">${I.check}</div><p class="title">${ok ? "Bravo, boucle bouclée !" : "Course arrêtée"}</p><p class="muted">${ok ? "Demain, Traceo t'emmène dans d'autres rues." : "Le GPS n'a presque rien enregistré. Vérifie que la localisation est autorisée."}</p></div>
-    ${ok && typeof ENS !== "undefined" && ENS.auth && ensOn() ? `<div id="rwRes" class="rw-res"><p class="small">Vérification de ta course pour les 5 € offerts…</p></div>` : ""}
+    ${ok && typeof ENS !== "undefined" && ENS.auth && ensOn() ? `<div id="rwRes" class="rw-res"><p class="small">Vérification de ta course pour ton diamant…</p></div>` : ""}
     <div class="stats">
       <div class="stat"><small>Durée</small><b>${hms(res.time)}</b></div>
       <div class="stat a"><small>Distance</small><b><span data-count="${res.dist/1000}" data-d="2">${km2(res.dist)}</span><small>km</small></b></div>
@@ -2120,9 +2123,9 @@ const subReady = () => !!(C.PAYPAL_CLIENT_ID && C.PAYPAL_PLAN_ID);
 function payBlock(id){
   const live = !PV && (subReady() || C.PAYPAL_PAYMENT_LINK);
   // Retour de PayPal arrivé ailleurs (ex. Safari au lieu de l'app sur l'écran d'accueil) : activation manuelle, 2 h maximum après le clic
-  const pending = !subReady() && C.PAYPAL_PAYMENT_LINK && store.get("payPending", 0) > Date.now() - 2*3600e3;
+  const pending = !subReady() && C.PAYPAL_PAYMENT_LINK;
   return `<div class="paybox" id="${id}">${live && subReady() ? `<div class="skel" style="height:52px"></div>` : `<button class="btn block paypal" data-pp>Payer avec <b>PayPal</b></button>`}</div>
-    ${pending ? `<button class="btn soft block" data-paid>J'ai payé, activer Premium</button>` : ""}
+    ${pending ? `<button class="btn soft block" data-paid>${store.get("actPending", null) ? "⏳ Vérification en cours : voir ma demande" : "J'ai déjà payé : activer mon Premium"}</button>` : ""}
     <p class="small consent">En payant, tu demandes l'accès immédiat à Premium et renonces à ton droit de rétractation (art. L221-28 du Code de la consommation). <a href="legal.html#cgv" target="_blank" rel="noopener">Conditions de vente</a></p>
     <p class="small">${subReady() ? "Paiement sécurisé par PayPal : compte PayPal ou carte bancaire. Sans engagement, résiliable à tout moment." : "Paiement sécurisé par PayPal (compte PayPal ou carte bancaire). Un paiement = 31 jours de Premium, sans abonnement ni renouvellement automatique."}</p>`;
 }
@@ -2133,7 +2136,7 @@ function unlock(p){ track("abonnement_premium", {via:p && p.via || "?"}); S.prem
 async function mountPay(id){
   const box = document.getElementById(id); if(!box) return; const btn = box.querySelector("[data-pp]");
   const paid = box.parentElement?.querySelector("[data-paid]");
-  if(paid) paid.onclick = () => { if(store.get("payPending", 0) > Date.now() - 2*3600e3){ store.set("payPending", 0); const from = Math.max(Date.now(), S.premium?.until || 0); unlock({via:"link", until:from + 31*864e5}); } };
+  if(paid) paid.onclick = () => requestActivation();
   if(btn){ btn.onclick = () => {
     if(PV){ toast("Dans l'app en ligne, ce bouton ouvre le paiement PayPal.", 4000); return; }
     if(C.PAYPAL_PAYMENT_LINK){ track("paiement_clic", {depuis:"onglet_premium"}); store.set("payPending", Date.now()); if(NATIVE) openExt(C.PAYPAL_PAYMENT_LINK); else location.href = C.PAYPAL_PAYMENT_LINK; return; }
@@ -2150,13 +2153,73 @@ async function mountPay(id){
 }
 async function verifySub(id){ const r = await fetch(C.PAYMENT_API.replace(/\/$/, "") + "/paypal/verify", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({subscription_id:id})}); return r.json(); }
 // Retour de PayPal sans redirection automatique : on propose d'activer Premium si un paiement vient d'être lancé
+/* ---------- Activation sécurisée de Premium ----------
+   Un paiement ne débloque plus rien tout seul (le lien de retour PayPal peut être partagé).
+   1. Après avoir payé, la personne envoie sa demande : e-mail PayPal + code de son appareil.
+   2. Pierre reçoit une notification, vérifie le paiement dans PayPal et active depuis admin.html.
+   3. La page admin signe l'activation (ECDSA P-256, clé privée connue de Pierre seul) pour CET appareil ;
+      l'app vérifie la signature avec la clé publique ci-dessous. Un code copié ne marche sur aucun autre appareil. */
+const ACT_PUB = {"kty":"EC","crv":"P-256","x":"__6AWyNjAcpIy9E2jeaF-pVNzipouEcuYhBleromdtE","y":"WR7Y2cF2dCOReGhUEk7DEFkf2Bmh5rNc0NveDAggRzQ"};
+const b64u = s => Uint8Array.from(atob(s.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((s.length + 3) % 4)), c => c.charCodeAt(0));
+function devId(){ let d = store.get("devId", ""); if(!/^[a-f0-9]{16}$/.test(d)){ d = [...crypto.getRandomValues(new Uint8Array(8))].map(b => b.toString(16).padStart(2, "0")).join(""); store.set("devId", d); } return d; }
+const devCode = () => "TRC-" + devId().toUpperCase().match(/.{4}/g).join("-");
+let actKey = null;
+async function verifyAct(code){
+  try{
+    const [p64, s64] = String(code).split("."); if(!p64 || !s64) return null;
+    actKey = actKey || await crypto.subtle.importKey("jwk", ACT_PUB, {name:"ECDSA", namedCurve:"P-256"}, false, ["verify"]);
+    const raw = b64u(p64); if(!await crypto.subtle.verify({name:"ECDSA", hash:"SHA-256"}, actKey, b64u(s64), raw)) return null;
+    const [dev, until, kind] = new TextDecoder().decode(raw).split("|");
+    return dev === devId() && +until > 0 ? {until:+until, kind:kind || "paiement"} : null;
+  }catch(e){ return null; }
+}
+async function checkPremiumSig(){
+  if(S.premium?.via !== "code") return;
+  const v = await verifyAct(S.premium.code);
+  if(!v){ S.premium = null; store.set("premium", null); updateCrown(); checkBetaLock(); render(); }
+}
+const actTopic = () => "traceo-act-" + devId();
+function requestActivation(){
+  const pend = store.get("actPending", null);
+  openModal(`<button class="iconbtn x" data-close aria-label="Fermer">${I.x}</button><div class="center"><div class="medal">${I.star}</div></div>
+    <p class="title" style="font-size:22px;text-align:center">Activer mon Premium</p>
+    <p class="muted">Pour protéger les abonnés, chaque paiement est vérifié avant l'activation. Indique l'e-mail de ton compte PayPal (ou ton nom si tu as payé par carte) : ton Premium s'active tout seul sur ce téléphone dès la vérification, en général en quelques minutes.</p>
+    <div class="field"><label for="acMail">E-mail PayPal ou nom du payeur</label><input class="input" id="acMail" maxlength="120" value="${esc(pend?.email || (typeof ENS !== "undefined" && ENS.me?.email) || "")}" autocomplete="email"></div>
+    <p class="small">Code de ce téléphone : <b class="code">${devCode()}</b></p>
+    <button class="btn hero block" id="acGo">${pend ? "Renvoyer ma demande" : "Envoyer ma demande d'activation"}</button>
+    ${pend ? `<p class="small" style="text-align:center;color:var(--accent)">⏳ Demande envoyée ${new Date(pend.at).toLocaleTimeString("fr-FR", {hour:"2-digit", minute:"2-digit"})} : vérification en cours, garde l'app ouverte.</p>` : ""}
+    <p class="small">Un souci ? Écris à <a href="mailto:pierre.rnrd04@gmail.com?subject=Activation%20Premium%20${devCode()}">pierre.rnrd04@gmail.com</a> avec ton code.</p>`);
+  $("#acGo").onclick = async () => {
+    const email = $("#acMail").value.trim(); if(email.length < 3) return toast("Indique ton e-mail PayPal ou ton nom.");
+    $("#acGo").disabled = true;
+    const url = location.origin + location.pathname.replace(/[^/]*$/, "") + "admin.html#act=" + devId() + "&e=" + encodeURIComponent(email);
+    try{
+      await fetch("https://ntfy.sh/" + C.ALERTS_TOPIC, {method:"POST", body:`Paiement à vérifier dans PayPal : ${email} · appareil ${devCode()}${typeof ENS !== "undefined" && ENS.me ? " · compte @" + ENS.me.pseudo : ""}. Touche pour activer.`, headers:{"Title":"Activation Premium a valider", "Priority":"high", "Tags":"moneybag", "Click":url, "Actions":"view, Activer, " + url}});
+      store.set("actPending", {at:Date.now(), email}); track("activation_demandee"); closeModal(); toast("Demande envoyée ! Ton Premium s'activera ici automatiquement après vérification.", 6000); pollAct();
+    }catch(e){ $("#acGo").disabled = false; toast("Envoi impossible : vérifie ta connexion."); }
+  };
+}
+let actT = null;
+async function pollAct(){
+  clearTimeout(actT);
+  const pend = store.get("actPending", null); if(!pend || Date.now() - pend.at > 7*864e5) return;
+  try{
+    const txt = await (await fetch(`https://ntfy.sh/${actTopic()}/json?poll=1&since=${Math.floor(pend.at/1000) - 60}`)).text();
+    for(const line of txt.trim().split("\n").reverse()){
+      let m; try{ m = JSON.parse(line); }catch(e){ continue; }
+      const v = m.message && await verifyAct(m.message.trim());
+      if(v && v.until > (S.premium?.until || 0)){ store.set("actPending", null); unlock({via:"code", until:v.until, code:m.message.trim(), kind:v.kind}); return; }
+    }
+  }catch(e){}
+  actT = setTimeout(pollAct, document.hidden ? 60000 : 12000);
+}
 function askPaid(){
   const t = store.get("payPending", 0); if(!t || t < Date.now() - 6*3600e3 || paid() || $("#paidBox")) return;
   const d = document.createElement("div"); d.id = "paidBox"; d.className = "betalock"; d.style.zIndex = 99;
   d.innerHTML = `<div class="bl-in"><div class="medal">${I.star}</div><p class="bl-h">Paiement effectué ?</p><p class="muted">Si tu viens de régler <b>Traceo Premium</b> sur PayPal, active-le ici : 31 jours de boucles illimitées.</p>
-    <button class="btn hero block" id="paidYes">Oui, j'ai payé : activer Premium</button><button class="btn night block" id="paidNo">Pas encore</button></div>`;
+    <button class="btn hero block" id="paidYes">Oui, j'ai payé : faire vérifier et activer</button><button class="btn night block" id="paidNo">Pas encore</button></div>`;
   document.body.appendChild(d);
-  $("#paidYes").onclick = () => { store.set("payPending", 0); d.remove(); unlock({via:"link", until:Date.now() + 31*864e5}); };
+  $("#paidYes").onclick = () => { store.set("payPending", 0); d.remove(); requestActivation(); };
   $("#paidNo").onclick = () => { store.set("payPending", 0); d.remove(); checkBetaLock(); };
 }
 document.addEventListener("visibilitychange", () => { if(document.visibilityState === "visible") setTimeout(askPaid, 600); });
@@ -2169,7 +2232,9 @@ async function payOnLaunch(){
     if(days <= 0){ store.set("payNag", today); setTimeout(() => toast("Ton Premium est terminé. Reprends 31 jours dans l'onglet Premium.", 5000), 2500); }
     else if(days <= 3){ store.set("payNag", today); setTimeout(() => toast(`Ton Premium se termine dans ${days} jour${days > 1 ? "s" : ""}. Prolonge-le dans l'onglet Premium.`, 5000), 2500); }
   }
-  if(u.get("paiement") === "ok" && store.get("payPending", 0) > Date.now() - 2*3600e3){ store.set("payPending", 0); history.replaceState(null, "", location.pathname); const from = Math.max(Date.now(), S.premium?.until || 0); unlock({via:"link", until:from + 31*864e5}); return; }
+  // le lien de retour de PayPal ne débloque plus rien : il ouvre seulement la demande d'activation vérifiée
+  if(u.get("paiement") === "ok"){ store.set("payPending", 0); history.replaceState(null, "", location.pathname); setTimeout(requestActivation, 2200); return; }
+  pollAct(); checkPremiumSig();
   askPaid();
   if(S.premium?.via === "sub" && C.PAYMENT_API && Date.now() - (S.premium.checked || 0) > 6*3600e3){ try{ const j = await verifySub(S.premium.id); if(j.active === false){ S.premium = null; store.set("premium", null); toast("Ton abonnement Premium a pris fin."); } else { S.premium.checked = Date.now(); store.set("premium", S.premium); } updateCrown(); }catch(e){} }
 }

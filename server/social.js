@@ -31,7 +31,7 @@ const R = d => d*Math.PI/180;
 function km(a, b){ const dLa = R(b.lat - a.lat), dLo = R(b.lon - a.lon); const h = Math.sin(dLa/2)**2 + Math.cos(R(a.lat))*Math.cos(R(b.lat))*Math.sin(dLo/2)**2; return 12742*Math.asin(Math.sqrt(h)); }
 const shown = d => d < 1 ? "moins de 1 km" : d < 10 ? `${Math.round(d*2)/2} km`.replace(".", ",") : `${Math.round(d)} km`;
 const LEVELS = ["debut", "regulier", "confirme", "expert"];
-const REWARD_EVERY = 100, REWARD_EUR = 5;   // 5 € toutes les 100 courses vérifiées
+const REWARD_EVERY = 100, REWARD_EUR = 5;   // un diamant (bon d'achat de 5 €) toutes les 100 courses vérifiées
 
 export class Hub {
   constructor(state, env){
@@ -46,7 +46,7 @@ export class Hub {
     this.sql.exec(`CREATE TABLE IF NOT EXISTS blocks(who TEXT, whom TEXT, PRIMARY KEY(who, whom))`);
     this.sql.exec(`CREATE TABLE IF NOT EXISTS reports(t INT, who TEXT, whom TEXT, why TEXT)`);
     this.sql.exec(`CREATE TABLE IF NOT EXISTS kv(k TEXT PRIMARY KEY, v TEXT)`);
-    // Programme « 100 courses = 5 € » : courses vérifiées et récompenses
+    // Programme « 100 courses = 1 diamant de 5 € » (bon d'achat = 31 jours de Premium) : courses vérifiées et diamants
     this.sql.exec(`CREATE TABLE IF NOT EXISTS runs(id INTEGER PRIMARY KEY AUTOINCREMENT, uid TEXT, t INT, day TEXT, dist INT, time INT, ascent INT, n_pts INT, hash TEXT, ok INT, reason TEXT, premium INT, lat REAL, lon REAL)`);
     this.sql.exec(`CREATE INDEX IF NOT EXISTS runs_uid ON runs(uid, ok, t)`);
     this.sql.exec(`CREATE TABLE IF NOT EXISTS rewards(id INTEGER PRIMARY KEY AUTOINCREMENT, uid TEXT, milestone INT, amount REAL, status TEXT, paypal TEXT, created INT, done_at INT, note TEXT)`);
@@ -229,7 +229,7 @@ export class Hub {
     return json({ok:true}, 200, {});
   }
 
-  /* ---------- Programme « 100 courses = 5 € » ---------- */
+  /* ---------- Programme « 100 courses = 1 diamant de 5 € » (bon d'achat Premium) ---------- */
   // Une course compte si : Premium actif, au moins 2 km et 12 min, allure entre 3'00 et 11'00/km, trace GPS cohérente
   // (distance des points proche de la distance annoncée, pas de déplacement à plus de 25 km/h), 2 courses comptées par jour au plus,
   // 3 h d'écart minimum entre deux courses comptées, et jamais deux fois la même trace.
@@ -272,17 +272,18 @@ export class Hub {
     if(ok && count % REWARD_EVERY === 0){
       this.sql.exec("INSERT INTO rewards(uid, milestone, amount, status, created) VALUES(?,?,?,?,?)", me.id, count, REWARD_EUR, "a_reclamer", now);
       reward = {milestone:count, amount:REWARD_EUR};
-      if(this.env.ALERTS_TOPIC) this.state.waitUntil(fetch("https://ntfy.sh/" + this.env.ALERTS_TOPIC, {method:"POST", headers:{Title:`Récompense ${REWARD_EUR} € gagnée`, Tags:"moneybag", Priority:"high"}, body:`${me.first} ${me.last} (@${me.pseudo}) a validé sa ${count}e course. À verser après vérification (page admin).`}).catch(() => {}));
+      if(this.env.ALERTS_TOPIC) this.state.waitUntil(fetch("https://ntfy.sh/" + this.env.ALERTS_TOPIC, {method:"POST", headers:{Title:"Diamant gagne", Tags:"gem"}, body:`${me.first} ${me.last} (@${me.pseudo}) a validé sa ${count}e course et gagne un diamant de ${REWARD_EUR} €.`}).catch(() => {}));
     }
     return json({ok:!!ok, reason, count, every:REWARD_EVERY, reward}, 200, {});
   }
+  // Utilisation d'un diamant (bon d'achat de 5 € = 31 jours de Premium) : Pierre active les jours offerts sur l'appareil indiqué
   claim(me, b){
-    const pp = clean(b.paypal, 120).toLowerCase();
-    if(!/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(pp)) return json({error:"bad_email"}, 400, {});
+    const dev = clean(b.dev, 16).toLowerCase(); if(!/^[a-f0-9]{16}$/.test(dev)) return json({error:"bad_device"}, 400, {});
     const r = this.one("SELECT * FROM rewards WHERE uid = ? AND id = ? AND status = 'a_reclamer'", me.id, +b.id);
     if(!r) return json({error:"unknown_reward"}, 404, {});
-    this.sql.exec("UPDATE rewards SET status = 'demandee', paypal = ? WHERE id = ?", pp, r.id);
-    if(this.env.ALERTS_TOPIC) this.state.waitUntil(fetch("https://ntfy.sh/" + this.env.ALERTS_TOPIC, {method:"POST", headers:{Title:"Récompense à verser", Tags:"moneybag", Priority:"high"}, body:`@${me.pseudo} demande ses ${r.amount} € (${r.milestone}e course) sur le PayPal ${pp}.`}).catch(() => {}));
+    this.sql.exec("UPDATE rewards SET status = 'demandee', paypal = ? WHERE id = ?", dev, r.id);
+    const url = `${this.env.PUSH_SUBJECT || "https://pierrernrd04-ai.github.io/traceo/"}admin.html#act=${dev}&e=${encodeURIComponent("diamant @" + me.pseudo)}`;
+    if(this.env.ALERTS_TOPIC) this.state.waitUntil(fetch("https://ntfy.sh/" + this.env.ALERTS_TOPIC, {method:"POST", headers:{Title:"Diamant a activer", Tags:"gem", Priority:"high", Click:url, Actions:"view, Activer, " + url}, body:`@${me.pseudo} utilise son diamant (${r.milestone}e course) : 31 jours de Premium à activer.`}).catch(() => {}));
     return json({ok:true}, 200, {});
   }
 

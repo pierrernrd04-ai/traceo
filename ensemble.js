@@ -1,3 +1,4 @@
+/*! Traceo © 2026 Pierre Renard EI. Tous droits réservés. Reproduction interdite sans autorisation écrite. */
 // Traceo « Ensemble » (Premium) : compte coureur, coureurs autour de soi, « Je pars courir », invitations,
 // messages et notifications. Serveur : server/social.js (même adresse que le chat, C.CHAT_API).
 // Ce fichier est chargé après app.js et réutilise ses outils ($, esc, S, store, render, go, openModal, toast…).
@@ -341,7 +342,8 @@ setTimeout(ensBadge, 500);
 if(/[?&]tab=ensemble\b/.test(location.search)) setTimeout(() => { hideGate?.(); go("ensemble"); }, 900);
 navigator.serviceWorker?.addEventListener?.("message", e => { if(e.data === "ensemble"){ go("ensemble"); ensPoll(); } });
 
-/* ---------- Programme « 100 courses = 5 € » (Premium) ---------- */
+/* ---------- Programme « 100 courses = 1 diamant de 5 € » (Premium) ----------
+   Le diamant est un bon d'achat de 5 € dans Traceo : il offre 31 jours de Premium (4,99 €). */
 const REW = Object.assign({count:0, every:100, amount:5, rewards:[], runs:[], at:0}, store.get("ensRew", {}));
 const RW_WHY = {premium:"course faite sans Premium actif", trop_courte:"moins de 2 km", trop_breve:"moins de 12 minutes", allure:"allure hors course à pied (entre 3'00 et 11'00/km)", gps:"trace GPS incomplète ou incohérente", vitesse:"passages à plus de 25 km/h détectés", doublon:"trace déjà enregistrée", quota_jour:"2 courses déjà comptées aujourd'hui", trop_rapprochee:"moins de 3 h après ta dernière course comptée"};
 async function ensRefreshRew(rerender){
@@ -370,32 +372,35 @@ async function ensFlushRuns(show){
 function rewardToast(j){
   const left = j.every - (j.count % j.every || (j.reward ? 0 : j.every)) ;
   let msg;
-  if(j.reward){ msg = `🎉 ${j.reward.milestone}e course ! Tu as gagné ${REW.amount} € : réclame-les dans l'onglet Premium.`; celebrate(400); }
-  else if(j.ok) msg = `✅ Course validée : ${j.count % j.every}/${j.every} vers tes ${REW.amount} € (encore ${j.every - j.count % j.every}).`;
-  else msg = `Course non comptée pour les ${REW.amount} € : ${RW_WHY[j.reason] || "conditions non remplies"}.`;
+  if(j.reward){ msg = `💎 ${j.reward.milestone}e course ! Tu gagnes un diamant de ${REW.amount} € : utilise-le dans l'onglet Premium.`; celebrate(400); }
+  else if(j.ok) msg = `✅ Course validée : ${j.count % j.every}/${j.every} vers ton diamant de ${REW.amount} € (encore ${j.every - j.count % j.every}).`;
+  else msg = `Course non comptée pour le diamant : ${RW_WHY[j.reason] || "conditions non remplies"}.`;
   setTimeout(() => toast(msg, 6000), 3500);
   const box = document.querySelector("#rwRes"); if(box) box.innerHTML = `<p class="small" style="color:${j.ok ? "var(--accent)" : "var(--muted)"}">${esc(msg)}</p>`;
 }
 function rewardCard(compact){
-  const every = REW.every || 100, n = REW.count || 0, cur = n % every, pct = cur/every, R = 46, C2 = 2*Math.PI*R;
-  const due = (REW.rewards || []).filter(r => r.status === "a_reclamer"), asked = (REW.rewards || []).filter(r => r.status === "demandee"), paidR = (REW.rewards || []).filter(r => r.status === "versee");
+  const every = REW.every || 100, n = REW.count || 0, cur = n % every, pct = cur/every, R = 46, C2 = 2*Math.PI*R, eur = REW.amount || 5;
+  const due = (REW.rewards || []).filter(r => r.status === "a_reclamer"), asked = (REW.rewards || []).filter(r => r.status === "demandee"), used = (REW.rewards || []).filter(r => r.status === "versee");
   const ring = `<svg class="rw-ring" viewBox="0 0 110 110"><circle cx="55" cy="55" r="${R}" class="bg"/><circle cx="55" cy="55" r="${R}" class="fg" style="stroke-dasharray:${C2};stroke-dashoffset:${C2*(1 - pct)}"/></svg><div class="rw-num"><b>${cur}</b><small>/ ${every}</small></div>`;
-  const head = `<p class="eyebrow" style="color:var(--gold)">★ Récompense Premium</p><p class="title" style="font-size:22px;margin:2px 0 4px">${REW.amount || 5} € offerts toutes les ${every} courses</p>`;
-  if(!ensOn()) return `<div class="rw">${head}<p class="small">Chaque course faite avec Traceo Premium compte. À la 100e, la 200e, la 300e… Traceo te verse ${REW.amount || 5} € sur ton compte PayPal. Ouverture avec la communauté Ensemble.</p></div>`;
-  if(!ENS.auth) return `<div class="rw">${head}<p class="small">Chaque course faite avec Traceo Premium compte : à la 100e, la 200e, la 300e… tu reçois ${REW.amount || 5} € sur ton PayPal. Crée ton compte pour que tes courses soient comptées.</p><button class="btn hero block" id="rwJoin">Créer mon compte et commencer à compter</button></div>`;
-  return `<div class="rw"><div class="rw-top"><div class="rw-dial">${ring}</div><div>${head}<p class="small">${n ? `<b style="color:var(--ink)">${n} course${n > 1 ? "s" : ""} validée${n > 1 ? "s" : ""}</b> au total. ` : ""}Encore <b style="color:var(--ink)">${every - cur}</b> course${every - cur > 1 ? "s" : ""} avant tes ${REW.amount} €.</p></div></div>
-    ${due.map(r => `<div class="rw-claim"><p><b>🎉 ${r.amount} € gagnés</b> pour ta ${r.milestone}e course !</p><div class="row2"><input class="input" id="rwPp${r.id}" type="email" inputmode="email" placeholder="E-mail de ton compte PayPal" value="${esc(ENS.me?.email || "")}"><button class="btn hero" data-rwclaim="${r.id}">Recevoir</button></div></div>`).join("")}
-    ${asked.map(r => `<p class="small rw-st">⏳ ${r.amount} € (${r.milestone}e course) : versement en cours sur ${esc(r.paypal || "")}, sous 7 jours.</p>`).join("")}
-    ${paidR.length ? `<p class="small rw-st">✅ Déjà reçu : ${paidR.reduce((a, r) => a + r.amount, 0)} €</p>` : ""}
-    ${compact ? "" : `<details class="rw-rules"><summary>Quelles courses comptent ?</summary><ul><li>Faites avec Premium actif et ton compte connecté, en touchant « Commencer » dans Traceo.</li><li>Au moins 2 km et 12 minutes, à une allure de course à pied (entre 3'00 et 11'00/km).</li><li>2 courses comptées par jour au plus, avec 3 h d'écart minimum.</li><li>Trace GPS vérifiée : pas de vélo, de voiture ni de trace copiée.</li><li>Versement par PayPal sous 7 jours après vérification. <a href="legal.html#recompense" target="_blank" rel="noopener">Règlement complet</a></li></ul></details>`}</div>`;
+  const head = `<p class="eyebrow" style="color:var(--gold)">💎 Inclus dans Premium</p><p class="title" style="font-size:22px;margin:2px 0 4px">Un diamant de ${eur} € toutes les ${every} courses</p>`;
+  const what = `Ton diamant est un bon d'achat de ${eur} € dans Traceo : il t'offre <b>31 jours de Premium</b>. À la 100e course, puis la 200e, la 300e…`;
+  if(!ensOn()) return `<div class="rw">${head}<p class="small">${what} Ouverture avec les comptes Traceo.</p></div>`;
+  if(!ENS.auth) return `<div class="rw">${head}<p class="small">${what} Crée ton compte pour que tes courses soient comptées.</p><button class="btn hero block" id="rwJoin">Créer mon compte et commencer à compter</button></div>`;
+  return `<div class="rw"><div class="rw-top"><div class="rw-dial">${ring}</div><div>${head}<p class="small">${n ? `<b style="color:var(--ink)">${n} course${n > 1 ? "s" : ""} validée${n > 1 ? "s" : ""}</b> au total. ` : ""}Encore <b style="color:var(--ink)">${every - cur}</b> course${every - cur > 1 ? "s" : ""} avant ton prochain diamant.</p></div></div>
+    ${due.map(r => `<div class="rw-claim"><p><b>💎 Diamant de ${r.amount} € gagné</b> pour ta ${r.milestone}e course !</p><button class="btn hero block" data-rwclaim="${r.id}">Utiliser mon diamant : 31 jours de Premium offerts</button></div>`).join("")}
+    ${asked.map(r => `<p class="small rw-st">⏳ Diamant de la ${r.milestone}e course : activation de tes 31 jours offerts en cours.</p>`).join("")}
+    ${used.length ? `<p class="small rw-st">💎 Diamants déjà utilisés : ${used.length} (${used.length*31} jours de Premium offerts)</p>` : ""}
+    ${compact ? "" : `<details class="rw-rules"><summary>Quelles courses comptent ?</summary><ul><li>Faites avec Premium actif et ton compte connecté, en touchant « Commencer » dans Traceo.</li><li>Au moins 2 km et 12 minutes, à une allure de course à pied (entre 3'00 et 11'00/km).</li><li>2 courses comptées par jour au plus, avec 3 h d'écart minimum.</li><li>Trace GPS vérifiée : pas de vélo, de voiture ni de trace copiée.</li><li>Le diamant (bon d'achat de ${eur} €) offre 31 jours de Premium ; il n'est pas échangeable contre de l'argent. <a href="legal.html#recompense" target="_blank" rel="noopener">Règlement complet</a></li></ul></details>`}</div>`;
 }
 document.addEventListener("click", async e => {
   if(e.target.closest?.("#rwJoin")){ ENS.mode = "signup"; go("ensemble"); return; }
   const b = e.target.closest?.("[data-rwclaim]"); if(!b) return;
-  const id = b.dataset.rwclaim, pp = (document.querySelector("#rwPp" + id)?.value || "").trim();
-  if(!/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(pp)) return toast("Indique l'e-mail de ton compte PayPal.");
   b.disabled = true;
-  try{ await ensCall("claim", {id:+id, paypal:pp}); REW.at = 0; await ensRefreshRew(false); render(); toast(`Demande envoyée ! Tes ${REW.amount} € arrivent sur ton PayPal sous 7 jours.`, 5000); track("recompense_demandee"); }
-  catch(x){ b.disabled = false; toast("Demande impossible pour l'instant, réessaie."); }
+  try{
+    await ensCall("claim", {id:+b.dataset.rwclaim, dev:devId()});
+    // Pierre est prévenu et active les 31 jours offerts sur CE téléphone ; l'app les récupère toute seule
+    store.set("actPending", {at:Date.now(), email:"diamant @" + (ENS.me?.pseudo || "")}); pollAct();
+    REW.at = 0; await ensRefreshRew(false); render(); toast("💎 Diamant utilisé ! Tes 31 jours de Premium offerts s'activent sur ce téléphone.", 5000); track("diamant_utilise");
+  }catch(x){ b.disabled = false; toast("Impossible pour l'instant, réessaie."); }
 });
 if(ensOn() && ENS.auth) setTimeout(() => { ensFlushRuns(false); ensRefreshRew(false); }, 4000);
