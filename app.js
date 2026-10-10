@@ -6,7 +6,13 @@ const C = window.TRACEO_CONFIG;
 const PV = window.TRACEO_PREVIEW || null;
 // ---------- Statistiques (Umami : sans cookie, conforme RGPD) ----------
 const T0 = Date.now(); let tabsSeen = 0;
-function track(name, data){ try{ if(window.umami && (window.TRACEO_CONFIG || {}).UMAMI_ID) umami.track(name, data); }catch(e){} }
+let track = function(name, data){ try{ if(window.umami && (window.TRACEO_CONFIG || {}).UMAMI_ID) umami.track(name, data); }catch(e){} }
+// Alertes en temps réel sur le téléphone du propriétaire (appli ntfy, canal privé ALERTS_TOPIC)
+const ALERT = {abonnement_premium:["💰 Nouvel abonné Premium !", "high", "moneybag"], paiement_clic:["👀 Quelqu'un ouvre le paiement PayPal", "default", "eyes"], fin_beta_vue:null, course_terminee:["🏃 Une course terminée avec Traceo", "low", "runner"]};
+function alertOwner(name, data){ try{ const C_ = window.TRACEO_CONFIG || {}, a = ALERT[name]; if(!a || !C_.ALERTS_TOPIC || window.TRACEO_PREVIEW) return;
+  const k = "traceo2:al:" + name + ":" + new Date().toDateString(); if(name !== "abonnement_premium"){ const c = +(localStorage.getItem(k) || 0); if(c >= 3) return; localStorage.setItem(k, c + 1); }
+  fetch("https://ntfy.sh/" + C_.ALERTS_TOPIC, {method:"POST", body:a[0] + (data ? " · " + Object.entries(data).map(([x, y]) => x + " : " + y).join(", ") : "") + " · " + new Date().toLocaleTimeString("fr-FR", {hour:"2-digit", minute:"2-digit"}), headers:{"Title":"Traceo", "Priority":a[1], "Tags":a[2]}}).catch(() => {}); }catch(e){} }
+const _track = track; track = (n, d) => { _track(n, d); alertOwner(n, d); };
 (function(){ const C_ = window.TRACEO_CONFIG || {}; if(!C_.UMAMI_ID || window.TRACEO_PREVIEW) return; const s = document.createElement("script"); s.defer = true; s.src = C_.UMAMI_SRC || "https://cloud.umami.is/script.js"; s.dataset.websiteId = C_.UMAMI_ID; document.head.appendChild(s); })();
 document.addEventListener("visibilitychange", () => { if(document.visibilityState === "hidden"){ const s = Math.round((Date.now() - T0)/1000); track("temps_passe", {secondes:s, tranche:s < 30 ? "moins de 30 s" : s < 120 ? "30 s à 2 min" : s < 600 ? "2 à 10 min" : "plus de 10 min", onglets:tabsSeen}); } });
 // Diagnostic temporaire : les erreurs (sans données personnelles) sont envoyées à un canal privé pour être corrigées à distance

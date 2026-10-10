@@ -38,6 +38,8 @@ window.TRACEO_CONFIG = {
 
   // ---------- Statistiques de visite (cloud.umami.is, gratuit) ----------
   // Colle ici le « Website ID » de ton site Umami : visiteurs, temps passé, onglets, abonnements.
+  // Alertes instantanées sur ton téléphone (appli gratuite « ntfy », abonne-toi à ce canal)
+  ALERTS_TOPIC: "traceo-alertes-94082f64b4",
   UMAMI_ID: "aaaca4cf-0a2c-4648-9f5e-028d269e6b15",
 
   // ---------- Montres et applis ----------
