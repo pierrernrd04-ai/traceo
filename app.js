@@ -673,17 +673,40 @@ async function loopORS(start, target){
   for(const sg of f.properties.segments || []) for(const st of sg.steps || []){ const p = pts[st.way_points[0]]; const ty = st.type; const mod = [0,4].includes(ty) ? "left" : [1,5].includes(ty) ? "right" : ty === 2 ? "sharp left" : ty === 3 ? "sharp right" : ty === 9 ? "uturn" : "straight"; steps.push({loc:p, type:ty === 10 ? "arrive" : ty === 11 ? "depart" : (ty === 7 || ty === 8) ? "roundabout" : "turn", mod, name:st.name && st.name !== "-" ? st.name : "", text:st.instruction}); }
   return {pts, steps, len:lineLen(pts), ascent:f.properties.ascent ?? null};
 }
+// Calcul des boucles : vérification du réseau, progression visible, annulation, nouvel essai automatique
+// par le service de secours si les serveurs saturent, et écran d'erreur clair (jamais de message technique).
+let genRun = 0, genTick = null;
+function genProgress(run, note){
+  clearInterval(genTick); const t0 = Date.now();
+  const paint = () => { if(run !== genRun || S.view !== "loading"){ clearInterval(genTick); return; }
+    const s = Math.round((Date.now() - t0)/1000), li = document.querySelectorAll("#gSteps li"), k = Math.min(li.length - 1, Math.floor(s/3));
+    li.forEach((x, i) => { x.classList.toggle("on", i === k); x.classList.toggle("done", i < k); });
+    const w = $("#gWait"); if(w) w.textContent = genProgress.note || (s >= 8 ? `Encore quelques secondes… (${s} s)` : ""); };
+  genProgress.note = note || ""; paint(); genTick = setInterval(paint, 500);
+}
+function genCancel(){ genRun++; clearInterval(genTick); S.view = "form"; render(); toast("Calcul annulé."); }
+async function tryLoops(target, n){
+  const b0 = Math.random()*360, wait = ms => new Promise(r => setTimeout(r, ms));
+  const jobs = Array.from({length:n}, (_, i) => PV ? PV.loop(S.start, target, (b0 + i*90) % 360) : C.ORS_KEY ? loopORS(S.start, target) : wait(i*350).then(() => loopOSRM(S.start, target, (b0 + i*120) % 360)));
+  return (await Promise.allSettled(jobs)).filter(r => r.status === "fulfilled" && r.value && r.value.pts.length > 3).map(r => r.value);
+}
 async function generate(){
-  if(!S.start){ askLocation(); return; }
+  if(!S.start){ showGate(); return; }
   if(!isPremium() && remaining() === 0){ premiumModal("Tes 3 boucles gratuites de la semaine sont utilisées. Elles reviennent lundi."); return; }
-  const target = targetM(); routeErr = "";
+  if(!PV && navigator.onLine === false){ S.view = "error"; S.genErr = "offline"; render(); return; }
+  const target = targetM(), run = ++genRun; routeErr = ""; S.genErr = null;
   rebuildMemory();   // toutes les boucles déjà proposées : la nouvelle passera ailleurs
-  S.view = "loading"; S.results = null; routeLayer.clearLayers(); panel.classList.remove("min"); render();
+  S.view = "loading"; S.results = null; routeLayer.clearLayers(); panel.classList.remove("min"); render(); genProgress(run);
   try{
-    const b0 = Math.random()*360, n = PV ? 4 : 3, wait = ms => new Promise(r => setTimeout(r, ms));
-    const jobs = Array.from({length:n}, (_, i) => PV ? PV.loop(S.start, target, (b0 + i*90) % 360) : C.ORS_KEY ? loopORS(S.start, target) : wait(i*350).then(() => loopOSRM(S.start, target, (b0 + i*120) % 360)));
-    let got = (await Promise.allSettled(jobs)).filter(r => r.status === "fulfilled" && r.value && r.value.pts.length > 3).map(r => r.value);
-    if(!got.length && !PV){ osrmDown = Date.now(); try{ const v = await loopOSRM(S.start, target, b0); if(v && v.pts.length > 3) got = [v]; }catch(e){} }
+    let got = await tryLoops(target, PV ? 4 : 3);
+    if(run !== genRun) return;   // annulé entre-temps
+    if(!got.length && !PV){
+      // serveur principal saturé : nouvel essai automatique par le service de secours
+      osrmDown = Date.now(); genProgress.note = "Les serveurs sont très demandés : nouvel essai automatique…"; track("boucle_nouvel_essai");
+      await new Promise(r => setTimeout(r, 1200)); if(run !== genRun) return;
+      got = await tryLoops(target, 2);
+      if(run !== genRun) return;
+    }
     if(!got.length) throw new Error("none");
     for(const c of got){
       c.newLen = newLen(c.pts); c.rep = repeatLen(c.pts);
@@ -699,7 +722,26 @@ async function generate(){
     try{ showRoute(r); }catch(e){ console.error(e); report("showRoute", (e.message || e) + " " + String(e.stack || "").slice(0, 300)); toast("Tracé : " + (e.message || e), 6000); }
     updateCrown(); track("boucle_generee", {km:Math.round(r.len/100)/10, depart:S.start?.here ? "gps" : S.start?.city ? "ville" : "adresse"}); report("ok", got.length + " boucles " + Math.round(r.len) + "m");
     if(S.loops.length === 1 || S.loops.length === 4) setTimeout(maybeInstall, 4000);
-  }catch(e){ console.error(e); S.view = "form"; render(); const why = e.message === "none" ? (routeErr || "aucun itinéraire reçu") : (e.message || String(e)) + (e.stack ? " @ " + String(e.stack).split("\n")[0].slice(-60) : ""); report("generate", why + " | stack: " + String(e.stack || "").slice(0, 400) + " | start: " + (S.start?.city ? "ville" : S.start?.here ? "gps" : "adresse") + " " + targetM() + "m | routeErr: " + routeErr); toast(`Pas de boucle possible pour l'instant (${why}). Réessaie dans quelques secondes ou place le départ sur une rue.`, 8000); }
+    clearInterval(genTick); try{ navigator.vibrate?.(25); }catch(e){}
+  }catch(e){
+    if(run !== genRun) return;
+    clearInterval(genTick); console.error(e);
+    const why = e.message === "none" ? (routeErr || "aucun itinéraire reçu") : (e.message || String(e));
+    report("generate", why + " | stack: " + String(e.stack || "").slice(0, 300) + " | start: " + (S.start?.city ? "ville" : S.start?.here ? "gps" : "adresse") + " " + target + "m | routeErr: " + routeErr);
+    track("boucle_echec");
+    S.view = "error"; S.genErr = navigator.onLine === false ? "offline" : /abort|Failed|Load failed|NetworkError|HTTP (429|5\d\d)/i.test(why) ? "busy" : "none"; render();
+  }
+}
+// Écran d'erreur du calcul : explication simple et solutions en un geste
+function viewGenError(){
+  const k = S.genErr, far = S.mode === "dist" ? S.distKm > 6 : S.durMin > 40;
+  const T = {offline:["Pas de connexion", "Traceo a besoin d'Internet pour calculer ta boucle. Vérifie ton réseau mobile ou ton Wi-Fi, puis réessaie."],
+    busy:["Les serveurs sont très demandés", "Le calcul des itinéraires est saturé pour l'instant. Réessaie dans quelques secondes : ça passe en général au deuxième essai."],
+    none:["Pas de boucle possible ici", "Ton point de départ est peut-être loin des rues (parc, champ, voie rapide), ou la distance est difficile à boucler dans ce quartier."]}[k] || ["Calcul interrompu", "Réessaie dans quelques secondes."];
+  return `<div class="generr"><div class="ge-ic">${k === "offline" ? "📶" : k === "busy" ? "⏳" : "🧭"}</div><p class="title" style="font-size:22px">${T[0]}</p><p class="muted">${T[1]}</p>
+    <button class="btn hero block" id="geRetry">Réessayer</button>
+    <div class="row">${far ? `<button class="btn soft" id="geShort">Plus courte</button>` : ""}<button class="btn soft" id="geStart">Changer de départ</button></div>
+    <button class="linkbtn" id="geBack">Retour aux réglages</button></div>`;
 }
 function simplify(p, m = 6){ const o = []; let last = null; for(const x of p){ if(!last || dist(last, x) >= m){ o.push([r6(x[0]), r6(x[1])]); last = x; } } const e = p[p.length-1]; if(o[o.length-1][0] !== r6(e[0]) || o[o.length-1][1] !== r6(e[1])) o.push([r6(e[0]), r6(e[1])]); return o; }
 function trimLoops(){ if(S.loops.length > 120) S.loops = S.loops.filter((l, i) => l.fav || l.run || i > S.loops.length - 100); }
@@ -939,7 +981,10 @@ function startCard(){
   return `<button class="here ${s.here ? "on" : ""}" id="locBtn"><span class="ic"><i></i></span><span><small>${s.here ? `Tu es ici${s.acc ? ` · à ${s.acc} m près` : ""}` : "Départ"}</small><b>${esc(s.label)}</b></span><span class="go">${s.here ? "Actualiser" : "Me localiser"}</span></button>`;
 }
 function viewPlan(){
-  if(S.view === "loading") return `<div class="loader"><svg viewBox="0 0 120 80"><path class="gd" d="M0 20h120M0 40h120M0 60h120M20 0v80M50 0v80M80 0v80M110 0v80"/><path class="ln" d="M20 60V40h30V20h30v20h30v20H80V60z"/></svg><p class="title" style="font-size:24px">Traceo dessine ta boucle…</p><p class="small"><span>Analyse des rues autour de toi · Comparaison de 4 itinéraires · Écarte les rues déjà proposées</span></p></div>`;
+  if(S.view === "error") return viewGenError();
+  if(S.view === "loading") return `<div class="loader"><svg viewBox="0 0 120 80"><path class="gd" d="M0 20h120M0 40h120M0 60h120M20 0v80M50 0v80M80 0v80M110 0v80"/><path class="ln" d="M20 60V40h30V20h30v20h30v20H80V60z"/></svg><p class="title" style="font-size:24px">Traceo dessine ta boucle…</p>
+    <ol class="gsteps" id="gSteps"><li class="on">Analyse des rues autour de toi</li><li>Comparaison de 3 itinéraires</li><li>Choix des rues jamais courues</li></ol>
+    <p class="small" id="gWait"></p><button class="linkbtn" id="genCancel">Annuler</button></div>`;
   if(S.view === "result" && S.results){
     const r = curRoute(), pct = Math.round(r.newLen/r.len*100), dur = r.len/1000*S.pace;
     return `<div class="options">${S.results.map((o, i) => `<button class="opt" data-opt="${i}" aria-pressed="${i === S.sel}"><canvas data-th="${i}"></canvas><b>${km1(o.len)} km</b><span class="new">${Math.round(o.newLen/o.len*100)} % inédite</span></button>`).join("")}</div>
@@ -967,12 +1012,13 @@ function viewPlan(){
       <div><small>${S.mode === "dist" ? "Durée" : "Distance"}</small><b id="tA">${S.mode === "dist" ? hmin(t/1000*S.pace) : km1(t) + " km"}</b></div>
       <div class="pace" style="grid-column:span 2"><button class="step" data-pace="10" aria-label="Allure plus lente">−</button><span style="text-align:center"><small>Ton allure moyenne</small><b id="tP">${paceTxt(S.pace)}<small style="display:inline;font-size:13px"> /km</small></b></span><button class="step" data-pace="-10" aria-label="Allure plus rapide">+</button></div>
     </div>
-    <button class="btn hero block" id="gen">${I.route}Générer ma boucle</button>
+    <div class="cta-dock"><button class="btn hero block" id="gen">${I.route}Générer ma boucle<span class="gen-sub" id="genSub">${genSub()}</span></button></div>
     ${isPremium() ? "" : `<button class="promo" data-go="premium"><span class="c">★</span><span><b>Traceo Premium</b><small>Boucles illimitées, envoi Garmin, Strava et GPX · ${C.PRICE_LABEL}/mois</small></span><span class="a">›</span></button>`}
     <p class="small" style="text-align:center">${betaOn() ? "Version bêta : boucles illimitées, tout est offert." : isPremium() ? "Premium : boucles illimitées." : `${left} boucle${left > 1 ? "s" : ""} gratuite${left > 1 ? "s" : ""} sur 3 cette semaine.`} Appui long sur la carte pour choisir un autre départ.</p>`;
 }
+const genSub = () => S.mode === "dist" ? `${nf(1).format(S.distKm).replace(",0", "")} km` : (S.durMin >= 60 ? `${Math.floor(S.durMin/60)} h ${String(S.durMin%60).padStart(2, "0")}` : `${S.durMin} min`);
 function dialTxt(){ if(S.mode === "dist") return nf(1).format(S.distKm).replace(",0", "") + "<small>km</small>"; const h = Math.floor(S.durMin/60), m = S.durMin%60; return h ? `${h}<small>h</small>${String(m).padStart(2,"0")}` : `${S.durMin}<small>min</small>`; }
-function refreshDial(){ const t = targetM(); $("#dval").innerHTML = dialTxt(); $("#tA").textContent = S.mode === "dist" ? hmin(t/1000*S.pace) : km1(t) + " km"; $("#tP").innerHTML = `${paceTxt(S.pace)}<small style="display:inline;font-size:13px"> /km</small>`; body.querySelectorAll("[data-quick]").forEach(c => c.setAttribute("aria-pressed", +c.dataset.quick === (S.mode === "dist" ? S.distKm : S.durMin))); }
+function refreshDial(){ const t = targetM(); $("#dval").innerHTML = dialTxt(); const gs = $("#genSub"); if(gs) gs.textContent = genSub(); $("#tA").textContent = S.mode === "dist" ? hmin(t/1000*S.pace) : km1(t) + " km"; $("#tP").innerHTML = `${paceTxt(S.pace)}<small style="display:inline;font-size:13px"> /km</small>`; body.querySelectorAll("[data-quick]").forEach(c => c.setAttribute("aria-pressed", +c.dataset.quick === (S.mode === "dist" ? S.distKm : S.durMin))); }
 /* ---------- Coach : motivation, mobilité, nutrition ---------- */
 const QUOTES = [
   "Le plus dur, c'est de lacer ses chaussures. Le reste, c'est la route.",
@@ -1529,6 +1575,13 @@ function wire(){
   }
   if(S.tab === "premium" && !betaOn()) mountPay("payMain");
   if(S.tab === "chat") wireChat();
+  if(S.tab === "plan"){
+    $("#genCancel") && ($("#genCancel").onclick = genCancel);
+    $("#geRetry") && ($("#geRetry").onclick = generate);
+    $("#geBack") && ($("#geBack").onclick = () => { S.view = "form"; render(); });
+    $("#geShort") && ($("#geShort").onclick = () => { if(S.mode === "dist"){ S.distKm = Math.max(3, Math.round(S.distKm*.6)); store.set("distKm", S.distKm); } else { S.durMin = Math.max(15, Math.round(S.durMin*.6/5)*5); store.set("durMin", S.durMin); } toast(`On essaie avec ${genSub()}.`); generate(); });
+    $("#geStart") && ($("#geStart").onclick = () => { S.view = "form"; S.start = null; render(); showGate(); });
+  }
   if(S.tab === "coach"){
     body.querySelectorAll("[data-routine]").forEach(b => b.onclick = () => playRoutine(b.dataset.routine));
     body.querySelectorAll("[data-mobi]").forEach(b => b.onclick = () => { S.mobi = b.dataset.mobi; render(); });
@@ -2198,6 +2251,15 @@ async function deleteCityMap(key){
 
 /* ---------- Démarrage ---------- */
 const fromPay = new URLSearchParams(location.search).get("paiement") === "ok";
+// Connexion : bandeau discret quand le réseau tombe, et message quand il revient
+function netBanner(){
+  let b = $("#netBar"); const off = navigator.onLine === false;
+  if(!b){ b = document.createElement("div"); b.id = "netBar"; b.className = "netbar"; b.setAttribute("role", "status"); document.body.appendChild(b); }
+  b.textContent = "Hors connexion : la carte et le calcul des boucles reviendront avec le réseau. La course en cours continue."; b.hidden = !off;
+}
+addEventListener("offline", netBanner);
+addEventListener("online", () => { netBanner(); toast("Connexion retrouvée."); if(S.view === "error" && S.genErr === "offline"){ S.view = "form"; if(S.tab === "plan") render(); } });
+netBanner();
 document.addEventListener("visibilitychange", () => { if(!document.hidden){ $("#betaLock")?.remove(); checkBetaLock(); } });
 document.addEventListener("visibilitychange", () => { if(!document.hidden && S.tab === "premium" && modal.hidden && store.get("payPending", 0) > Date.now() - 2*3600e3) render(); });
 rebuildMemory(); render(); payOnLaunch(); checkBetaLock(); syncClock();

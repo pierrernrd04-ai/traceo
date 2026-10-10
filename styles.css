@@ -772,3 +772,23 @@ div.hero .me2{fill:var(--blue);stroke:#fff;stroke-width:3}
 
 .consent{font-size:12px;line-height:1.4;color:var(--muted)}.consent a{color:var(--muted);text-decoration:underline}
 .betalock .consent{text-align:center}
+
+/* Bouton principal toujours visible en bas du panneau */
+.cta-dock{position:sticky;bottom:-18px;z-index:3;flex:none;margin:0 -16px;padding:10px 16px 18px;background:linear-gradient(to bottom,rgba(14,30,37,0),var(--surface) 32%)}
+.cta-dock .btn{flex-direction:row}
+.gen-sub{margin-left:8px;padding:3px 9px;border-radius:999px;background:rgba(3,20,13,.16);font-size:14px;font-weight:800}
+/* Étapes du calcul */
+.gsteps{list-style:none;display:flex;flex-direction:column;gap:8px;margin:6px auto 2px;text-align:left;width:max-content;max-width:100%}
+.gsteps li{display:flex;align-items:center;gap:10px;color:var(--muted);font-weight:600;font-size:14.5px;transition:color .3s}
+.gsteps li::before{content:"";width:18px;height:18px;border-radius:50%;border:2px solid var(--line);flex:none;box-sizing:border-box}
+.gsteps li.on{color:var(--ink)}
+.gsteps li.on::before{border-color:var(--accent);border-right-color:transparent;animation:spin .8s linear infinite}
+.gsteps li.done{color:var(--accent)}
+.gsteps li.done::before{content:"✓";display:grid;place-items:center;background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-size:11px;font-weight:900}
+.loader .linkbtn{margin-top:4px}
+/* Écran d'erreur du calcul */
+.generr{display:flex;flex-direction:column;gap:12px;text-align:center;align-items:stretch;padding:8px 0}
+.generr .ge-ic{font-size:44px;line-height:1}
+.generr .row{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:10px}
+/* Bandeau hors connexion */
+.netbar{position:fixed;left:12px;right:12px;top:calc(env(safe-area-inset-top,0px) + 120px);z-index:60;background:#B3263E;color:#fff;font:700 13px/1.35 var(--f-body);padding:10px 12px;border-radius:12px;box-shadow:var(--shadow);text-align:center}
