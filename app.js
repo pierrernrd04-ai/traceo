@@ -17,7 +17,7 @@ const _track = track; track = (n, d) => { _track(n, d); alertOwner(n, d); };
 document.addEventListener("visibilitychange", () => { if(document.visibilityState === "hidden"){ const s = Math.round((Date.now() - T0)/1000); track("temps_passe", {secondes:s, tranche:s < 30 ? "moins de 30 s" : s < 120 ? "30 s à 2 min" : s < 600 ? "2 à 10 min" : "plus de 10 min", onglets:tabsSeen}); } });
 // Diagnostic temporaire : les erreurs (sans données personnelles) sont envoyées à un canal privé pour être corrigées à distance
 const DBG = "https://ntfy.sh/traceo-dbg-9591c50f";
-function report(kind, msg){ try{ fetch(DBG, {method:"POST", body:`[${kind}] ${String(msg).slice(0, 600)} | v49 | ${navigator.userAgent.replace(/\(KHTML.*$/, "").slice(0, 120)}`}).catch(() => {}); }catch(e){} }
+function report(kind, msg){ try{ fetch(DBG, {method:"POST", body:`[${kind}] ${String(msg).slice(0, 600)} | v50 | ${navigator.userAgent.replace(/\(KHTML.*$/, "").slice(0, 120)}`}).catch(() => {}); }catch(e){} }
 // Affiche toute erreur à l'écran (bandeau rouge) : une capture suffit pour corriger
 (function(){ let n = 0; const show = m => { if(n++ > 3) return; const d = document.createElement("div"); d.style.cssText = "position:fixed;left:8px;right:8px;top:calc(env(safe-area-inset-top,0px) + 8px);z-index:9999;background:#B3263E;color:#fff;font:600 12px/1.35 system-ui;padding:8px 10px;border-radius:10px;white-space:pre-wrap"; d.textContent = "Erreur : " + m; d.onclick = () => d.remove(); (document.body || document.documentElement).appendChild(d); setTimeout(() => d.remove(), 15000); };
   window.addEventListener("error", e => { report("error", (e.message || "?") + " " + (e.filename || "") + ":" + (e.lineno || "") + ":" + (e.colno || "") + " " + (e.error && e.error.stack ? String(e.error.stack).slice(0, 300) : "")); if(/^Script error/.test(e.message || "") && window.glFail){ try{ glFail(); }catch(x){} return; } show((e.message || "?") + (e.filename ? " (" + e.filename.split("/").pop() + ":" + e.lineno + ")" : "")); });
@@ -576,10 +576,11 @@ async function geocode(v, signal){
   if(!items.length){
     const c = map.getCenter(), near = map.getZoom() >= 9 ? `&lat=${c.lat.toFixed(4)}&lon=${c.lng.toFixed(4)}` : "";
     const hasNum = /\d/.test(v) && !/^\d{5}$/.test(v.trim());
-    const [towns, ban, osm] = await Promise.allSettled([
+    const [towns, ban, osm, banNear] = await Promise.allSettled([
       hasNum ? Promise.resolve([]) : fetchJSON(`https://geo.api.gouv.fr/communes?${/^\d{5}$/.test(v.trim()) ? "codePostal=" + v.trim() : "nom=" + encodeURIComponent(v)}&fields=nom,centre,codesPostaux,departement,population&boost=population&limit=5`, {signal}, 6000),
-      fetchJSON(`${C.GEOCODER_FR}/search?q=${encodeURIComponent(v)}&limit=8&autocomplete=1${near}`, {signal}, 6000),
-      fetchJSON(`${C.GEOCODER}?q=${encodeURIComponent(v)}&lang=fr&limit=10${near}`, {signal}, 6000)
+      fetchJSON(`${C.GEOCODER_FR}/search?q=${encodeURIComponent(v)}&limit=8&autocomplete=1`, {signal}, 6000),
+      fetchJSON(`${C.GEOCODER}?q=${encodeURIComponent(v)}&lang=fr&limit=10`, {signal}, 6000),
+      near ? fetchJSON(`${C.GEOCODER_FR}/search?q=${encodeURIComponent(v)}&limit=3&autocomplete=1${near}`, {signal}, 6000) : Promise.resolve(null)
     ]);
     if(signal?.aborted) throw new DOMException("", "AbortError");
     const cityNames = new Set();
@@ -595,6 +596,13 @@ async function geocode(v, signal){
       if(p.type === "municipality"){ if(cityNames.has(plain(p.city))) continue; cityNames.add(plain(p.city)); items.push({main:p.city, sub:["Ville", p.postcode].join(" · "), lat:la, lng:lo, label:`Centre de ${p.city}`, city:true}); continue; }
       items.push({main:p.name, sub:[`${p.postcode} ${p.city}`, (p.context || "").split(", ").slice(1, 2).join("")].filter(Boolean).join(" · "), lat:la, lng:lo, label:`${p.name}, ${p.postcode} ${p.city}`});
     }
+    // 2 bis. Au plus deux adresses près de la carte, en fin de liste et signalées « Près de toi »
+    if(banNear.status === "fulfilled" && banNear.value){ let n = 0; for(const f of banNear.value.features || []){
+      const p = f.properties, [lo, la] = f.geometry.coordinates;
+      if(n >= 2 || p.type === "municipality" || items.some(x => dist([x.lat, x.lng], [la, lo]) < 60)) continue;
+      if(dist([c.lat, c.lng], [la, lo]) > 25000) continue;
+      n++; items.push({main:p.name, sub:["Près de toi", `${p.postcode} ${p.city}`].join(" · "), lat:la, lng:lo, label:`${p.name}, ${p.postcode} ${p.city}`, near:true});
+    } }
     // 3. Lieux et territoires hors Base Adresse (OpenStreetMap), sans villes en double
     if(osm.status === "fulfilled") for(const f of osm.value.features || []){
       const p = f.properties, [lo, la] = f.geometry.coordinates;
@@ -625,10 +633,9 @@ async function search(v){
   try{
     const items = await geocode(v, signal); if(signal.aborted) return; res.hidden = false;
     if(!items.length){ res.innerHTML = `<button disabled>${pinI}<span><b>Aucune adresse trouvée</b><small>Ajoute la ville ou le code postal, par exemple « 8 rue de Rivoli Paris ».</small></span></button>`; return; }
-    res.innerHTML = items.map((it, i) => `<button data-i="${i}" class="${i === 0 ? "first" : ""}">${it.city ? cityI : pinI}<span><b>${esc(it.main)}</b><small>${esc(it.sub)}</small></span></button>`).join("") + (items[0].placeId ? `<p class="src">Résultats Google</p>` : "");
+    res.innerHTML = items.map((it, i) => `<button data-i="${i}" class="${i === 0 ? "first" : ""}">${it.city ? cityI : pinI}<span><b>${esc(it.main)}</b><small>${esc(it.sub)}</small></span></button>`).join("") + (items[0].placeId ? `<p class="src">Résultats Google</p>` : /\d/.test(v) && !items.some(x => x.city) ? `<p class="src">Pas la bonne adresse ? Ajoute la ville ou le code postal après la rue.</p>` : "");
     res.querySelectorAll("[data-i]").forEach(b => b.onclick = () => pickItem(items[+b.dataset.i]));
-    // Sélection automatique : dès que tu arrêtes de taper, la première adresse est choisie
-    if(v.length >= 4){ res.querySelector(".first")?.classList.add("auto"); autoT = setTimeout(() => { if(q.value.trim() === v) pickItem(items[0]); }, 1200); }
+    // Pas de sélection automatique : l'adresse n'est choisie que lorsque tu la touches (ou avec Entrée)
   }catch(e){ if(e.name !== "AbortError"){ res.hidden = false; res.innerHTML = `<button disabled>${pinI}<span><b>Recherche indisponible</b><small>Vérifie ta connexion.</small></span></button>`; } }
 }
 res.addEventListener("pointerdown", () => clearTimeout(autoT));
