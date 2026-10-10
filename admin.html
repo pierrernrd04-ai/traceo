@@ -108,7 +108,7 @@ function filtered(){
 }
 function view(){
   const s = DATA.stats, list = filtered();
-  $("#app").innerHTML = `<header><h1><img src="icons/icon-192.png" alt="">Traceo Admin</h1><div class="acts"><button class="btn sm" id="rf">Actualiser</button><button class="btn sm" id="out">Quitter</button></div></header>
+  $("#app").innerHTML = `<header><h1><img src="icons/icon-192.png" alt="">Traceo Admin</h1><div class="acts"><button class="btn sm" id="bk">Sauvegarde complète</button><button class="btn sm" id="rf">Actualiser</button><button class="btn sm" id="out">Quitter</button></div></header>
     <div class="tiles">${[["Membres", s.members], ["Nouveaux (7 j)", s.new7], ["Actifs (24 h)", s.active24], ["En ligne", s.online], ["Premium", s.premium], ["Courses validées", s.runs], ["Diamants à activer", s.rewards_due], ["Messages", s.messages], ["Signalements", s.reports]].map(([l, v]) => `<div class="tile"><b>${v}</b><span>${l}</span></div>`).join("")}</div>
     <div class="tabs"><button data-t="members" aria-pressed="${TAB === "members"}">Membres (${DATA.members.length})</button><button data-t="rewards" aria-pressed="${TAB === "rewards"}">Diamants (${DATA.rewards.filter(r => r.status !== "versee" && r.status !== "refusee").length})</button><button data-t="reports" aria-pressed="${TAB === "reports"}">Signalements (${DATA.reports.length})</button></div>
     ${TAB === "members" ? `<h2>Membres inscrits</h2>
@@ -128,6 +128,7 @@ function view(){
     : TAB === "rewards" ? rewardsView()
     : `<h2>Signalements</h2>${DATA.reports.length ? `<table><thead><tr><th>Date</th><th>Par</th><th>Contre</th><th>Motif</th></tr></thead><tbody>${DATA.reports.map(r => `<tr><td data-l="Date">${d(r.t)}</td><td data-l="Par">@${esc(r.by_pseudo || "supprimé")}</td><td data-l="Contre">@${esc(r.whom_pseudo || "supprimé")}</td><td data-l="Motif">${esc(r.why || "–")}</td></tr>`).join("")}</tbody></table>` : `<div class="card empty">Aucun signalement.</div>`}`}
     <p class="small muted" style="margin-top:20px">Données personnelles : à utiliser uniquement pour gérer la communauté Traceo (RGPD). Page non référencée, protégée par ta clé.</p>`;
+  $("#bk").onclick = async () => { try{ const j = await call("backup"); const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([JSON.stringify(j, null, 1)], {type:"application/json"})); a.download = `traceo-base-${new Date().toISOString().slice(0, 10)}.json`; a.click(); toast("Sauvegarde téléchargée."); }catch(e){ toast("Erreur : " + e.message); } };
   $("#rf").onclick = () => load().then(() => toast("Données à jour.")).catch(e => toast("Erreur : " + e.message));
   $("#out").onclick = () => { sessionStorage.removeItem("traceoAdmin"); localStorage.removeItem("traceoAdmin"); KEY = ""; loginView(); };
   document.querySelectorAll("[data-t]").forEach(b => b.onclick = () => { TAB = b.dataset.t; view(); });
@@ -204,7 +205,7 @@ function actView(dev, email){
   const has = !!localStorage.getItem("traceoSignKey");
   const box = document.createElement("div"); box.className = "card"; box.id = "actBox"; box.style.marginBottom = "18px";
   box.innerHTML = `<h2 style="margin-top:0">Activer un Premium</h2>
-    ${has ? "" : `<p class="small" style="color:var(--gold)">Première fois sur cet appareil : colle ta clé de signature (donnée par Claude, à garder secrète).</p><input class="input" id="sk" placeholder="Clé de signature" autocomplete="off"><p></p>`}
+    ${has ? "" : `<p class="small" style="color:var(--gold)">Première fois sur cet appareil : colle ta clé de signature (donnée par Claude, à garder secrète).</p><input class="input" id="sk" type="password" placeholder="Clé de signature" autocomplete="off"><p></p>`}
     <p class="small muted">1. Vérifie dans PayPal que le paiement de <b>${esc(email || "ce client")}</b> (4,99 €) est bien arrivé. 2. Touche « Activer » : le Premium s'allume tout seul sur son téléphone, et uniquement sur celui-là.</p>
     <input class="input" id="dv" placeholder="Code appareil (TRC-XXXX-XXXX-XXXX-XXXX)" value="${dev ? "TRC-" + dev.toUpperCase().match(/.{4}/g).join("-") : ""}">
     <p></p><div class="acts"><select class="input" id="dur" style="width:auto"><option value="31">31 jours (paiement 4,99 €)</option><option value="31d">31 jours (diamant 5 €)</option><option value="62">62 jours</option><option value="7">7 jours (geste commercial)</option></select><button class="btn hero" id="actGo">Activer</button></div>`;

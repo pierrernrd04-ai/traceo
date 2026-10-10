@@ -313,6 +313,11 @@ export class Hub {
         place:u.place || "", visible:!!u.visible, premium:!!u.premium, push:!!u.push, sent:u.sent, reported:u.reported, runs:u.runs}))}, 200, {});
     }
     if(path === "reports") return json({reports:this.rows("SELECT r.*, a.pseudo AS by_pseudo, b.pseudo AS whom_pseudo FROM reports r LEFT JOIN users a ON a.id = r.who LEFT JOIN users b ON b.id = r.whom ORDER BY t DESC LIMIT 500")}, 200, {});
+    // Sauvegarde complète de la base (sans mots de passe ni jetons de session)
+    if(path === "backup") return json({app:"traceo", date:new Date().toISOString(),
+      users:this.rows("SELECT id, pseudo, first, last, email, birth, level, pace, bio, created, seen, last_login, place, visible, premium, notif FROM users"),
+      messages:this.rows("SELECT * FROM msgs"), runs:this.rows("SELECT id, uid, t, day, dist, time, ascent, n_pts, ok, reason, premium FROM runs"),
+      diamonds:this.rows("SELECT * FROM rewards"), reports:this.rows("SELECT * FROM reports"), blocks:this.rows("SELECT * FROM blocks")}, 200, {});
     if(path === "rewards") return json({rewards:this.rows(`SELECT r.*, u.pseudo, u.first, u.last, u.email, (SELECT COUNT(*) FROM runs WHERE uid = r.uid AND ok = 1) AS runs,
       (SELECT COUNT(*) FROM runs WHERE uid = r.uid AND ok = 0) AS refused FROM rewards r LEFT JOIN users u ON u.id = r.uid ORDER BY CASE r.status WHEN 'demandee' THEN 0 WHEN 'a_reclamer' THEN 1 ELSE 2 END, r.id DESC LIMIT 500`)}, 200, {});
     if(path === "runs") return json({runs:this.rows("SELECT id, t, dist, time, ascent, n_pts, ok, reason, premium FROM runs WHERE uid = ? ORDER BY id DESC LIMIT 300", clean(url.searchParams.get("uid"), 32))}, 200, {});
