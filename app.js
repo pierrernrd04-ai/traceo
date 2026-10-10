@@ -18,7 +18,7 @@ const _track = track; track = (n, d) => { _track(n, d); alertOwner(n, d); };
 document.addEventListener("visibilitychange", () => { if(document.visibilityState === "hidden"){ const s = Math.round((Date.now() - T0)/1000); track("temps_passe", {secondes:s, tranche:s < 30 ? "moins de 30 s" : s < 120 ? "30 s à 2 min" : s < 600 ? "2 à 10 min" : "plus de 10 min", onglets:tabsSeen}); } });
 // Diagnostic temporaire : les erreurs (sans données personnelles) sont envoyées à un canal privé pour être corrigées à distance
 const DBG = "https://ntfy.sh/traceo-dbg-9591c50f";
-function report(kind, msg){ try{ fetch(DBG, {method:"POST", body:`[${kind}] ${String(msg).slice(0, 600)} | v53 | ${navigator.userAgent.replace(/\(KHTML.*$/, "").slice(0, 120)}`}).catch(() => {}); }catch(e){} }
+function report(kind, msg){ try{ fetch(DBG, {method:"POST", body:`[${kind}] ${String(msg).slice(0, 600)} | v54 | ${navigator.userAgent.replace(/\(KHTML.*$/, "").slice(0, 120)}`}).catch(() => {}); }catch(e){} }
 // Affiche toute erreur à l'écran (bandeau rouge) : une capture suffit pour corriger
 (function(){ let n = 0; const show = m => { if(n++ > 3) return; const d = document.createElement("div"); d.style.cssText = "position:fixed;left:8px;right:8px;top:calc(env(safe-area-inset-top,0px) + 8px);z-index:9999;background:#B3263E;color:#fff;font:600 12px/1.35 system-ui;padding:8px 10px;border-radius:10px;white-space:pre-wrap"; d.textContent = "Erreur : " + m; d.onclick = () => d.remove(); (document.body || document.documentElement).appendChild(d); setTimeout(() => d.remove(), 15000); };
   window.addEventListener("error", e => { report("error", (e.message || "?") + " " + (e.filename || "") + ":" + (e.lineno || "") + ":" + (e.colno || "") + " " + (e.error && e.error.stack ? String(e.error.stack).slice(0, 300) : "")); if(/^Script error/.test(e.message || "") && window.glFail){ try{ glFail(); }catch(x){} return; } show((e.message || "?") + (e.filename ? " (" + e.filename.split("/").pop() + ":" + e.lineno + ")" : "")); });
@@ -73,7 +73,7 @@ function checkBetaLock(){
     <p class="small">Chaque paiement est vérifié puis activé sur ton téléphone, en général en quelques minutes.</p></div>`;
   document.body.appendChild(d);
   const ba = d.querySelector("#blAct"); if(ba) ba.onclick = () => requestActivation();
-  const b = d.querySelector("#blPay"); if(b) b.onclick = () => { track("paiement_clic", {depuis:"fin_beta"}); if(C.PAYPAL_PAYMENT_LINK){ store.set("payPending", Date.now()); if(NATIVE) openExt(C.PAYPAL_PAYMENT_LINK); else location.href = C.PAYPAL_PAYMENT_LINK; } else { d.remove(); premiumModal("La bêta est terminée."); } };
+  const b = d.querySelector("#blPay"); if(b) b.onclick = () => { track("paiement_clic", {depuis:"fin_beta"}); if(orderReady() || !C.PAYPAL_PAYMENT_LINK){ d.remove(); premiumModal("La bêta est terminée."); } else { store.set("payPending", Date.now()); if(NATIVE) openExt(C.PAYPAL_PAYMENT_LINK); else location.href = C.PAYPAL_PAYMENT_LINK; } };
 }
 setInterval(checkBetaLock, 30000);
 
@@ -2120,17 +2120,19 @@ function premiumModal(msg){
   mountPay("payModal");
 }
 const subReady = () => !!(C.PAYPAL_CLIENT_ID && C.PAYPAL_PLAN_ID);
+// Paiement automatique : boutons PayPal dans l'app + vérification par le serveur (activation immédiate, sans intervention)
+const orderReady = () => !!(C.PAYPAL_CLIENT_ID && !C.PAYPAL_PLAN_ID && (C.PAYMENT_API || C.CHAT_API));
 function payBlock(id){
-  const live = !PV && (subReady() || C.PAYPAL_PAYMENT_LINK);
+  const live = !PV && (subReady() || orderReady() || C.PAYPAL_PAYMENT_LINK);
   // Retour de PayPal arrivé ailleurs (ex. Safari au lieu de l'app sur l'écran d'accueil) : activation manuelle, 2 h maximum après le clic
-  const pending = !subReady() && C.PAYPAL_PAYMENT_LINK;
-  return `<div class="paybox" id="${id}">${live && subReady() ? `<div class="skel" style="height:52px"></div>` : `<button class="btn block paypal" data-pp>Payer avec <b>PayPal</b></button>`}</div>
+  const pending = !subReady() && !orderReady() && C.PAYPAL_PAYMENT_LINK;
+  return `<div class="paybox" id="${id}">${live && (subReady() || orderReady()) ? `<div class="skel" style="height:52px"></div>` : `<button class="btn block paypal" data-pp>Payer avec <b>PayPal</b></button>`}</div>
     ${pending ? `<button class="btn soft block" data-paid>${store.get("actPending", null) ? "⏳ Vérification en cours : voir ma demande" : "J'ai déjà payé : activer mon Premium"}</button>` : ""}
     <p class="small consent">En payant, tu demandes l'accès immédiat à Premium et renonces à ton droit de rétractation (art. L221-28 du Code de la consommation). <a href="legal.html#cgv" target="_blank" rel="noopener">Conditions de vente</a></p>
     <p class="small">${subReady() ? "Paiement sécurisé par PayPal : compte PayPal ou carte bancaire. Sans engagement, résiliable à tout moment." : "Paiement sécurisé par PayPal (compte PayPal ou carte bancaire). Un paiement = 31 jours de Premium, sans abonnement ni renouvellement automatique."}</p>`;
 }
 let ppLoad = null;
-function loadPayPal(){ if(window.paypal) return Promise.resolve(window.paypal); return ppLoad = ppLoad || new Promise((ok, ko) => { const s = document.createElement("script"); s.src = `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(C.PAYPAL_CLIENT_ID)}&vault=true&intent=subscription&currency=EUR&locale=fr_FR&components=buttons`; s.onload = () => ok(window.paypal); s.onerror = () => { ppLoad = null; ko(new Error("sdk")); }; document.head.appendChild(s); }); }
+function loadPayPal(){ if(window.paypal) return Promise.resolve(window.paypal); return ppLoad = ppLoad || new Promise((ok, ko) => { const s = document.createElement("script"); s.src = orderReady() ? `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(C.PAYPAL_CLIENT_ID)}&intent=capture&currency=EUR&locale=fr_FR&components=buttons` : `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(C.PAYPAL_CLIENT_ID)}&vault=true&intent=subscription&currency=EUR&locale=fr_FR&components=buttons`; s.onload = () => ok(window.paypal); s.onerror = () => { ppLoad = null; ko(new Error("sdk")); }; document.head.appendChild(s); }); }
 function unlock(p){ track("abonnement_premium", {via:p && p.via || "?"}); S.premium = p; S.demo = false; store.set("premium", p); store.set("demo", false); updateCrown(); checkBetaLock(); closeModal(); celebrate(280);
   openModal(`<div class="center"><div class="medal">${I.star}</div><p class="title">Bienvenue en Premium !</p><p class="muted">Boucles illimitées, Garmin, Strava et GPX : tout est débloqué.</p></div><button class="btn hero block" data-close>C'est parti</button>`); if(S.tab === "premium" || S.tab === "plan") render(); }
 async function mountPay(id){
@@ -2142,6 +2144,28 @@ async function mountPay(id){
     if(C.PAYPAL_PAYMENT_LINK){ track("paiement_clic", {depuis:"onglet_premium"}); store.set("payPending", Date.now()); if(NATIVE) openExt(C.PAYPAL_PAYMENT_LINK); else location.href = C.PAYPAL_PAYMENT_LINK; return; }
     toast("Le paiement arrive très bientôt. Réessaie dans quelques jours.", 4500);
   }; return; }
+  if(orderReady()){
+    try{
+      const pp = await loadPayPal(); box.innerHTML = "";
+      await pp.Buttons({ style:{shape:"pill", color:"gold", layout:"vertical", label:"pay", height:50},
+        createOrder:(d, a) => { track("paiement_clic", {depuis:"bouton_paypal"}); return a.order.create({intent:"CAPTURE", purchase_units:[{amount:{currency_code:"EUR", value:(C.PRICE_VALUE || "4.99")}, description:"Traceo Premium - 31 jours", custom_id:devId()}], application_context:{brand_name:"Traceo", locale:"fr-FR", shipping_preference:"NO_SHIPPING", user_action:"PAY_NOW"}}); },
+        onApprove:async (d, a) => {
+          try{ await a.order.capture(); }catch(e){}
+          for(let i = 0; i < 4; i++){
+            try{
+              const r = await fetch((C.PAYMENT_API || C.CHAT_API).replace(/\/$/, "") + "/social/pay", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({order:d.orderID, dev:devId(), from:paid() ? S.premium.until : 0})});
+              const j = await r.json();
+              if(j.code){ const v = await verifyAct(j.code); if(v){ unlock({via:"code", until:v.until, code:j.code, kind:"paiement"}); return; } }
+              if(r.status === 402 && i < 3){ await new Promise(ok => setTimeout(ok, 2500)); continue; }
+              throw new Error(j.error || "http " + r.status);
+            }catch(e){ if(i === 3){ store.set("actPending", {at:Date.now(), email:"commande " + d.orderID}); toast("Paiement reçu : activation en cours, ton Premium s'allume dans un instant.", 6000); requestActivation(); return; } await new Promise(ok => setTimeout(ok, 2000)); }
+          }
+        },
+        onCancel:() => toast("Paiement annulé. Rien n'a été débité."), onError:() => toast("PayPal a rencontré une erreur. Réessaie.", 4500)
+      }).render(box);
+    }catch(e){ box.innerHTML = `<p class="small">PayPal ne s'est pas chargé. Vérifie ta connexion.</p>`; }
+    return;
+  }
   try{
     const pp = await loadPayPal(); box.innerHTML = "";
     await pp.Buttons({ style:{shape:"pill", color:"gold", layout:"vertical", label:"subscribe", height:50},
@@ -2325,7 +2349,7 @@ function splash(first){
   let w = 0; splash.iv = setInterval(() => { const r = $("#spRot"); if(!r || el.hidden){ clearInterval(splash.iv); return; } r.classList.add("out"); spT.push(setTimeout(() => { w = (w + 1) % ROTW.length; r.textContent = ROTW[w]; r.classList.remove("out"); r.classList.add("in"); spT.push(setTimeout(() => r.classList.remove("in"), 500)); }, 300)); }, 2400);
   spT.push(setTimeout(wmRoll, 150)); clearInterval(splash.wm); splash.wm = setInterval(() => { if(el.hidden) return clearInterval(splash.wm); wmRoll(); }, 9000);
   el.querySelectorAll("[data-spm]").forEach(b => b.onclick = () => { store.set("spModel", b.dataset.spm); splash(first); });
-  $("#spGoBtn").onclick = () => { celebrate(60); el.classList.add("out"); clearInterval(splash.iv); spT.forEach(clearTimeout); setTimeout(() => { el.hidden = true; el.classList.remove("out"); store.set("onboarded", true); if(!gateOn() && !S.start) autoStart(); }, 420);
+  $("#spGoBtn").onclick = () => { celebrate(60); el.classList.add("out"); clearInterval(splash.iv); spT.forEach(clearTimeout); setTimeout(() => { el.hidden = true; el.classList.remove("out"); store.set("onboarded", true); const go2 = () => { if(!gateOn() && !S.start) autoStart(); }; if(typeof needAuth === "function" && needAuth()) authGate(go2); else go2(); }, 420);
     // le toucher compte comme geste : on demande la position tout de suite (fenêtre « Autoriser » du téléphone)
     if(!S.start && !PV){ showGate(); gateLocate(); } };
 }

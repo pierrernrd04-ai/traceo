@@ -920,3 +920,16 @@ body[data-tab="chat"] .fab.ask{display:none}
 .rw-res{margin:6px 0 2px;text-align:center}
 body:has(#betaLock) #modal{z-index:120}
 .code{font-family:ui-monospace,Menlo,monospace;letter-spacing:.04em;color:var(--ink);background:var(--surface-2);padding:2px 7px;border-radius:7px}
+/* ---------- Écran d'entrée : compte obligatoire ---------- */
+.authgate{position:fixed;inset:0;z-index:110;overflow-y:auto;-webkit-overflow-scrolling:touch;background:radial-gradient(90% 45% at 85% 0%,#0F3B3A 0%,transparent 70%),radial-gradient(70% 40% at 0% 100%,rgba(30,166,208,.18),transparent 70%),var(--bg);animation:fade .3s both}
+.ag-in{max-width:460px;margin:0 auto;padding:calc(env(safe-area-inset-top,0px) + 28px) 18px calc(env(safe-area-inset-bottom,0px) + 30px)}
+.ag-top{text-align:center}
+.ag-logo{width:54px;height:54px;margin-bottom:6px}
+.ag-h{font:800 28px/1.15 var(--f-display,var(--f-body));margin:4px 0 16px}
+.ag-seg{grid-template-columns:1fr 1fr;margin-bottom:6px}
+.ag-seg button[aria-pressed="true"]{background:var(--surface);color:var(--accent)}
+.authgate .ens-form{margin-top:12px;padding:16px;border-radius:20px;background:var(--surface);border:1px solid var(--line)}
+.authgate .ens-form > .title,.authgate .alt-link{display:none}
+.ag-why{text-align:center;margin-top:14px}
+.ag-skip{display:block;margin:10px auto 0}
+.auth-on .fab,.auth-on .tabs{visibility:hidden}

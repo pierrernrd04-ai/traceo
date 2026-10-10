@@ -31,6 +31,7 @@ const R = d => d*Math.PI/180;
 function km(a, b){ const dLa = R(b.lat - a.lat), dLo = R(b.lon - a.lon); const h = Math.sin(dLa/2)**2 + Math.cos(R(a.lat))*Math.cos(R(b.lat))*Math.sin(dLo/2)**2; return 12742*Math.asin(Math.sqrt(h)); }
 const shown = d => d < 1 ? "moins de 1 km" : d < 10 ? `${Math.round(d*2)/2} km`.replace(".", ",") : `${Math.round(d)} km`;
 const LEVELS = ["debut", "regulier", "confirme", "expert"];
+const ACT_PUB = {"kty":"EC","crv":"P-256","x":"__6AWyNjAcpIy9E2jeaF-pVNzipouEcuYhBleromdtE","y":"WR7Y2cF2dCOReGhUEk7DEFkf2Bmh5rNc0NveDAggRzQ"};   // clé publique d'activation (la clé privée = secret ACT_KEY)
 const REWARD_EVERY = 100, REWARD_EUR = 5;   // un diamant (bon d'achat de 5 €) toutes les 100 courses vérifiées
 
 export class Hub {
@@ -46,6 +47,7 @@ export class Hub {
     this.sql.exec(`CREATE TABLE IF NOT EXISTS blocks(who TEXT, whom TEXT, PRIMARY KEY(who, whom))`);
     this.sql.exec(`CREATE TABLE IF NOT EXISTS reports(t INT, who TEXT, whom TEXT, why TEXT)`);
     this.sql.exec(`CREATE TABLE IF NOT EXISTS kv(k TEXT PRIMARY KEY, v TEXT)`);
+    this.sql.exec(`CREATE TABLE IF NOT EXISTS orders(id TEXT PRIMARY KEY, dev TEXT, t INT, amount TEXT, payer TEXT, until INT)`);
     // Programme « 100 courses = 1 diamant de 5 € » (bon d'achat = 31 jours de Premium) : courses vérifiées et diamants
     this.sql.exec(`CREATE TABLE IF NOT EXISTS runs(id INTEGER PRIMARY KEY AUTOINCREMENT, uid TEXT, t INT, day TEXT, dist INT, time INT, ascent INT, n_pts INT, hash TEXT, ok INT, reason TEXT, premium INT, lat REAL, lon REAL)`);
     this.sql.exec(`CREATE INDEX IF NOT EXISTS runs_uid ON runs(uid, ok, t)`);
@@ -60,6 +62,7 @@ export class Hub {
     let body = {}; if(req.method === "POST"){ const raw = await req.text(); if(raw.trim()){ try{ body = JSON.parse(raw); }catch(e){ return json({error:"bad_json"}, 400, {}); } } }
     try{
       if(path === "vapid") return json({key:(await this.vapid()).pub}, 200, {});
+      if(path === "pay") return this.pay(body, ip);
       if(path === "signup") return this.signup(body, ip, req);
       if(path === "login") return this.login(body, ip, req);
       if(path === "pseudo") return json({free:!this.one("SELECT 1 AS x FROM users WHERE pseudo = ?", clean(url.searchParams.get("p"), 20).toLowerCase())}, 200, {});
@@ -285,6 +288,47 @@ export class Hub {
     const url = `${this.env.PUSH_SUBJECT || "https://pierrernrd04-ai.github.io/traceo/"}admin.html#act=${dev}&e=${encodeURIComponent("diamant @" + me.pseudo)}`;
     if(this.env.ALERTS_TOPIC) this.state.waitUntil(fetch("https://ntfy.sh/" + this.env.ALERTS_TOPIC, {method:"POST", headers:{Title:"Diamant a activer", Tags:"gem", Priority:"high", Click:url, Actions:"view, Activer, " + url}, body:`@${me.pseudo} utilise son diamant (${r.milestone}e course) : 31 jours de Premium à activer.`}).catch(() => {}));
     return json({ok:true}, 200, {});
+  }
+
+  /* ---------- Paiement PayPal automatique ----------
+     L'app paie avec les boutons PayPal (commande de 4,99 € liée au code de l'appareil), puis envoie le numéro de commande.
+     Le serveur demande la commande à PayPal avec la clé secrète : payée, bon montant, bon appareil, jamais utilisée.
+     Si tout est bon, il signe l'activation de 31 jours (même clé que la page admin) : aucune intervention manuelle. */
+  async pay(b, ip){
+    if(this.limit("pay:" + ip, 20, HOUR)) return json({error:"rate_limited"}, 429, {});
+    const order = clean(b.order, 40).toUpperCase(), dev = clean(b.dev, 16).toLowerCase();
+    if(!/^[A-Z0-9]{8,40}$/.test(order) || !/^[a-f0-9]{16}$/.test(dev)) return json({error:"bad_request"}, 400, {});
+    if(!this.env.PAYPAL_CLIENT_ID || !this.env.PAYPAL_SECRET || !this.env.ACT_KEY) return json({error:"pay_not_configured"}, 503, {});
+    const used = this.one("SELECT * FROM orders WHERE id = ?", order);
+    if(used && used.dev !== dev) return json({error:"order_used"}, 409, {});
+    if(used) return json({code:await this.signAct(dev, used.until, "paiement")}, 200, {});   // même appareil : on renvoie l'activation
+    let o;
+    try{ o = await this.paypalGet(`/v2/checkout/orders/${encodeURIComponent(order)}`); }catch(e){ return json({error:"paypal_unreachable"}, 502, {}); }
+    if(!o) return json({error:"order_not_found"}, 404, {});
+    const pu = (o.purchase_units || [])[0] || {}, cap = ((pu.payments || {}).captures || [])[0] || {};
+    const price = this.env.PRICE || "4.99";
+    if(o.status !== "COMPLETED" || cap.status !== "COMPLETED") return json({error:"not_paid", status:o.status}, 402, {});
+    if(pu.amount?.currency_code !== "EUR" || pu.amount?.value !== price) return json({error:"bad_amount"}, 402, {});
+    if(pu.custom_id !== dev) return json({error:"other_device"}, 403, {});
+    const from = Math.max(NOW(), Math.min(+b.from || 0, NOW() + 62*864e5)), until = from + 31*864e5;
+    this.sql.exec("INSERT INTO orders(id, dev, t, amount, payer, until) VALUES(?,?,?,?,?,?)", order, dev, NOW(), price, clean(o.payer?.email_address, 120), until);
+    if(this.env.ALERTS_TOPIC) this.state.waitUntil(fetch("https://ntfy.sh/" + this.env.ALERTS_TOPIC, {method:"POST", headers:{Title:"Nouvel abonne Premium (automatique)", Tags:"moneybag", Priority:"high"}, body:`${price} € reçus de ${o.payer?.email_address || "?"} : Premium activé automatiquement (31 jours).`}).catch(() => {}));
+    return json({code:await this.signAct(dev, until, "paiement")}, 200, {});
+  }
+  async signAct(dev, until, kind){
+    const key = this._ak || (this._ak = await crypto.subtle.importKey("jwk", {...ACT_PUB, d:this.env.ACT_KEY, ext:true}, {name:"ECDSA", namedCurve:"P-256"}, false, ["sign"]));
+    const payload = new TextEncoder().encode(`${dev}|${until}|${kind}|${b64u(crypto.getRandomValues(new Uint8Array(6)))}`);
+    return b64u(payload) + "." + b64u(await crypto.subtle.sign({name:"ECDSA", hash:"SHA-256"}, key, payload));
+  }
+  async paypalGet(path){
+    const base = this.env.PAYPAL_BASE || (this.env.PAYPAL_ENV === "sandbox" ? "https://api-m.sandbox.paypal.com" : "https://api-m.paypal.com");
+    if(!this._pt || this._pt.exp < NOW() + 60e3){
+      const r = await fetch(base + "/v1/oauth2/token", {method:"POST", headers:{Authorization:"Basic " + btoa(`${this.env.PAYPAL_CLIENT_ID}:${this.env.PAYPAL_SECRET}`), "Content-Type":"application/x-www-form-urlencoded"}, body:"grant_type=client_credentials"});
+      if(!r.ok) throw new Error("oauth"); const j = await r.json(); this._pt = {v:j.access_token, exp:NOW() + (j.expires_in || 300)*1000};
+    }
+    const r = await fetch(base + path, {headers:{Authorization:"Bearer " + this._pt.v}});
+    if(r.status === 404) return null; if(!r.ok) throw new Error("paypal " + r.status);
+    return r.json();
   }
 
   /* ---------- Administration (page admin.html) ---------- */

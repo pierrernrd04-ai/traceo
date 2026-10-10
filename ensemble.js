@@ -133,17 +133,17 @@ function viewEnsemble(){
       : `<p class="small">Pas encore de message. Propose une course à un coureur proche pour démarrer.</p>`}
     <div class="ens-foot"><button class="linkbtn" id="ensSafe">${EI.shield}Conseils de sécurité</button><button class="linkbtn" id="ensAcc">Mon compte</button></div>`;
 }
-function ensSignup(){
+function ensSignup(gate){
   if(ENS.mode === "login") return `<form class="ens-form" id="ensLogin" novalidate><p class="title" style="font-size:22px">Connexion</p>
     <div class="field"><label for="elId">Identifiant ou e-mail</label><input class="input" id="elId" autocomplete="username" autocapitalize="none" maxlength="120"></div>
     <div class="field"><label for="elPw">Mot de passe</label><div class="pw"><input class="input" id="elPw" type="password" autocomplete="current-password" maxlength="100"><button type="button" class="linkbtn" data-eye="elPw">Voir</button></div></div>
     <p class="small" id="efErr" style="color:var(--warn)"></p>
     <button class="btn hero block" id="efGo">${EI.people}Me connecter</button>
-    <p class="small" style="text-align:center">Pas encore de compte ? <button type="button" class="linkbtn" data-mode="signup">Créer mon compte</button></p>
+    <p class="small alt-link" style="text-align:center">Pas encore de compte ? <button type="button" class="linkbtn" data-mode="signup">Créer mon compte</button></p>
     <p class="small" style="text-align:center">Mot de passe oublié ? <a href="mailto:pierre.rnrd04@gmail.com?subject=Traceo%20-%20mot%20de%20passe%20oubli%C3%A9" style="color:var(--accent)">Écris au support</a> depuis l'e-mail de ton compte.</p></form>`;
   const max = new Date(Date.now() - 15*365.25*864e5).toISOString().slice(0, 10);
-  return ensPitch() + `<form class="ens-form" id="ensForm" novalidate><p class="title" style="font-size:22px">Crée ton compte Traceo</p>
-    <p class="small" style="margin-top:-2px">Déjà inscrit ? <button type="button" class="linkbtn" data-mode="login">Me connecter</button></p>
+  return (gate ? "" : ensPitch()) + `<form class="ens-form" id="ensForm" novalidate><p class="title" style="font-size:22px">Crée ton compte Traceo</p>
+    <p class="small alt-link" style="margin-top:-2px">Déjà inscrit ? <button type="button" class="linkbtn" data-mode="login">Me connecter</button></p>
     <div class="row2"><div class="field"><label for="efFirst">Prénom</label><input class="input" id="efFirst" autocomplete="given-name" maxlength="30"></div>
     <div class="field"><label for="efLast">Nom</label><input class="input" id="efLast" autocomplete="family-name" maxlength="40"></div></div>
     <div class="field"><label for="efPseudo">Identifiant (visible des autres coureurs)</label><div class="pw"><span class="at">@</span><input class="input" id="efPseudo" autocomplete="username" autocapitalize="none" maxlength="20" placeholder="ex. lea_run"></div><small id="efPs" class="small"></small></div>
@@ -237,7 +237,7 @@ function ensAccount(){
   sheet.querySelectorAll("[data-lvl]").forEach(b => b.onclick = () => { lvl = b.dataset.lvl; sheet.querySelectorAll("[data-lvl]").forEach(x => x.setAttribute("aria-pressed", x === b)); });
   $("#eaPw").onclick = async () => { const o = $("#eaOld").value, n = $("#eaNew").value; if(n.length < 8) return toast("Nouveau mot de passe : 8 caractères minimum."); try{ await ensCall("me", {oldKey:await pwKey(o), key:await pwKey(n)}); toast("Mot de passe changé."); $("#eaOld").value = $("#eaNew").value = ""; }catch(e){ toast(errTxt(e)); } };
   $("#eaSave").onclick = async () => { try{ const j = await ensCall("me", {first:$("#eaFirst").value, last:$("#eaLast").value, level:lvl, pace:S.pace, notif:$("#eaNotif").checked}); ENS.me = j.me; ensSaveAuth(); closeModal(); render(); toast("Compte mis à jour."); }catch(e){ toast("Enregistrement impossible pour l'instant."); } };
-  $("#eaOut").onclick = async () => { try{ await ensCall("logout", {}); }catch(e){} ensLogout(); ENS.mode = "login"; closeModal(); render(); toast("Déconnecté. À bientôt !"); };
+  $("#eaOut").onclick = async () => { try{ await ensCall("logout", {}); }catch(e){} ensLogout(); ENS.mode = "login"; closeModal(); render(); toast("Déconnecté. À bientôt !"); if(needAuth()) authGate(() => render()); };
   $("#eaDel").onclick = async () => { if(!confirm("Supprimer définitivement ton compte Ensemble et tes messages ?")) return; try{ await ensCall("delete", {}); }catch(e){} ensLogout(); closeModal(); render(); toast("Compte supprimé."); };
 }
 function ensMoreModal(peer){
@@ -261,13 +261,12 @@ async function ensEnablePush(){
   }catch(e){ report("push", e.message); toast("Notifications indisponibles sur ce navigateur."); }
 }
 
-function wireEnsemble(){
-  const q = s => body.querySelector(s);
-  q("#ensPrem") && (q("#ensPrem").onclick = () => { track("ensemble_premium"); go("premium"); });
-  if(!ensOn() || !isPremium() || (!ENS.auth && !q("#ensForm") && !q("#ensLogin"))) return;
-  body.querySelectorAll("[data-mode]").forEach(b => b.onclick = () => { ENS.mode = b.dataset.mode; render(); });
-  body.querySelectorAll("[data-eye]").forEach(b => b.onclick = () => { const i = q("#" + b.dataset.eye); i.type = i.type === "password" ? "text" : "password"; b.textContent = i.type === "password" ? "Voir" : "Masquer"; });
-  const done = (j, msg) => { ENS.auth = j.token; ENS.me = j.me; ENS.msgs = []; ENS.last = 0; ENS.first = true; ensSaveAuth(); ensSync(); render(); celebrate(120); toast(msg); ensNearby(); ensLoop(); ensPoll(); };
+// Connexion et création de compte (onglet Ensemble ou écran d'entrée de l'app)
+function wireAuth(root, rerender, after){
+  const q = s => root.querySelector(s);
+  root.querySelectorAll("[data-mode]").forEach(b => b.onclick = () => { ENS.mode = b.dataset.mode; rerender(); });
+  root.querySelectorAll("[data-eye]").forEach(b => b.onclick = () => { const i = q("#" + b.dataset.eye); i.type = i.type === "password" ? "text" : "password"; b.textContent = i.type === "password" ? "Voir" : "Masquer"; });
+  const done = (j, msg) => { ENS.auth = j.token; ENS.me = j.me; ENS.msgs = []; ENS.last = 0; ENS.first = true; ensSaveAuth(); ensSync(); celebrate(120); toast(msg); ensLoop(); ensPoll(); after(); };
   if(q("#ensLogin")){
     q("#ensLogin").onsubmit = async e => {
       e.preventDefault(); const err = q("#efErr"), id = q("#elId").value.trim(), pw = q("#elPw").value;
@@ -280,7 +279,7 @@ function wireEnsemble(){
   }
   if(q("#ensForm")){
     let lvl = "regulier", psT;
-    body.querySelectorAll("#efLvl [data-lvl]").forEach(b => b.onclick = () => { lvl = b.dataset.lvl; body.querySelectorAll("#efLvl [data-lvl]").forEach(x => x.setAttribute("aria-pressed", x === b)); });
+    root.querySelectorAll("#efLvl [data-lvl]").forEach(b => b.onclick = () => { lvl = b.dataset.lvl; root.querySelectorAll("#efLvl [data-lvl]").forEach(x => x.setAttribute("aria-pressed", x === b)); });
     q("#efPseudo").oninput = () => { const v = q("#efPseudo").value = q("#efPseudo").value.toLowerCase().replace(/[^a-z0-9_.]/g, ""), ps = q("#efPs"); clearTimeout(psT);
       if(v.length < 3){ ps.textContent = v ? "3 caractères minimum" : ""; ps.style.color = ""; return; }
       psT = setTimeout(async () => { try{ const j = await ensCall("pseudo?p=" + encodeURIComponent(v)); if(q("#efPseudo")?.value !== v) return; ps.textContent = j.free ? "✓ Disponible" : "Déjà pris"; ps.style.color = j.free ? "var(--accent)" : "var(--warn)"; }catch(e){} }, 350); };
@@ -301,6 +300,12 @@ function wireEnsemble(){
     };
     return;
   }
+}
+function wireEnsemble(){
+  const q = s => body.querySelector(s);
+  q("#ensPrem") && (q("#ensPrem").onclick = () => { track("ensemble_premium"); go("premium"); });
+  if(!ensOn() || !isPremium() || (!ENS.auth && !q("#ensForm") && !q("#ensLogin"))) return;
+  if(q("#ensForm") || q("#ensLogin")) return wireAuth(body, render, () => { render(); ensNearby(); });
   if(ENS.thread){
     const L = q("#ensList"); if(L) L.scrollTop = L.scrollHeight; body.scrollTop = body.scrollHeight; markRead(ENS.thread);
     q("#ensBack").onclick = () => { ENS.thread = null; render(); ensNearby(); };
@@ -404,3 +409,26 @@ document.addEventListener("click", async e => {
   }catch(x){ b.disabled = false; toast("Impossible pour l'instant, réessaie."); }
 });
 if(ensOn() && ENS.auth) setTimeout(() => { ensFlushRuns(false); ensRefreshRew(false); }, 4000);
+
+/* ---------- Écran d'entrée : se connecter ou créer son compte avant d'utiliser l'app ---------- */
+const needAuth = () => ensOn() && !ENS.auth && !PV && !/[?&](test|noauth)\b/.test(location.search);
+function authGate(next){
+  let el = document.getElementById("authGate");
+  if(!el){ el = document.createElement("div"); el.id = "authGate"; el.className = "authgate"; document.body.appendChild(el); }
+  document.body.classList.add("auth-on");
+  const paint = () => {
+    el.innerHTML = `<div class="ag-in"><div class="ag-top"><svg viewBox="0 0 32 32" class="ag-logo"><path d="M7 23c0-8 5.5-14 11.5-14 4.6 0 7.5 2.9 7.5 6.6 0 3.8-3 6.6-6.8 6.6-2.8 0-4.7-1.9-4.7-4.2" fill="none" stroke="#25C98F" stroke-width="3.6" stroke-linecap="round"/><circle cx="7" cy="23" r="3.8" fill="#E6F2F0"/></svg>
+      <p class="eyebrow">Bienvenue sur Traceo</p><p class="ag-h">${ENS.mode === "login" ? "Content de te revoir !" : "Ton compte coureur"}</p>
+      <div class="seg ag-seg"><button type="button" data-mode="signup" aria-pressed="${ENS.mode !== "login"}">Créer un compte</button><button type="button" data-mode="login" aria-pressed="${ENS.mode === "login"}">Se connecter</button></div></div>
+      ${ensSignup(true)}
+      <p class="small ag-why">Ton compte garde tes courses, compte tes diamants 💎 et te connecte aux coureurs autour de toi.</p>
+      <button class="linkbtn ag-skip" id="agSkip" hidden>Serveur indisponible : continuer sans compte</button></div>`;
+    el.scrollTop = 0;
+    wireAuth(el, paint, () => { el.remove(); document.body.classList.remove("auth-on"); track("entree_compte_ok"); next && next(); });
+    // si le serveur ne répond pas, on ne bloque pas le client
+    const sk = el.querySelector("#agSkip");
+    fetch(ensApi() + "/health").then(r => { if(!r.ok) throw 0; }).catch(() => { sk.hidden = false; });
+    sk.onclick = () => { el.remove(); document.body.classList.remove("auth-on"); next && next(); };
+  };
+  paint(); track("entree_compte_vue");
+}
