@@ -119,7 +119,7 @@ function repeatLen(pts){ const seen = new Set(); let r = 0; for(let i = 1; i < p
 
 /* ---------- Carte ---------- */
 const GOOGLE_DARK = [{stylers:[{saturation:-30}]},{elementType:"geometry",stylers:[{color:"#0b1a20"}]},{elementType:"labels.text.fill",stylers:[{color:"#9fb7b5"}]},{elementType:"labels.text.stroke",stylers:[{color:"#07131a"}]},{featureType:"road",elementType:"geometry",stylers:[{color:"#1d3640"}]},{featureType:"road.arterial",elementType:"geometry",stylers:[{color:"#24434e"}]},{featureType:"road.highway",elementType:"geometry",stylers:[{color:"#2c5260"}]},{featureType:"water",elementType:"geometry",stylers:[{color:"#06283a"}]},{featureType:"poi.park",elementType:"geometry",stylers:[{color:"#0f3328"}]},{featureType:"poi",elementType:"labels.icon",stylers:[{visibility:"off"}]}];
-const map = L.map("map", {zoomControl:false, minZoom:3, worldCopyJump:true}).fitBounds(FRANCE);
+const map = L.map("map", {zoomControl:false, minZoom:3, maxZoom:19, worldCopyJump:true}).fitBounds(FRANCE);
 // Pendant un geste (pincer, glisser), la caméra ne suit plus : la carte ne « glisse » plus sous les doigts
 let gesture = false;
 map.getContainer().addEventListener("touchstart", e => { if(e.touches.length > 1) gesture = true; }, {passive:true});
@@ -207,7 +207,7 @@ async function setBase(){
 const MAP_MODE = () => store.get("mapMode", "jour") === "nuit" ? "nuit" : "jour";
 const PALS = {
   jour:{bg:"#F1EEE7", resid:"#ECE8E0", wood:"#C9E2BC", park:"#BFE3AE", water:"#8FCBE6", waterway:"#7FC0DE", ice:"#F5FAFC", building:"#DED8CD", buildingLine:"#C7BFB1",
-    path:"#9C8C7C", minor:"#FFFFFF", minorCase:"#C9C0B2", major:"#FFF4CC", majorCase:"#D8B565", motor:"#FFD27A", motorCase:"#C98D2E", rail:"#CFCBC4", border:"#9C88B8",
+    path:"#CDBFAE", minor:"#FFFFFF", minorCase:"#C9C0B2", major:"#FFF4CC", majorCase:"#D8B565", motor:"#FFD27A", motorCase:"#C98D2E", rail:"#CFCBC4", border:"#9C88B8",
     aeroFill:"#E4E0DA", aeroLine:"#D2CCC4", street:"#1B252B", halo:"#FFFFFF", waterTxt:"#2C6E8A", city:"#0E1A20", town:"#24323A", village:"#4A5A62", country:"#0E7A5A"},
   nuit:{bg:"#08151C", resid:"#0B1B23", wood:"#0E3326", park:"#114030", water:"#0F4A62", waterway:"#135A75", ice:"#13303C", building:"#13262F", buildingLine:"#1E3B47",
     path:"#3D6573", minor:"#2A4D5A", minorCase:"#08151C", major:"#3B6B7C", majorCase:"#061016", motor:"#4C8394", motorCase:"#050D12", rail:"#2A4550", border:"#4B7A8A",
@@ -232,7 +232,7 @@ async function traceoStyleJSON(url, mode = MAP_MODE()){
     else if(/glacier|ice_shelf/.test(id)) pt["fill-color"] = P.ice;
     else if(id === "building"){ pt["fill-color"] = P.building; pt["fill-outline-color"] = P.buildingLine; pt["fill-opacity"] = ["interpolate", ["linear"], ["zoom"], 13, 0, 15, 1]; }
     else if(/^aeroway/.test(id)) (l.type === "fill" ? pt["fill-color"] = P.aeroFill : pt["line-color"] = P.aeroLine);
-    else if(id === "highway_path"){ pt["line-color"] = P.path; pt["line-dasharray"] = [2, 1.4]; pt["line-width"] = zw(13, .8, 16, 2, 18, 3.5, 20, 6); pt["line-opacity"] = .95; }
+    else if(id === "highway_path"){ pt["line-color"] = P.path; pt["line-dasharray"] = [2.5, 1.5]; pt["line-width"] = zw(14, .6, 16, 1.4, 18, 2.4, 20, 4); pt["line-opacity"] = ["interpolate", ["linear"], ["zoom"], 13, 0, 14.5, .8]; }
     else if(id === "highway_minor"){
       // rues : bordure + intérieur, nettement plus larges pour être vues d'un coup d'œil
       out.push({...l, id:"highway_minor_casing", paint:{"line-color":P.minorCase, "line-width":zw(12, 1.2, 14, 3.2, 16, 8, 18, 17, 20, 34), "line-opacity":1}});
@@ -263,6 +263,35 @@ async function traceoStyleJSON(url, mode = MAP_MODE()){
     }
     out.push(l);
   }
+  // Détails réalistes : noms des lieux utiles (gares, monuments, musées, écoles, hôpitaux, points d'eau…),
+  // des parcs et des cours d'eau, numéros de rue au plus près. Placés sous les noms de rues, prioritaires.
+  const D = mode === "jour"
+    ? {transport:"#2F55A4", culture:"#7A3F93", sante:"#B4232A", eau:"#0B7285", parc:"#2B7A2B", civique:"#5A4632", autre:"#5B6770", num:"#8C8273", halo:"#FFFFFF"}
+    : {transport:"#8FB4FF", culture:"#D7A6EA", sante:"#FF9A9A", eau:"#7FD3E6", parc:"#8FDB9A", civique:"#E2CDB0", autre:"#A9C2C1", num:"#7C989C", halo:"#03090D"};
+  const POI_COL = ["match", ["get", "class"],
+    ["railway", "bus", "ferry_terminal", "aerialway"], D.transport,
+    ["museum", "attraction", "monument", "castle", "art_gallery", "theatre", "cinema", "library", "place_of_worship"], D.culture,
+    ["hospital", "pharmacy", "doctors"], D.sante,
+    ["drinking_water", "fountain", "toilets"], D.eau,
+    ["park", "garden", "playground", "stadium", "sports", "pitch", "swimming_pool"], D.parc,
+    ["town_hall", "school", "college", "university", "post", "police"], D.civique, D.autre];
+  const sym = (id, layer, minzoom, layout, paint, filter) => Object.assign({id, type:"symbol", source:"openmaptiles", "source-layer":layer, minzoom, layout:Object.assign({"text-field":FR_NAME, "text-font":["Noto Sans Regular"], "text-max-width":8, "text-padding":3}, layout), paint:Object.assign({"text-halo-color":D.halo, "text-halo-width":1.6}, paint)}, filter ? {filter} : {});
+  const extra = [
+    sym("tr_park_name", "park", 12.5, {"text-font":["Noto Sans Italic"], "text-size":["interpolate", ["linear"], ["zoom"], 13, 11, 16, 13.5]}, {"text-color":D.parc}, ["has", "name"]),
+    sym("tr_waterway_name", "waterway", 12, {"symbol-placement":"line", "text-font":["Noto Sans Italic"], "text-size":12, "symbol-spacing":350}, {"text-color":D.eau}, ["has", "name"]),
+    // lieux importants dès le quartier, les autres en se rapprochant
+    sym("tr_poi_major", "poi", 13.5, {"text-size":["interpolate", ["linear"], ["zoom"], 14, 11, 17, 13], "text-font":["Noto Sans Bold"]}, {"text-color":POI_COL},
+      ["all", ["has", "name"], ["match", ["get", "class"], ["railway", "museum", "monument", "castle", "town_hall", "hospital", "stadium"], true, false], ["<=", ["coalesce", ["get", "rank"], 99], 12]]),
+    sym("tr_poi_minor", "poi", 15.3, {"text-size":["interpolate", ["linear"], ["zoom"], 15.5, 10.5, 18, 12.5]}, {"text-color":POI_COL},
+      // liste blanche : repères utiles pour s'orienter (pas de commerces ni de restaurants)
+      ["all", ["has", "name"], ["match", ["get", "class"], ["railway", "museum", "attraction", "monument", "castle", "town_hall", "hospital", "stadium", "school", "college", "university", "library", "theatre", "cinema", "place_of_worship", "pharmacy", "post", "police", "garden", "park", "sports", "swimming_pool", "drinking_water", "fountain", "toilets"], true, false], ["<=", ["coalesce", ["get", "rank"], 99], 30]]),
+    // points d'eau et toilettes, utiles en course, même sans nom
+    sym("tr_poi_water", "poi", 15.5, {"text-field":["match", ["get", "class"], "toilets", "Toilettes", "Point d'eau"], "text-size":11, "text-font":["Noto Sans Bold"]}, {"text-color":D.eau},
+      ["all", ["!", ["has", "name"]], ["match", ["get", "class"], ["drinking_water", "toilets"], true, false]]),
+    sym("tr_housenumber", "housenumber", 16.6, {"text-field":["get", "housenumber"], "text-size":10.5, "text-padding":1}, {"text-color":D.num, "text-halo-width":1.2})
+  ];
+  const at = out.findIndex(l => l.id === "highway_name_other");
+  out.splice(at < 0 ? out.length : at, 0, ...extra);
   st.layers = out;
   styleCache[mode] = JSON.stringify(st);
   return st;
