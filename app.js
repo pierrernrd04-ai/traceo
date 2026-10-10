@@ -175,7 +175,9 @@ async function setBase(){
       if(sup){
         tileUrl = (z, x, y) => `https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/${z}/${y}/${x}`;  // pour l'affiche de secours
         const styleUrl = C.MAP_STYLE_URL || "https://tiles.openfreemap.org/styles/dark";
-        const st = await traceoStyleJSON(styleUrl).catch(() => styleUrl);
+        const st = await traceoStyleJSON(styleUrl).catch(() => null);
+        // serveur de carte injoignable : bascule immédiate sur la carte de secours (pas d'écran vide)
+        if(!st){ glBroken = true; report("map", "style injoignable, carte de secours"); throw new Error("style"); }
         base = new TraceoGL({style:st, attribution:'© <a href="https://openfreemap.org">OpenFreeMap</a> © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'}).addTo(map);
         const gl = base.getMaplibreMap && base.getMaplibreMap();
         if(gl){ let ok = false; gl.once("load", () => ok = true); setTimeout(() => { if(!ok) glFail(); }, 8000); }
@@ -718,7 +720,7 @@ async function generate(){
     const r = S.results[0], l = {id:"l" + Date.now(), date:Date.now(), name:`Boucle du ${new Date().toLocaleDateString("fr-FR", {weekday:"long", day:"numeric", month:"long"})}`, place:(S.start.label || "").split(",").slice(-1)[0].trim(), start:S.start, pts:simplify(r.pts), len:r.len, newPct:Math.round(r.newLen/r.len*100), ascent:r.ascent, fav:false};
     S.loops.push(l); trimLoops(); store.set("loops", S.loops); S.loopId = l.id;
     try{ render(); }catch(e){ console.error(e); report("render", (e.message || e) + " " + String(e.stack || "").slice(0, 300)); toast("Affichage : " + (e.message || e), 6000); }
-    if(innerHeight < 760) panel.classList.add("min");   // petit écran : on replie le panneau pour voir la boucle
+    panel.classList.add("min");   // on replie le panneau pour montrer toute la boucle ; « Voir » et « Commencer » restent visibles
     try{ showRoute(r); }catch(e){ console.error(e); report("showRoute", (e.message || e) + " " + String(e.stack || "").slice(0, 300)); toast("Tracé : " + (e.message || e), 6000); }
     updateCrown(); track("boucle_generee", {km:Math.round(r.len/100)/10, depart:S.start?.here ? "gps" : S.start?.city ? "ville" : "adresse"}); report("ok", got.length + " boucles " + Math.round(r.len) + "m");
     if(S.loops.length === 1 || S.loops.length === 4) setTimeout(maybeInstall, 4000);
@@ -995,8 +997,7 @@ function viewPlan(){
         <div class="stat"><small>${r.ascent != null ? "Dénivelé +" : "Allure"}</small><b>${r.ascent != null ? Math.round(r.ascent) + "<small>m</small>" : paceTxt(S.pace) + "<small>/km</small>"}</b></div>
       </div>
       <p class="small">${pct >= 95 ? "Boucle 100 % nouvelle : aucune rue déjà proposée." : `${pct} % de rues que Traceo ne t'avait jamais proposées.`} ${r.steps?.length ? `${r.steps.length} indications de guidage.` : ""}</p>
-      <button class="btn hero block" id="goFly">${I.eye}Visualiser ma boucle</button>
-      <button class="btn night block" id="goRun">${I.play}Commencer la course</button>
+      <div class="cta-dock dock2"><button class="dock-sum" id="dockSum"><em><b>${km1(r.len)} km</b> · ${hmin(dur)}${S.results.length > 1 ? ` · ${S.results.length} boucles au choix` : ""}</em><span>Options ▲</span></button><button class="btn soft" id="goFly">${I.eye}Voir</button><button class="btn hero" id="goRun">${I.play}Commencer</button></div>
       <div class="row"><button class="btn garmin" id="toGarmin">${I.watch}Garmin${isPremium() ? "" : '<span class="lock">★</span>'}</button><button class="btn soft" id="toGpx">${I.dl}GPX${isPremium() ? "" : '<span class="lock">★</span>'}</button></div>
       <div class="row"><button class="btn soft" id="again">${I.redo}Une autre boucle</button><button class="btn soft" id="toMusic">${MI.note}Musique</button></div>
       <div class="row"><button class="btn soft" id="toImg">${I.img}Image</button></div>
@@ -1575,6 +1576,7 @@ function wire(){
   }
   if(S.tab === "premium" && !betaOn()) mountPay("payMain");
   if(S.tab === "chat") wireChat();
+  $("#dockSum") && ($("#dockSum").onclick = () => { panel.classList.remove("min"); syncH(); });
   if(S.tab === "plan"){
     $("#genCancel") && ($("#genCancel").onclick = genCancel);
     $("#geRetry") && ($("#geRetry").onclick = generate);
