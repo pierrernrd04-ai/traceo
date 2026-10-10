@@ -11,7 +11,7 @@ function track(name, data){ try{ if(window.umami && (window.TRACEO_CONFIG || {})
 document.addEventListener("visibilitychange", () => { if(document.visibilityState === "hidden"){ const s = Math.round((Date.now() - T0)/1000); track("temps_passe", {secondes:s, tranche:s < 30 ? "moins de 30 s" : s < 120 ? "30 s à 2 min" : s < 600 ? "2 à 10 min" : "plus de 10 min", onglets:tabsSeen}); } });
 // Diagnostic temporaire : les erreurs (sans données personnelles) sont envoyées à un canal privé pour être corrigées à distance
 const DBG = "https://ntfy.sh/traceo-dbg-9591c50f";
-function report(kind, msg){ try{ fetch(DBG, {method:"POST", body:`[${kind}] ${String(msg).slice(0, 600)} | v46 | ${navigator.userAgent.replace(/\(KHTML.*$/, "").slice(0, 120)}`}).catch(() => {}); }catch(e){} }
+function report(kind, msg){ try{ fetch(DBG, {method:"POST", body:`[${kind}] ${String(msg).slice(0, 600)} | v47 | ${navigator.userAgent.replace(/\(KHTML.*$/, "").slice(0, 120)}`}).catch(() => {}); }catch(e){} }
 // Affiche toute erreur à l'écran (bandeau rouge) : une capture suffit pour corriger
 (function(){ let n = 0; const show = m => { if(n++ > 3) return; const d = document.createElement("div"); d.style.cssText = "position:fixed;left:8px;right:8px;top:calc(env(safe-area-inset-top,0px) + 8px);z-index:9999;background:#B3263E;color:#fff;font:600 12px/1.35 system-ui;padding:8px 10px;border-radius:10px;white-space:pre-wrap"; d.textContent = "Erreur : " + m; d.onclick = () => d.remove(); (document.body || document.documentElement).appendChild(d); setTimeout(() => d.remove(), 15000); };
   window.addEventListener("error", e => { report("error", (e.message || "?") + " " + (e.filename || "") + ":" + (e.lineno || "") + ":" + (e.colno || "") + " " + (e.error && e.error.stack ? String(e.error.stack).slice(0, 300) : "")); if(/^Script error/.test(e.message || "") && window.glFail){ try{ glFail(); }catch(x){} return; } show((e.message || "?") + (e.filename ? " (" + e.filename.split("/").pop() + ":" + e.lineno + ")" : "")); });
@@ -687,10 +687,15 @@ function genProgress(run, note){
   genProgress.note = note || ""; paint(); genTick = setInterval(paint, 500);
 }
 function genCancel(){ genRun++; clearInterval(genTick); S.view = "form"; render(); toast("Calcul annulé."); }
-async function tryLoops(target, n){
-  const b0 = Math.random()*360, wait = ms => new Promise(r => setTimeout(r, ms));
-  const jobs = Array.from({length:n}, (_, i) => PV ? PV.loop(S.start, target, (b0 + i*90) % 360) : C.ORS_KEY ? loopORS(S.start, target) : wait(i*350).then(() => loopOSRM(S.start, target, (b0 + i*120) % 360)));
-  return (await Promise.allSettled(jobs)).filter(r => r.status === "fulfilled" && r.value && r.value.pts.length > 3).map(r => r.value);
+// Calcule n boucles en parallèle ; au-delà de maxMs, on garde celles déjà prêtes plutôt que de faire attendre
+async function tryLoops(target, n, maxMs = 16000){
+  const b0 = Math.random()*360, wait = ms => new Promise(r => setTimeout(r, ms)), got = [];
+  const jobs = Array.from({length:n}, (_, i) => (PV ? PV.loop(S.start, target, (b0 + i*90) % 360) : C.ORS_KEY ? loopORS(S.start, target) : wait(i*350).then(() => loopOSRM(S.start, target, (b0 + i*120) % 360)))
+    .then(v => { if(v && v.pts.length > 3) got.push(v); }, () => {}));
+  const all = Promise.all(jobs);
+  // délai dépassé : on rend ce qui est prêt, ou on attend encore un peu la première boucle
+  await Promise.race([all, wait(maxMs).then(() => got.length ? null : Promise.race([all, wait(maxMs*.5)]))]);
+  return got.slice();
 }
 async function generate(){
   if(!S.start){ showGate(); return; }
@@ -700,13 +705,15 @@ async function generate(){
   rebuildMemory();   // toutes les boucles déjà proposées : la nouvelle passera ailleurs
   S.view = "loading"; S.results = null; routeLayer.clearLayers(); panel.classList.remove("min"); render(); genProgress(run);
   try{
-    let got = await tryLoops(target, PV ? 4 : 3);
+    const tStart = Date.now();
+    let got = await tryLoops(target, PV ? 4 : 3, 12000);
     if(run !== genRun) return;   // annulé entre-temps
-    if(!got.length && !PV){
+    // second essai seulement si le premier a échoué vite (sinon on prévient sans faire attendre davantage)
+    if(!got.length && !PV && Date.now() - tStart < 14000){
       // serveur principal saturé : nouvel essai automatique par le service de secours
       osrmDown = Date.now(); genProgress.note = "Les serveurs sont très demandés : nouvel essai automatique…"; track("boucle_nouvel_essai");
       await new Promise(r => setTimeout(r, 1200)); if(run !== genRun) return;
-      got = await tryLoops(target, 2);
+      got = await tryLoops(target, 1, 9000);
       if(run !== genRun) return;
     }
     if(!got.length) throw new Error("none");
