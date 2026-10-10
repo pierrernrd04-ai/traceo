@@ -17,7 +17,7 @@ const _track = track; track = (n, d) => { _track(n, d); alertOwner(n, d); };
 document.addEventListener("visibilitychange", () => { if(document.visibilityState === "hidden"){ const s = Math.round((Date.now() - T0)/1000); track("temps_passe", {secondes:s, tranche:s < 30 ? "moins de 30 s" : s < 120 ? "30 s à 2 min" : s < 600 ? "2 à 10 min" : "plus de 10 min", onglets:tabsSeen}); } });
 // Diagnostic temporaire : les erreurs (sans données personnelles) sont envoyées à un canal privé pour être corrigées à distance
 const DBG = "https://ntfy.sh/traceo-dbg-9591c50f";
-function report(kind, msg){ try{ fetch(DBG, {method:"POST", body:`[${kind}] ${String(msg).slice(0, 600)} | v51 | ${navigator.userAgent.replace(/\(KHTML.*$/, "").slice(0, 120)}`}).catch(() => {}); }catch(e){} }
+function report(kind, msg){ try{ fetch(DBG, {method:"POST", body:`[${kind}] ${String(msg).slice(0, 600)} | v52 | ${navigator.userAgent.replace(/\(KHTML.*$/, "").slice(0, 120)}`}).catch(() => {}); }catch(e){} }
 // Affiche toute erreur à l'écran (bandeau rouge) : une capture suffit pour corriger
 (function(){ let n = 0; const show = m => { if(n++ > 3) return; const d = document.createElement("div"); d.style.cssText = "position:fixed;left:8px;right:8px;top:calc(env(safe-area-inset-top,0px) + 8px);z-index:9999;background:#B3263E;color:#fff;font:600 12px/1.35 system-ui;padding:8px 10px;border-radius:10px;white-space:pre-wrap"; d.textContent = "Erreur : " + m; d.onclick = () => d.remove(); (document.body || document.documentElement).appendChild(d); setTimeout(() => d.remove(), 15000); };
   window.addEventListener("error", e => { report("error", (e.message || "?") + " " + (e.filename || "") + ":" + (e.lineno || "") + ":" + (e.colno || "") + " " + (e.error && e.error.stack ? String(e.error.stack).slice(0, 300) : "")); if(/^Script error/.test(e.message || "") && window.glFail){ try{ glFail(); }catch(x){} return; } show((e.message || "?") + (e.filename ? " (" + e.filename.split("/").pop() + ":" + e.lineno + ")" : "")); });
@@ -1648,16 +1648,18 @@ function viewMine(){
       : `<div class="empty"><p>${S.favOnly ? "Pas encore de favorite." : "Aucune boucle pour l'instant."}</p><button class="btn hero" data-go="plan">${I.route}Générer ma première boucle</button></div>`}`;
 }
 function viewPremium(){
-  if(betaOn()) return `<div class="plan pro"><p class="eyebrow" style="color:var(--gold)">Version bêta</p><p class="title">Tout Traceo est offert pendant la bêta.</p>
+  const rw = window.rewardCard ? rewardCard() : "";
+  if(window.ensRefreshRew) ensRefreshRew(true);
+  if(betaOn()) return rw + `<div class="plan pro"><p class="eyebrow" style="color:var(--gold)">Version bêta</p><p class="title">Tout Traceo est offert pendant la bêta.</p>
       <p class="muted">Boucles illimitées, guidage vocal, Garmin, Strava, GPX et image à partager : tout est ouvert, sans compte et sans paiement. Merci de tester l'app avant son lancement.</p></div>
     <div class="plan"><p class="eyebrow">Au lancement</p><p class="title" style="font-size:22px">Traceo Premium · ${C.PRICE_LABEL} / mois</p>
-      <ul class="checks"><li>Boucles illimitées, partout en France</li><li>Envoi sur ta montre Garmin</li><li>Envoi de tes courses sur Strava</li><li>Export GPX pour toutes les montres</li><li>Image de ta boucle à partager</li><li><b>Ensemble</b> : coureurs autour de toi, invitations et messages</li><li><b>Coach IA</b> personnalisé dans le chat</li></ul>
+      <ul class="checks"><li>Boucles illimitées, partout en France</li><li>Envoi sur ta montre Garmin</li><li>Envoi de tes courses sur Strava</li><li>Export GPX pour toutes les montres</li><li>Image de ta boucle à partager</li><li><b>5 € offerts</b> toutes les 100 courses</li><li><b>Ensemble</b> : coureurs autour de toi, invitations et messages</li><li><b>Coach IA</b> personnalisé dans le chat</li></ul>
       <p class="small">La version gratuite gardera 3 boucles par semaine, guidage compris.</p></div>`;
   const on = isPremium() && !S.demo && S.premium;
   const left = on && S.premium.until ? Math.max(0, Math.ceil((S.premium.until - Date.now())/864e5)) : null;
-  return `${on ? `<div class="plan pro"><p class="eyebrow" style="color:var(--gold)">★ Premium actif</p><p class="title" style="font-size:24px">Tout Traceo est débloqué.</p>${left != null ? `<p class="muted">Encore <b>${left} jour${left > 1 ? "s" : ""}</b>, jusqu'au ${new Date(S.premium.until).toLocaleDateString("fr-FR", {day:"numeric", month:"long"})}.</p>` : ""}</div>` : ""}<div class="plan pro"><p class="eyebrow" style="color:var(--gold)">Traceo Premium</p><p class="title">Une boucle neuve à chaque sortie, sans limite.</p>
+  return `${rw}${on ? `<div class="plan pro"><p class="eyebrow" style="color:var(--gold)">★ Premium actif</p><p class="title" style="font-size:24px">Tout Traceo est débloqué.</p>${left != null ? `<p class="muted">Encore <b>${left} jour${left > 1 ? "s" : ""}</b>, jusqu'au ${new Date(S.premium.until).toLocaleDateString("fr-FR", {day:"numeric", month:"long"})}.</p>` : ""}</div>` : ""}<div class="plan pro"><p class="eyebrow" style="color:var(--gold)">Traceo Premium</p><p class="title">Une boucle neuve à chaque sortie, sans limite.</p>
       <p class="price">${C.PRICE_LABEL}<small> / mois</small></p>
-      <ul class="checks"><li>Boucles illimitées, partout en France</li><li>Envoi sur ta montre Garmin</li><li>Envoi de tes courses sur Strava</li><li>Export GPX pour toutes les montres</li><li>Image de ta boucle à partager</li><li><b>Ensemble</b> : coureurs autour de toi, invitations et messages</li><li><b>Coach IA</b> personnalisé dans le chat</li></ul>
+      <ul class="checks"><li>Boucles illimitées, partout en France</li><li>Envoi sur ta montre Garmin</li><li>Envoi de tes courses sur Strava</li><li>Export GPX pour toutes les montres</li><li>Image de ta boucle à partager</li><li><b>5 € offerts</b> toutes les 100 courses</li><li><b>Ensemble</b> : coureurs autour de toi, invitations et messages</li><li><b>Coach IA</b> personnalisé dans le chat</li></ul>
       ${on ? `${S.premium.via === "sub" ? `<a class="btn block night" href="${C.PAYPAL_MANAGE_URL}" target="_blank" rel="noopener">Gérer mon abonnement PayPal</a>` : S.premium.until && S.premium.until - Date.now() < 7*864e5 ? `<p class="small">Pour continuer après cette date, reprends 31 jours : ils s'ajoutent à ceux qui restent.</p>${payBlock("payMain")}` : ""}` : payBlock("payMain")}
     </div>
     ${on ? "" : `<div class="plan"><p class="eyebrow">Gratuit</p><p class="title" style="font-size:22px">${C.FREE_PER_WEEK} boucles par semaine, guidage compris.</p><p class="small">Il te reste ${remaining()} boucle${remaining() > 1 ? "s" : ""} cette semaine.</p></div>`}`;
@@ -1987,12 +1989,13 @@ function finishRun(){
   const l = curLoop(); if(l && res.dist > 50){ l.run = {time:res.time, dist:res.dist, kcal:res.kcal, ascent:res.ascent, date:Date.now()}; store.set("loops", S.loops); }
   // programme d'entraînement : la course coche la prochaine séance de la semaine
   if(S.training && res.dist > 500){ const p = PL()[S.training.plan], w = curWeek(S.training, p), i = p.gen(w).findIndex((_, s) => !S.training.done[`${w}-${s}`]); if(i >= 0){ S.training.done[`${w}-${i}`] = Date.now(); store.set("training", S.training); setTimeout(() => toast(`Séance ${i + 1} de la semaine ${w} cochée dans ton programme.`, 3500), 2500); } }
-  summary(res, l); celebrate(res.dist > 50 ? 240 : 40); if(res.dist > 50) setTimeout(() => speak(`Bravo ! Boucle terminée. ${nf(1).format(res.dist/1000).replace(",0", "")} kilomètres en ${tSay(res.time)}. Allure moyenne ${pSay(res.pace)}. ${res.kcal} calories brûlées.`, true), 300);
+  summary(res, l); celebrate(res.dist > 50 ? 240 : 40); window.ensSubmitRun && ensSubmitRun(res); if(res.dist > 50) setTimeout(() => speak(`Bravo ! Boucle terminée. ${nf(1).format(res.dist/1000).replace(",0", "")} kilomètres en ${tSay(res.time)}. Allure moyenne ${pSay(res.pace)}. ${res.kcal} calories brûlées.`, true), 300);
 }
 function summary(res, l){
   const ok = res.dist > 50, name = l?.name || "Course Traceo";
   openModal(`<button class="iconbtn x" data-close aria-label="Fermer">${I.x}</button>
     <div class="center"><div class="medal">${I.check}</div><p class="title">${ok ? "Bravo, boucle bouclée !" : "Course arrêtée"}</p><p class="muted">${ok ? "Demain, Traceo t'emmène dans d'autres rues." : "Le GPS n'a presque rien enregistré. Vérifie que la localisation est autorisée."}</p></div>
+    ${ok && typeof ENS !== "undefined" && ENS.auth && ensOn() ? `<div id="rwRes" class="rw-res"><p class="small">Vérification de ta course pour les 5 € offerts…</p></div>` : ""}
     <div class="stats">
       <div class="stat"><small>Durée</small><b>${hms(res.time)}</b></div>
       <div class="stat a"><small>Distance</small><b><span data-count="${res.dist/1000}" data-d="2">${km2(res.dist)}</span><small>km</small></b></div>

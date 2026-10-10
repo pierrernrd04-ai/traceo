@@ -340,3 +340,62 @@ if(ensOn() && ENS.auth){ ensSaveAuth(); ensLoop(); setTimeout(ensPoll, 2500); se
 setTimeout(ensBadge, 500);
 if(/[?&]tab=ensemble\b/.test(location.search)) setTimeout(() => { hideGate?.(); go("ensemble"); }, 900);
 navigator.serviceWorker?.addEventListener?.("message", e => { if(e.data === "ensemble"){ go("ensemble"); ensPoll(); } });
+
+/* ---------- Programme « 100 courses = 5 € » (Premium) ---------- */
+const REW = Object.assign({count:0, every:100, amount:5, rewards:[], runs:[], at:0}, store.get("ensRew", {}));
+const RW_WHY = {premium:"course faite sans Premium actif", trop_courte:"moins de 2 km", trop_breve:"moins de 12 minutes", allure:"allure hors course à pied (entre 3'00 et 11'00/km)", gps:"trace GPS incomplète ou incohérente", vitesse:"passages à plus de 25 km/h détectés", doublon:"trace déjà enregistrée", quota_jour:"2 courses déjà comptées aujourd'hui", trop_rapprochee:"moins de 3 h après ta dernière course comptée"};
+async function ensRefreshRew(rerender){
+  if(!ensOn() || !ENS.auth || Date.now() - REW.at < 20000) return;
+  try{ const j = await ensCall("runs"); const changed = j.count !== REW.count || JSON.stringify(j.rewards) !== JSON.stringify(REW.rewards); Object.assign(REW, j, {at:Date.now()}); store.set("ensRew", REW); if(changed && rerender && ["premium", "ensemble"].includes(S.tab) && modal.hidden && !ensTyping()) render(); }catch(e){}
+}
+// À la fin de chaque course : envoi de la trace au serveur pour vérification (gardée en file d'attente si pas de réseau)
+async function ensSubmitRun(res){
+  if(!ensOn() || !ENS.auth || !res || res.dist < 500 || !(res.gps || []).length) return;
+  const g = res.gps, k = Math.max(1, Math.ceil(g.length/1500)), pts = g.filter((_, i) => i % k === 0 || i === g.length - 1).map(p => [p.lat, p.lng, p.t]);
+  const item = {dist:Math.round(res.dist), time:Math.round(res.time), ascent:res.ascent || 0, pts, premium:isPremium() && !S.demo, at:Date.now()};
+  const q = store.get("ensRunQ", []); q.push(item); store.set("ensRunQ", q.slice(-5));
+  await ensFlushRuns(true);
+}
+async function ensFlushRuns(show){
+  const q = store.get("ensRunQ", []); if(!q.length || !ENS.auth) return;
+  const left = [];
+  for(const it of q){
+    try{
+      const j = await ensCall("run", it); REW.count = j.count; REW.at = 0; store.set("ensRew", REW);
+      if(show) rewardToast(j);
+    }catch(e){ if(e.message !== "rate_limited" && !/^http 4/.test(e.message)) left.push(it); }
+  }
+  store.set("ensRunQ", left); ensRefreshRew(true);
+}
+function rewardToast(j){
+  const left = j.every - (j.count % j.every || (j.reward ? 0 : j.every)) ;
+  let msg;
+  if(j.reward){ msg = `🎉 ${j.reward.milestone}e course ! Tu as gagné ${REW.amount} € : réclame-les dans l'onglet Premium.`; celebrate(400); }
+  else if(j.ok) msg = `✅ Course validée : ${j.count % j.every}/${j.every} vers tes ${REW.amount} € (encore ${j.every - j.count % j.every}).`;
+  else msg = `Course non comptée pour les ${REW.amount} € : ${RW_WHY[j.reason] || "conditions non remplies"}.`;
+  setTimeout(() => toast(msg, 6000), 3500);
+  const box = document.querySelector("#rwRes"); if(box) box.innerHTML = `<p class="small" style="color:${j.ok ? "var(--accent)" : "var(--muted)"}">${esc(msg)}</p>`;
+}
+function rewardCard(compact){
+  const every = REW.every || 100, n = REW.count || 0, cur = n % every, pct = cur/every, R = 46, C2 = 2*Math.PI*R;
+  const due = (REW.rewards || []).filter(r => r.status === "a_reclamer"), asked = (REW.rewards || []).filter(r => r.status === "demandee"), paidR = (REW.rewards || []).filter(r => r.status === "versee");
+  const ring = `<svg class="rw-ring" viewBox="0 0 110 110"><circle cx="55" cy="55" r="${R}" class="bg"/><circle cx="55" cy="55" r="${R}" class="fg" style="stroke-dasharray:${C2};stroke-dashoffset:${C2*(1 - pct)}"/></svg><div class="rw-num"><b>${cur}</b><small>/ ${every}</small></div>`;
+  const head = `<p class="eyebrow" style="color:var(--gold)">★ Récompense Premium</p><p class="title" style="font-size:22px;margin:2px 0 4px">${REW.amount || 5} € offerts toutes les ${every} courses</p>`;
+  if(!ensOn()) return `<div class="rw">${head}<p class="small">Chaque course faite avec Traceo Premium compte. À la 100e, la 200e, la 300e… Traceo te verse ${REW.amount || 5} € sur ton compte PayPal. Ouverture avec la communauté Ensemble.</p></div>`;
+  if(!ENS.auth) return `<div class="rw">${head}<p class="small">Chaque course faite avec Traceo Premium compte : à la 100e, la 200e, la 300e… tu reçois ${REW.amount || 5} € sur ton PayPal. Crée ton compte pour que tes courses soient comptées.</p><button class="btn hero block" id="rwJoin">Créer mon compte et commencer à compter</button></div>`;
+  return `<div class="rw"><div class="rw-top"><div class="rw-dial">${ring}</div><div>${head}<p class="small">${n ? `<b style="color:var(--ink)">${n} course${n > 1 ? "s" : ""} validée${n > 1 ? "s" : ""}</b> au total. ` : ""}Encore <b style="color:var(--ink)">${every - cur}</b> course${every - cur > 1 ? "s" : ""} avant tes ${REW.amount} €.</p></div></div>
+    ${due.map(r => `<div class="rw-claim"><p><b>🎉 ${r.amount} € gagnés</b> pour ta ${r.milestone}e course !</p><div class="row2"><input class="input" id="rwPp${r.id}" type="email" inputmode="email" placeholder="E-mail de ton compte PayPal" value="${esc(ENS.me?.email || "")}"><button class="btn hero" data-rwclaim="${r.id}">Recevoir</button></div></div>`).join("")}
+    ${asked.map(r => `<p class="small rw-st">⏳ ${r.amount} € (${r.milestone}e course) : versement en cours sur ${esc(r.paypal || "")}, sous 7 jours.</p>`).join("")}
+    ${paidR.length ? `<p class="small rw-st">✅ Déjà reçu : ${paidR.reduce((a, r) => a + r.amount, 0)} €</p>` : ""}
+    ${compact ? "" : `<details class="rw-rules"><summary>Quelles courses comptent ?</summary><ul><li>Faites avec Premium actif et ton compte connecté, en touchant « Commencer » dans Traceo.</li><li>Au moins 2 km et 12 minutes, à une allure de course à pied (entre 3'00 et 11'00/km).</li><li>2 courses comptées par jour au plus, avec 3 h d'écart minimum.</li><li>Trace GPS vérifiée : pas de vélo, de voiture ni de trace copiée.</li><li>Versement par PayPal sous 7 jours après vérification. <a href="legal.html#recompense" target="_blank" rel="noopener">Règlement complet</a></li></ul></details>`}</div>`;
+}
+document.addEventListener("click", async e => {
+  if(e.target.closest?.("#rwJoin")){ ENS.mode = "signup"; go("ensemble"); return; }
+  const b = e.target.closest?.("[data-rwclaim]"); if(!b) return;
+  const id = b.dataset.rwclaim, pp = (document.querySelector("#rwPp" + id)?.value || "").trim();
+  if(!/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(pp)) return toast("Indique l'e-mail de ton compte PayPal.");
+  b.disabled = true;
+  try{ await ensCall("claim", {id:+id, paypal:pp}); REW.at = 0; await ensRefreshRew(false); render(); toast(`Demande envoyée ! Tes ${REW.amount} € arrivent sur ton PayPal sous 7 jours.`, 5000); track("recompense_demandee"); }
+  catch(x){ b.disabled = false; toast("Demande impossible pour l'instant, réessaie."); }
+});
+if(ensOn() && ENS.auth) setTimeout(() => { ensFlushRuns(false); ensRefreshRew(false); }, 4000);

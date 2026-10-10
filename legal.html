@@ -60,7 +60,7 @@ footer{padding:30px 0 calc(30px + env(safe-area-inset-bottom,0px));color:var(--m
     <h1>Informations légales</h1>
     <p class="muted">Dernière mise à jour : 10 octobre 2026</p>
     <nav class="toc" aria-label="Sommaire">
-      <a href="#mentions">Mentions légales</a><a href="#cgv">Conditions de vente</a><a href="#ensemble">Ensemble</a><a href="#confidentialite">Confidentialité</a><a href="#cookies">Cookies</a>
+      <a href="#mentions">Mentions légales</a><a href="#cgv">Conditions de vente</a><a href="#recompense">Récompense 100 courses</a><a href="#ensemble">Ensemble</a><a href="#confidentialite">Confidentialité</a><a href="#cookies">Cookies</a>
     </nav>
   </header>
 
@@ -111,6 +111,27 @@ footer{padding:30px 0 calc(30px + env(safe-area-inset-bottom,0px));color:var(--m
     <p>Les présentes conditions sont soumises au droit français. En cas de litige, les tribunaux français sont compétents, sous réserve des règles protectrices applicables au consommateur.</p>
   </section>
 
+  <section id="recompense">
+    <h2>Règlement : « 5 € offerts toutes les 100 courses »</h2>
+    <p>Le programme de fidélité est proposé par Pierre Renard EI, éditeur de Traceo, aux abonnés Traceo Premium. Il ne comporte aucune part de hasard et ne nécessite aucun achat supplémentaire.</p>
+    <h3>1. Principe</h3>
+    <p>Chaque course validée est comptée sur le compte Ensemble du membre. À chaque palier de 100 courses validées (100e, 200e, 300e, etc.), le membre gagne une récompense de <b>5 euros</b>, versée sur son compte PayPal.</p>
+    <h3>2. Courses validées</h3>
+    <ul>
+      <li>La course est faite avec l'application Traceo (bouton « Commencer »), compte connecté et abonnement Premium actif pendant la course.</li>
+      <li>Elle mesure au moins 2 km et dure au moins 12 minutes, à une allure moyenne de course à pied comprise entre 3'00 et 11'00 par kilomètre.</li>
+      <li>La trace GPS est complète et cohérente : aucun déplacement à plus de 25 km/h, pas de trace identique à une course déjà enregistrée.</li>
+      <li>Au plus 2 courses validées par jour, espacées d'au moins 3 heures.</li>
+      <li>Les courses faites avant la création du compte ou sans connexion au compte ne sont pas comptées. Une course enregistrée sans réseau est envoyée dès le retour de la connexion.</li>
+    </ul>
+    <h3>3. Versement</h3>
+    <p>Le membre réclame sa récompense dans l'application (onglet Premium) en indiquant l'adresse e-mail de son compte PayPal. Après vérification (abonnement Premium effectivement payé, courses conformes), le versement intervient sous <b>7 jours</b>. La récompense doit être réclamée dans les 12 mois suivant son obtention.</p>
+    <h3>4. Fraude</h3>
+    <p>Un seul compte par personne. Toute tentative de fraude (simulation de position GPS, course faite à vélo, en trottinette ou en voiture, comptes multiples, traces copiées) entraîne l'annulation des courses et récompenses concernées et peut entraîner la suppression du compte.</p>
+    <h3>5. Évolution du programme</h3>
+    <p>Traceo peut modifier ou arrêter le programme en prévenant les membres au moins 30 jours à l'avance, dans l'application. Les récompenses déjà gagnées à cette date restent dues.</p>
+  </section>
+
   <section id="ensemble">
     <h2>Ensemble : règles et données</h2>
     <p><b>Ensemble</b> est une fonction de Traceo Premium qui permet de voir les coureurs inscrits autour de soi, de signaler qu'on part courir, d'envoyer des invitations et des messages. Son utilisation est facultative et nécessite la création d'un compte.</p>
@@ -125,6 +146,8 @@ footer{padding:30px 0 calc(30px + env(safe-area-inset-bottom,0px));color:var(--m
       <tr><td>Niveau et allure moyenne</td><td>Oui</td><td>Jusqu'à la suppression du compte</td></tr>
       <tr><td>Position</td><td>Jamais exacte : seulement une distance arrondie (« moins de 1 km », « 2,5 km »…)</td><td>Arrondie à environ 300 m avant enregistrement ; n'est plus montrée 3 heures après votre dernière activité</td></tr>
       <tr><td>Messages et invitations</td><td>Par le destinataire uniquement</td><td>Jusqu'à la suppression du compte de l'un des deux coureurs</td></tr>
+      <tr><td>Courses (programme 100 courses)</td><td>Jamais</td><td>Date, distance, durée et résultat de la vérification ; la trace GPS sert uniquement au contrôle et n'est pas conservée. Supprimées avec le compte</td></tr>
+      <tr><td>E-mail PayPal (récompense)</td><td>Jamais</td><td>Gardé avec la récompense comme justificatif comptable</td></tr>
       <tr><td>Abonnement aux notifications</td><td>Jamais</td><td>Jusqu'à leur désactivation ou la suppression du compte</td></tr>
     </table>
     <p>Ces données sont traitées sur la base de votre consentement et de l'exécution du service, et hébergées par Cloudflare (Workers et Durable Objects). Seul l'éditeur de Traceo (Pierre Renard EI) peut consulter la liste des membres (identifiant, nom, e-mail, date de naissance, ville, dates d'inscription et d'activité), depuis un espace d'administration protégé, pour gérer la communauté, répondre aux demandes et traiter les signalements. Ces données ne sont ni vendues ni cédées. Vous pouvez à tout moment passer en mode <b>Invisible</b>, désactiver les notifications, ou <b>supprimer votre compte</b> (Ensemble &gt; Mon compte) : votre profil et vos messages sont alors effacés définitivement du serveur.</p>

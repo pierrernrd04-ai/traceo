@@ -31,6 +31,7 @@ const R = d => d*Math.PI/180;
 function km(a, b){ const dLa = R(b.lat - a.lat), dLo = R(b.lon - a.lon); const h = Math.sin(dLa/2)**2 + Math.cos(R(a.lat))*Math.cos(R(b.lat))*Math.sin(dLo/2)**2; return 12742*Math.asin(Math.sqrt(h)); }
 const shown = d => d < 1 ? "moins de 1 km" : d < 10 ? `${Math.round(d*2)/2} km`.replace(".", ",") : `${Math.round(d)} km`;
 const LEVELS = ["debut", "regulier", "confirme", "expert"];
+const REWARD_EVERY = 100, REWARD_EUR = 5;   // 5 € toutes les 100 courses vérifiées
 
 export class Hub {
   constructor(state, env){
@@ -45,6 +46,10 @@ export class Hub {
     this.sql.exec(`CREATE TABLE IF NOT EXISTS blocks(who TEXT, whom TEXT, PRIMARY KEY(who, whom))`);
     this.sql.exec(`CREATE TABLE IF NOT EXISTS reports(t INT, who TEXT, whom TEXT, why TEXT)`);
     this.sql.exec(`CREATE TABLE IF NOT EXISTS kv(k TEXT PRIMARY KEY, v TEXT)`);
+    // Programme « 100 courses = 5 € » : courses vérifiées et récompenses
+    this.sql.exec(`CREATE TABLE IF NOT EXISTS runs(id INTEGER PRIMARY KEY AUTOINCREMENT, uid TEXT, t INT, day TEXT, dist INT, time INT, ascent INT, n_pts INT, hash TEXT, ok INT, reason TEXT, premium INT, lat REAL, lon REAL)`);
+    this.sql.exec(`CREATE INDEX IF NOT EXISTS runs_uid ON runs(uid, ok, t)`);
+    this.sql.exec(`CREATE TABLE IF NOT EXISTS rewards(id INTEGER PRIMARY KEY AUTOINCREMENT, uid TEXT, milestone INT, amount REAL, status TEXT, paypal TEXT, created INT, done_at INT, note TEXT)`);
   }
   rows(q, ...a){ return [...this.sql.exec(q, ...a)]; }
   one(q, ...a){ return this.rows(q, ...a)[0] || null; }
@@ -72,6 +77,9 @@ export class Hub {
         case "shout": return this.shout(me, body);
         case "inbox": return this.inbox(me, +url.searchParams.get("since") || 0);
         case "block": return this.block(me, body);
+        case "run": return this.run(me, body);
+        case "runs": return this.runsInfo(me);
+        case "claim": return this.claim(me, body);
         case "report": return this.report(me, body);
       }
       return json({error:"not_found"}, 404, {});
@@ -147,6 +155,8 @@ export class Hub {
     this.sql.exec("DELETE FROM msgs WHERE a = ? OR b = ?", me.id, me.id);
     this.sql.exec("DELETE FROM blocks WHERE who = ? OR whom = ?", me.id, me.id);
     this.sql.exec("DELETE FROM sessions WHERE uid = ?", me.id);
+    this.sql.exec("DELETE FROM runs WHERE uid = ?", me.id);
+    this.sql.exec("DELETE FROM rewards WHERE uid = ? AND status != 'versee'", me.id);
     this.sql.exec("DELETE FROM users WHERE id = ?", me.id);
     return json({ok:true}, 200, {});
   }
@@ -219,6 +229,63 @@ export class Hub {
     return json({ok:true}, 200, {});
   }
 
+  /* ---------- Programme « 100 courses = 5 € » ---------- */
+  // Une course compte si : Premium actif, au moins 2 km et 12 min, allure entre 3'00 et 11'00/km, trace GPS cohérente
+  // (distance des points proche de la distance annoncée, pas de déplacement à plus de 25 km/h), 2 courses comptées par jour au plus,
+  // 3 h d'écart minimum entre deux courses comptées, et jamais deux fois la même trace.
+  runsInfo(me){
+    const count = this.one("SELECT COUNT(*) AS n FROM runs WHERE uid = ? AND ok = 1", me.id).n;
+    const runs = this.rows("SELECT t, dist, time, ok, reason FROM runs WHERE uid = ? ORDER BY id DESC LIMIT 15", me.id);
+    const rewards = this.rows("SELECT id, milestone, amount, status, paypal, created, done_at FROM rewards WHERE uid = ? ORDER BY id DESC", me.id);
+    return json({count, every:REWARD_EVERY, amount:REWARD_EUR, runs, rewards}, 200, {});
+  }
+  async run(me, b){
+    if(this.limit("run:" + me.id, 6, HOUR)) return json({error:"rate_limited"}, 429, {});
+    const pts = (Array.isArray(b.pts) ? b.pts : []).slice(0, 4000).filter(p => Array.isArray(p) && isFinite(p[0]) && isFinite(p[1]) && isFinite(p[2]));
+    const dist = Math.round(+b.dist || 0), time = Math.round(+b.time || 0), now = NOW();
+    const day = new Date(now + 2*HOUR).toISOString().slice(0, 10);   // jour (heure de Paris, approximative)
+    let reason = "";
+    // contrôles de la trace
+    let len = 0, fast = 0, segs = 0;
+    for(let i = 1; i < pts.length; i++){
+      const a = {lat:pts[i-1][0], lon:pts[i-1][1]}, c = {lat:pts[i][0], lon:pts[i][1]}, d = km(a, c)*1000, dt = (pts[i][2] - pts[i-1][2])/1000;
+      len += d; if(dt > 0){ segs++; if(d/dt > 7) fast++; }   // 7 m/s = 25 km/h
+    }
+    const span = pts.length > 1 ? (pts[pts.length - 1][2] - pts[0][2])/1000 : 0, pace = dist > 0 ? time/(dist/1000) : 0;
+    const hash = await sha(pts.map(p => p[0].toFixed(5) + "," + p[1].toFixed(5)).join(";"));
+    if(!b.premium) reason = "premium";
+    else if(dist < 2000) reason = "trop_courte";
+    else if(time < 12*60) reason = "trop_breve";
+    else if(pace < 180 || pace > 660) reason = "allure";
+    else if(pts.length < 30) reason = "gps";
+    else if(Math.abs(len - dist) > Math.max(400, dist*.2)) reason = "gps";
+    else if(span < time*.7 || span > time*1.6 + 600) reason = "gps";
+    else if(segs && fast/segs > .05) reason = "vitesse";
+    else if(this.one("SELECT 1 AS x FROM runs WHERE hash = ? AND ok = 1", hash)) reason = "doublon";
+    else if(this.one("SELECT COUNT(*) AS n FROM runs WHERE uid = ? AND ok = 1 AND day = ?", me.id, day).n >= 2) reason = "quota_jour";
+    else if(this.one("SELECT 1 AS x FROM runs WHERE uid = ? AND ok = 1 AND t > ?", me.id, now - 3*HOUR)) reason = "trop_rapprochee";
+    const ok = reason ? 0 : 1;
+    this.sql.exec("INSERT INTO runs(uid, t, day, dist, time, ascent, n_pts, hash, ok, reason, premium, lat, lon) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
+      me.id, now, day, dist, time, Math.round(+b.ascent || 0), pts.length, hash, ok, reason, b.premium ? 1 : 0, pts[0] ? Math.round(pts[0][0]/GRID)*GRID : null, pts[0] ? Math.round(pts[0][1]/GRID)*GRID : null);
+    const count = this.one("SELECT COUNT(*) AS n FROM runs WHERE uid = ? AND ok = 1", me.id).n;
+    let reward = null;
+    if(ok && count % REWARD_EVERY === 0){
+      this.sql.exec("INSERT INTO rewards(uid, milestone, amount, status, created) VALUES(?,?,?,?,?)", me.id, count, REWARD_EUR, "a_reclamer", now);
+      reward = {milestone:count, amount:REWARD_EUR};
+      if(this.env.ALERTS_TOPIC) this.state.waitUntil(fetch("https://ntfy.sh/" + this.env.ALERTS_TOPIC, {method:"POST", headers:{Title:`Récompense ${REWARD_EUR} € gagnée`, Tags:"moneybag", Priority:"high"}, body:`${me.first} ${me.last} (@${me.pseudo}) a validé sa ${count}e course. À verser après vérification (page admin).`}).catch(() => {}));
+    }
+    return json({ok:!!ok, reason, count, every:REWARD_EVERY, reward}, 200, {});
+  }
+  claim(me, b){
+    const pp = clean(b.paypal, 120).toLowerCase();
+    if(!/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(pp)) return json({error:"bad_email"}, 400, {});
+    const r = this.one("SELECT * FROM rewards WHERE uid = ? AND id = ? AND status = 'a_reclamer'", me.id, +b.id);
+    if(!r) return json({error:"unknown_reward"}, 404, {});
+    this.sql.exec("UPDATE rewards SET status = 'demandee', paypal = ? WHERE id = ?", pp, r.id);
+    if(this.env.ALERTS_TOPIC) this.state.waitUntil(fetch("https://ntfy.sh/" + this.env.ALERTS_TOPIC, {method:"POST", headers:{Title:"Récompense à verser", Tags:"moneybag", Priority:"high"}, body:`@${me.pseudo} demande ses ${r.amount} € (${r.milestone}e course) sur le PayPal ${pp}.`}).catch(() => {}));
+    return json({ok:true}, 200, {});
+  }
+
   /* ---------- Administration (page admin.html) ---------- */
   async admin(req, path, b, url, ip){
     const key = req.headers.get("X-Admin-Key") || "";
@@ -234,15 +301,25 @@ export class Hub {
         online:this.one("SELECT COUNT(*) AS n FROM users WHERE seen > ?", now - 10*MIN).n,
         premium:this.one("SELECT COUNT(*) AS n FROM users WHERE premium = 1").n,
         messages:this.one("SELECT COUNT(*) AS n FROM msgs").n,
-        reports:this.one("SELECT COUNT(*) AS n FROM reports").n
+        reports:this.one("SELECT COUNT(*) AS n FROM reports").n,
+        runs:this.one("SELECT COUNT(*) AS n FROM runs WHERE ok = 1").n,
+        rewards_due:this.one("SELECT COUNT(*) AS n FROM rewards WHERE status IN ('a_reclamer', 'demandee')").n
       }, 200, {});
     }
     if(path === "members"){
-      const rows = this.rows(`SELECT u.*, (SELECT COUNT(*) FROM msgs WHERE a = u.id) AS sent, (SELECT COUNT(*) FROM reports WHERE whom = u.id) AS reported FROM users u ORDER BY created DESC LIMIT 5000`);
+      const rows = this.rows(`SELECT u.*, (SELECT COUNT(*) FROM msgs WHERE a = u.id) AS sent, (SELECT COUNT(*) FROM reports WHERE whom = u.id) AS reported, (SELECT COUNT(*) FROM runs WHERE uid = u.id AND ok = 1) AS runs FROM users u ORDER BY created DESC LIMIT 5000`);
       return json({members:rows.map(u => ({id:u.id, pseudo:u.pseudo, first:u.first, last:u.last, email:u.email, birth:u.birth, level:u.level, pace:u.pace, created:u.created, last_login:u.last_login, seen:u.seen,
-        place:u.place || "", visible:!!u.visible, premium:!!u.premium, push:!!u.push, sent:u.sent, reported:u.reported}))}, 200, {});
+        place:u.place || "", visible:!!u.visible, premium:!!u.premium, push:!!u.push, sent:u.sent, reported:u.reported, runs:u.runs}))}, 200, {});
     }
     if(path === "reports") return json({reports:this.rows("SELECT r.*, a.pseudo AS by_pseudo, b.pseudo AS whom_pseudo FROM reports r LEFT JOIN users a ON a.id = r.who LEFT JOIN users b ON b.id = r.whom ORDER BY t DESC LIMIT 500")}, 200, {});
+    if(path === "rewards") return json({rewards:this.rows(`SELECT r.*, u.pseudo, u.first, u.last, u.email, (SELECT COUNT(*) FROM runs WHERE uid = r.uid AND ok = 1) AS runs,
+      (SELECT COUNT(*) FROM runs WHERE uid = r.uid AND ok = 0) AS refused FROM rewards r LEFT JOIN users u ON u.id = r.uid ORDER BY CASE r.status WHEN 'demandee' THEN 0 WHEN 'a_reclamer' THEN 1 ELSE 2 END, r.id DESC LIMIT 500`)}, 200, {});
+    if(path === "runs") return json({runs:this.rows("SELECT id, t, dist, time, ascent, n_pts, ok, reason, premium FROM runs WHERE uid = ? ORDER BY id DESC LIMIT 300", clean(url.searchParams.get("uid"), 32))}, 200, {});
+    if(path === "reward"){
+      const st = ["versee", "refusee", "demandee", "a_reclamer"].includes(b.status) ? b.status : null; if(!st) return json({error:"bad_status"}, 400, {});
+      this.sql.exec("UPDATE rewards SET status = ?, note = ?, done_at = ? WHERE id = ?", st, clean(b.note, 200), NOW(), +b.id);
+      return json({ok:true}, 200, {});
+    }
     if(path === "delete"){ const u = this.one("SELECT * FROM users WHERE id = ?", clean(b.id, 32)); if(!u) return json({error:"unknown_user"}, 404, {}); return this.remove(u); }
     if(path === "reset"){
       const u = this.one("SELECT * FROM users WHERE id = ?", clean(b.id, 32)); if(!u || !/^[a-f0-9]{64}$/.test(String(b.key || ""))) return json({error:"bad_request"}, 400, {});

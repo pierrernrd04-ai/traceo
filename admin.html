@@ -77,7 +77,7 @@ const ago = t => { if(!t) return "jamais"; const m = Math.round((Date.now() - t)
 const age = b => { if(!b) return ""; const x = new Date(b), n = new Date(); let a = n.getFullYear() - x.getFullYear(); if(n < new Date(n.getFullYear(), x.getMonth(), x.getDate())) a--; return a; };
 const LVL = {debut:"Débutant", regulier:"Régulier", confirme:"Confirmé", expert:"Expert"};
 let KEY = sessionStorage.getItem("traceoAdmin") || localStorage.getItem("traceoAdmin") || "";
-let DATA = {members:[], reports:[], stats:null}, TAB = "members", SORT = "created", QRY = "";
+let DATA = {members:[], reports:[], rewards:[], stats:null}, TAB = "members", SORT = "created", QRY = "";
 function toast(m){ const t = document.createElement("div"); t.className = "toast"; t.textContent = m; document.body.appendChild(t); setTimeout(() => t.remove(), 3200); }
 async function call(path, body){
   const r = await fetch(API + "/social/admin/" + path, {method:body ? "POST" : "GET", headers:{"Content-Type":"application/json", "X-Admin-Key":KEY}, body:body ? JSON.stringify(body) : undefined});
@@ -97,8 +97,8 @@ function loginView(err){
   $("#go").onclick = go; $("#k").onkeydown = e => { if(e.key === "Enter") go(); }; $("#k").focus();
 }
 async function load(){
-  const [stats, m, r] = await Promise.all([call("stats"), call("members"), call("reports")]);
-  DATA = {stats, members:m.members, reports:r.reports}; view();
+  const [stats, m, r, w] = await Promise.all([call("stats"), call("members"), call("reports"), call("rewards")]);
+  DATA = {stats, members:m.members, reports:r.reports, rewards:w.rewards}; view();
 }
 function filtered(){
   const q = QRY.toLowerCase().trim();
@@ -109,8 +109,8 @@ function filtered(){
 function view(){
   const s = DATA.stats, list = filtered();
   $("#app").innerHTML = `<header><h1><img src="icons/icon-192.png" alt="">Traceo Admin</h1><div class="acts"><button class="btn sm" id="rf">Actualiser</button><button class="btn sm" id="out">Quitter</button></div></header>
-    <div class="tiles">${[["Membres", s.members], ["Nouveaux (7 j)", s.new7], ["Actifs (24 h)", s.active24], ["En ligne", s.online], ["Premium", s.premium], ["Messages", s.messages], ["Signalements", s.reports]].map(([l, v]) => `<div class="tile"><b>${v}</b><span>${l}</span></div>`).join("")}</div>
-    <div class="tabs"><button data-t="members" aria-pressed="${TAB === "members"}">Membres (${DATA.members.length})</button><button data-t="reports" aria-pressed="${TAB === "reports"}">Signalements (${DATA.reports.length})</button></div>
+    <div class="tiles">${[["Membres", s.members], ["Nouveaux (7 j)", s.new7], ["Actifs (24 h)", s.active24], ["En ligne", s.online], ["Premium", s.premium], ["Courses validées", s.runs], ["Récompenses à verser", s.rewards_due], ["Messages", s.messages], ["Signalements", s.reports]].map(([l, v]) => `<div class="tile"><b>${v}</b><span>${l}</span></div>`).join("")}</div>
+    <div class="tabs"><button data-t="members" aria-pressed="${TAB === "members"}">Membres (${DATA.members.length})</button><button data-t="rewards" aria-pressed="${TAB === "rewards"}">Récompenses (${DATA.rewards.filter(r => r.status !== "versee" && r.status !== "refusee").length})</button><button data-t="reports" aria-pressed="${TAB === "reports"}">Signalements (${DATA.reports.length})</button></div>
     ${TAB === "members" ? `<h2>Membres inscrits</h2>
       <div class="tools"><input class="input" id="q" placeholder="Rechercher : nom, identifiant, e-mail, ville…" value="${esc(QRY)}">
       <select class="input" id="sort" style="flex:0 0 auto;width:auto">${[["created", "Plus récents"], ["seen", "Dernière activité"], ["name", "Nom"], ["age", "Âge"]].map(([k, l]) => `<option value="${k}" ${SORT === k ? "selected" : ""}>${l}</option>`).join("")}</select>
@@ -121,15 +121,29 @@ function view(){
         <td data-l="Âge">${age(u.birth)} ans <span class="muted small">(${u.birth ? new Date(u.birth).toLocaleDateString("fr-FR") : ""})</span></td>
         <td data-l="Ville">${esc(u.place || "–")}</td>
         <td data-l="Inscrit le">${d(u.created)}</td>
-        <td data-l="Activité">${ago(u.seen)}<br><span class="muted small">${u.sent} message${u.sent > 1 ? "s" : ""} envoyé${u.sent > 1 ? "s" : ""}</span></td>
+        <td data-l="Activité">${ago(u.seen)}<br><span class="muted small">${u.runs || 0} course${u.runs > 1 ? "s" : ""} validée${u.runs > 1 ? "s" : ""} · ${u.sent} message${u.sent > 1 ? "s" : ""} envoyé${u.sent > 1 ? "s" : ""}</span></td>
         <td data-l="Statut">${u.premium ? '<span class="tag prem">Premium</span>' : '<span class="tag">Gratuit</span>'}${Date.now() - u.seen < 600000 ? '<span class="tag on">En ligne</span>' : ""}${u.visible ? "" : '<span class="tag">Invisible</span>'}${u.push ? '<span class="tag">Notifs</span>' : ""}${u.reported ? `<span class="tag bad">${u.reported} signalement${u.reported > 1 ? "s" : ""}</span>` : ""}</td>
         <td><div class="acts"><button class="btn sm" data-reset="${u.id}">Nouveau mot de passe</button><button class="btn sm danger" data-del="${u.id}">Supprimer</button></div></td></tr>`).join("")}</tbody></table>`
       : `<div class="card empty">${DATA.members.length ? "Aucun membre ne correspond." : "Aucun membre inscrit pour l'instant."}</div>`}`
+    : TAB === "rewards" ? rewardsView()
     : `<h2>Signalements</h2>${DATA.reports.length ? `<table><thead><tr><th>Date</th><th>Par</th><th>Contre</th><th>Motif</th></tr></thead><tbody>${DATA.reports.map(r => `<tr><td data-l="Date">${d(r.t)}</td><td data-l="Par">@${esc(r.by_pseudo || "supprimé")}</td><td data-l="Contre">@${esc(r.whom_pseudo || "supprimé")}</td><td data-l="Motif">${esc(r.why || "–")}</td></tr>`).join("")}</tbody></table>` : `<div class="card empty">Aucun signalement.</div>`}`}
     <p class="small muted" style="margin-top:20px">Données personnelles : à utiliser uniquement pour gérer la communauté Traceo (RGPD). Page non référencée, protégée par ta clé.</p>`;
   $("#rf").onclick = () => load().then(() => toast("Données à jour.")).catch(e => toast("Erreur : " + e.message));
   $("#out").onclick = () => { sessionStorage.removeItem("traceoAdmin"); localStorage.removeItem("traceoAdmin"); KEY = ""; loginView(); };
   document.querySelectorAll("[data-t]").forEach(b => b.onclick = () => { TAB = b.dataset.t; view(); });
+  document.querySelectorAll("[data-rw]").forEach(b => b.onclick = async () => {
+    const [id, st] = b.dataset.rw.split(":"), r = DATA.rewards.find(x => x.id === +id);
+    const note = st === "refusee" ? prompt("Motif du refus (visible par toi seulement) :", "") : "";
+    if(st === "refusee" && note === null) return;
+    if(st === "versee" && !confirm(`Confirmer que tu as envoyé ${r.amount} € à ${r.paypal || r.email} sur PayPal ?`)) return;
+    try{ await call("reward", {id:+id, status:st, note}); toast(st === "versee" ? "Marquée comme versée." : "Récompense refusée."); await load(); }catch(e){ toast("Erreur : " + e.message); }
+  });
+  document.querySelectorAll("[data-runs]").forEach(b => b.onclick = async () => {
+    const r = DATA.rewards.find(x => x.uid === b.dataset.runs), j = await call("runs?uid=" + encodeURIComponent(b.dataset.runs));
+    const m = document.createElement("div"); m.className = "modal";
+    m.innerHTML = `<div class="card" style="max-width:640px;max-height:85vh;overflow:auto"><h2 style="margin-top:0">Courses de @${esc(r?.pseudo || "")}</h2><table><thead><tr><th>Date</th><th>Distance</th><th>Durée</th><th>Allure</th><th>Points GPS</th><th>Résultat</th></tr></thead><tbody>${j.runs.map(x => `<tr><td data-l="Date">${d(x.t)}</td><td data-l="Distance">${(x.dist/1000).toFixed(2)} km</td><td data-l="Durée">${Math.round(x.time/60)} min</td><td data-l="Allure">${x.dist ? Math.floor(x.time/(x.dist/1000)/60) + "'" + String(Math.round(x.time/(x.dist/1000)%60)).padStart(2, "0") : "–"}</td><td data-l="Points GPS">${x.n_pts}</td><td data-l="Résultat">${x.ok ? '<span class="tag on">Validée</span>' : `<span class="tag bad">${esc(x.reason)}</span>`}</td></tr>`).join("")}</tbody></table><p style="margin-top:12px"><button class="btn" id="cl2">Fermer</button></p></div>`;
+    document.body.appendChild(m); $("#cl2").onclick = () => m.remove();
+  });
   if(TAB !== "members") return;
   $("#q").oninput = e => { QRY = e.target.value; const pos = e.target.selectionStart; view(); const i = $("#q"); i.focus(); i.setSelectionRange(pos, pos); };
   $("#sort").onchange = e => { SORT = e.target.value; view(); };
@@ -156,6 +170,17 @@ function view(){
       document.body.appendChild(m); $("#cl").onclick = () => m.remove();
     }catch(e){ toast("Erreur : " + e.message); }
   });
+}
+const RST = {a_reclamer:["En attente de l'e-mail PayPal", ""], demandee:["À verser", "prem"], versee:["Versée", "on"], refusee:["Refusée", "bad"]};
+function rewardsView(){
+  const L = DATA.rewards;
+  return `<h2>Récompenses « 100 courses = 5 € »</h2><p class="small muted">Avant de verser : vérifie dans PayPal que le membre a bien payé son Premium, et regarde ses courses (bouton « Courses »). Puis envoie l'argent depuis PayPal (Envoyer › e-mail PayPal du membre) et marque-la « Versée ».</p>
+    ${L.length ? `<table><thead><tr><th>Membre</th><th>Palier</th><th>Montant</th><th>PayPal</th><th>Gagnée le</th><th>Statut</th><th></th></tr></thead><tbody>${L.map(r => `<tr><td class="who"><b>${esc(r.first || "")} ${esc(r.last || "")}</b><small>@${esc(r.pseudo || "supprimé")} · ${esc(r.email || "")}</small></td>
+      <td data-l="Palier">${r.milestone}e course<br><span class="muted small">${r.runs} validées · ${r.refused} refusées</span></td><td data-l="Montant"><b>${r.amount} €</b></td>
+      <td data-l="PayPal">${r.paypal ? `<a href="mailto:${esc(r.paypal)}">${esc(r.paypal)}</a>` : "–"}</td><td data-l="Gagnée le">${d(r.created)}</td>
+      <td data-l="Statut"><span class="tag ${RST[r.status]?.[1] || ""}">${RST[r.status]?.[0] || esc(r.status)}</span>${r.note ? `<br><span class="muted small">${esc(r.note)}</span>` : ""}</td>
+      <td><div class="acts"><button class="btn sm" data-runs="${r.uid}">Courses</button>${r.status === "demandee" ? `<a class="btn sm hero" href="https://www.paypal.com/myaccount/transfer/homepage/pay" target="_blank" rel="noopener">Ouvrir PayPal</a><button class="btn sm" data-rw="${r.id}:versee">Marquer versée</button>` : ""}${r.status === "demandee" || r.status === "a_reclamer" ? `<button class="btn sm danger" data-rw="${r.id}:refusee">Refuser</button>` : ""}</div></td></tr>`).join("")}</tbody></table>`
+    : `<div class="card empty">Aucune récompense pour l'instant. Tu recevras une notification ntfy dès qu'un membre atteint 100 courses.</div>`}`;
 }
 // même étirement du mot de passe que dans l'app (ensemble.js)
 async function pwKey(pw){
