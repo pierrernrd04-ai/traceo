@@ -51,6 +51,7 @@
   /* ---------- Intentions : mots-clés pondérés ---------- */
   // [nom, [mots-clés...], poids] ; un mot-clé peut être un morceau de mot (normalisé sans accents)
   const INTENTS = [
+    ["myloop", ["cette boucle", "ma boucle", "ce parcours", "mon parcours", "la boucle affichee", "conseils pour cette", "comment courir cette"], 6],
     ["loop", ["boucle", "parcours", "itineraire", "trajet", "genere", "trace moi", "fais moi", "propose moi", "circuit"], 3],
     ["predict", ["predi", "estim", "equivalen", "combien je ferai", "combien je peux faire", "temps sur", "je pourrais faire", "potentiel", "en combien"], 3],
     ["pacecalc", ["allure", "rythme", "quel temps", "chrono", "objectif", "vise", "tenir", "au km", "par km", "min/km"], 2],
@@ -129,6 +130,18 @@
 
   /* ---------- Réponses ---------- */
   const R = {};
+  // La boucle affichée : distance, durée, dénivelé, rues, points d'eau, conseils adaptés
+  R.myloop = (t, e, c) => {
+    const L = c.loop;
+    if(!L) return {t:`Tu n'as pas encore de boucle à l'écran. Dis-moi une distance (« boucle de 6 km ») et je te la prépare.`, act:"gen", actLabel:"Tracer une boucle", sugg:["Boucle de 5 km", "Boucle de 45 minutes"]};
+    const d = L.km, sec = d*c.pace, gels = d >= 15 ? Math.ceil((sec/3600 - .75)*45/22) : 0;
+    const lines = [`Ta boucle fait **${km(d)} km**, environ **${dur(sec)}** à ${pace(c.pace)}, ${Math.round(c.weight*d*1.036)} kcal.`];
+    if(L.ascent != null) lines.push(`Dénivelé : **+${Math.round(L.ascent)} m**${L.ascent > 80 ? " : garde de l'énergie pour les montées, raisonne à l'effort" : ""}.`);
+    if(L.streets?.length) lines.push(`Tu passes notamment par ${L.streets.slice(0, 4).join(", ")}${L.streets.length > 4 ? ` et ${L.streets.length - 4} autres rues` : ""}${L.newPct >= 95 ? ", toutes nouvelles pour toi" : ""}.`);
+    lines.push(L.water ? `**${L.water} point${L.water > 1 ? "s" : ""} d'eau** sur le parcours.` : (d >= 10 ? `Pas de point d'eau repéré : emporte une petite flasque.` : `Pas besoin d'emporter d'eau sur cette distance par temps doux.`));
+    lines.push(d < 5 ? `Conseil : idéal pour une sortie facile ou des accélérations sur les lignes droites.` : d < 12 ? `Conseil : pars tranquille les 2 premiers km, puis trouve ton rythme.` : `Conseil : sortie longue, reste en aisance respiratoire${gels ? `, et prévois ${gels} gel${gels > 1 ? "s" : ""}` : ""}.`);
+    return {t:lines.join("\n"), act:"fly", actLabel:"Voir la feuille de route", sugg:["Un échauffement rapide", "Que manger avant ?", "Plus courte de 2 km"]};
+  };
   R.loop = (t, e, c) => {
     if(e.time && !e.dist){ const mn = Math.max(10, Math.min(240, Math.round(e.time/300)*5)); return {mode:"time", durMin:mn, t:`Une boucle d'environ **${mn} min**, soit ${km(mn*60/c.pace)} km à ton allure (${pace(c.pace)}).${c.start ? "" : "\nIl me faut d'abord ton point de départ."}`, act:"gen", actLabel:c.start ? "Tracer ma boucle" : "Choisir mon départ", sugg:["Une boucle plus courte", "Quelle allure tenir ?"]}; }
     const k = e.dist ? Math.max(2, Math.min(42, Math.round(e.dist*2)/2)) : c.distKm;
@@ -288,6 +301,8 @@
     // « ma voix / ma position ne marche pas » : le sujet précis passe avant le dépannage général
     if(top === "bug" && ranked[1] && ["position", "voice", "map", "export", "install", "premium", "music", "share", "history"].includes(ranked[1][0])) top = ranked[1][0];
     // suite de la conversation
+    if(c.loop && /plus (courte|longue)/.test(t)){ const dk = e.dist || 2, k = Math.max(2, Math.min(42, c.loop.km + (/courte/.test(t) ? -dk : dk))); return Object.assign(R.loop(t, {dist:k}, c), {topic:"loop", mem:{last:"loop"}}); }
+    if(top === "loop" && /(cette|ma) boucle/.test(t) && !e.dist && !e.time) top = "myloop";
     const fu = followUp(t, e, mem);
     if(fu && !top) top = fu;
     let out;

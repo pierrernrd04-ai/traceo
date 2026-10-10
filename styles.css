@@ -803,3 +803,14 @@ div.hero .me2{fill:var(--blue);stroke:#fff;stroke-width:3}
 .dock-sum em{font-style:normal}.dock-sum b{font-family:var(--f-display);font-size:16px}
 .dock-sum span{color:var(--accent);font-weight:800;font-size:13px}
 .panel.min .dock-sum{display:flex}
+
+/* Chat mis en avant : bouton flottant sur la carte, onglet signalé */
+.fab.ask{position:fixed;left:12px;bottom:calc(var(--nav-h) + env(safe-area-inset-bottom,0px) + var(--panel-h,0px) + 26px);transition:bottom .35s cubic-bezier(.2,.8,.2,1);width:auto;height:44px;border-radius:999px;padding:0 14px 0 12px;display:flex;align-items:center;gap:7px;background:linear-gradient(105deg,#2BE39B,#1EA6D0);color:#03140D;font:800 13.5px var(--f-body);box-shadow:0 8px 22px rgba(37,201,143,.45);animation:askIn .5s .8s both cubic-bezier(.3,1.4,.5,1)}
+.fab.ask svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2.3;stroke-linecap:round;stroke-linejoin:round}
+@keyframes askIn{from{opacity:0;transform:translateX(-30px) scale(.8)}}
+.fabs{align-items:flex-end}
+.run-on .fab.ask,.gate-on .fab.ask,.fly-on .fab.ask{display:none}
+.tabs button[data-tab="chat"] svg{stroke:var(--accent)}
+.tabs button[data-tab="chat"]::after{content:"";position:absolute;top:8px;right:calc(50% - 16px);width:8px;height:8px;border-radius:50%;background:linear-gradient(135deg,#2BE39B,#1EA6D0);box-shadow:0 0 0 2px var(--surface);animation:pulse 2s infinite}
+.tabs button[data-tab="chat"][aria-current="page"]::after{display:none}
+.ask-loop svg{width:20px;height:20px;fill:none;stroke:var(--accent);stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}

@@ -100,6 +100,8 @@ Tu aides sur : choix de distance, d'allure et de durée ; entraînement (5 km, 1
 Ce que fait l'app : écran Courir (se localiser ou choisir une ville, choisir une distance de 2 à 42 km ou une durée de 10 min à 4 h, « Générer ma boucle », feuille de route, guidage vocal rue par rue), onglet Coach (nutrition, hydratation, programmes, routines d'échauffement guidées), Boucles (historique), Premium, Profil (poids, allure, voix). Export Strava, Garmin et GPX. Carte jour ou nuit avec le bouton soleil/lune.
 Premium : 4,99 € pour 31 jours, payé par PayPal (compte ou carte), sans renouvellement automatique. Bêta gratuite jusqu'au 10 octobre 2026 à 15 h.
 Santé : tu n'es pas médecin. Pour une douleur vive, persistante, une gêne thoracique ou un malaise, conseille d'arrêter et de consulter un professionnel de santé.
+Le contexte fourni contient les réglages de la personne et, s'il y en a une, la boucle affichée (distance, dénivelé, rues, points d'eau) : sers-t'en pour personnaliser tes conseils (allure, durée, gels, hydratation).
+Actions : quand c'est utile, termine ta réponse par UNE action entre doubles crochets, que l'app transforme en bouton : [[boucle:6]] (préparer une boucle de 6 km), [[duree:45]] (boucle de 45 minutes), [[feuille]] (feuille de route de la boucle affichée), [[localiser]], [[onglet:premium]], [[onglet:coach]] (nutrition, programmes, routines), [[onglet:mine]] (historique). N'invente pas d'autres actions.
 Reste dans ton rôle de coach running et d'aide sur l'app ; pour toute autre demande, recentre poliment.`;
 const hits = new Map();   // limite simple par adresse IP (par instance du worker)
 function limited(ip){
@@ -118,7 +120,7 @@ async function chat(req, env, cors){
     .map(m => ({role:m.role, content:m.content.slice(0, 1500)}));
   while(msgs.length && msgs[0].role !== "user") msgs.shift();
   if(!msgs.length || msgs[msgs.length - 1].role !== "user") return json({error:"bad_messages"}, 400, cors);
-  const ctx = body.context && typeof body.context === "object" ? JSON.stringify(body.context).slice(0, 600) : "{}";
+  const ctx = body.context && typeof body.context === "object" ? JSON.stringify(body.context).slice(0, 1200) : "{}";
   const client = new Anthropic({apiKey:env.ANTHROPIC_API_KEY});
   try{
     const res = await client.beta.messages.create({

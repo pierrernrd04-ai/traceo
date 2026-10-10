@@ -17,7 +17,7 @@ const _track = track; track = (n, d) => { _track(n, d); alertOwner(n, d); };
 document.addEventListener("visibilitychange", () => { if(document.visibilityState === "hidden"){ const s = Math.round((Date.now() - T0)/1000); track("temps_passe", {secondes:s, tranche:s < 30 ? "moins de 30 s" : s < 120 ? "30 s à 2 min" : s < 600 ? "2 à 10 min" : "plus de 10 min", onglets:tabsSeen}); } });
 // Diagnostic temporaire : les erreurs (sans données personnelles) sont envoyées à un canal privé pour être corrigées à distance
 const DBG = "https://ntfy.sh/traceo-dbg-9591c50f";
-function report(kind, msg){ try{ fetch(DBG, {method:"POST", body:`[${kind}] ${String(msg).slice(0, 600)} | v47 | ${navigator.userAgent.replace(/\(KHTML.*$/, "").slice(0, 120)}`}).catch(() => {}); }catch(e){} }
+function report(kind, msg){ try{ fetch(DBG, {method:"POST", body:`[${kind}] ${String(msg).slice(0, 600)} | v48 | ${navigator.userAgent.replace(/\(KHTML.*$/, "").slice(0, 120)}`}).catch(() => {}); }catch(e){} }
 // Affiche toute erreur à l'écran (bandeau rouge) : une capture suffit pour corriger
 (function(){ let n = 0; const show = m => { if(n++ > 3) return; const d = document.createElement("div"); d.style.cssText = "position:fixed;left:8px;right:8px;top:calc(env(safe-area-inset-top,0px) + 8px);z-index:9999;background:#B3263E;color:#fff;font:600 12px/1.35 system-ui;padding:8px 10px;border-radius:10px;white-space:pre-wrap"; d.textContent = "Erreur : " + m; d.onclick = () => d.remove(); (document.body || document.documentElement).appendChild(d); setTimeout(() => d.remove(), 15000); };
   window.addEventListener("error", e => { report("error", (e.message || "?") + " " + (e.filename || "") + ":" + (e.lineno || "") + ":" + (e.colno || "") + " " + (e.error && e.error.stack ? String(e.error.stack).slice(0, 300) : "")); if(/^Script error/.test(e.message || "") && window.glFail){ try{ glFail(); }catch(x){} return; } show((e.message || "?") + (e.filename ? " (" + e.filename.split("/").pop() + ":" + e.lineno + ")" : "")); });
@@ -301,6 +301,7 @@ setBase();
 const MODE_IC = {jour:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/></svg>', nuit:'<svg viewBox="0 0 24 24"><path d="M20 14.5A8.5 8.5 0 019.5 4a8.5 8.5 0 1010.5 10.5z"/></svg>'};
 function paintModeBtn(){ const b = $("#fabMode"); if(!b) return; const m = MAP_MODE(); b.innerHTML = MODE_IC[m]; b.setAttribute("aria-label", m === "jour" ? "Passer en carte nuit" : "Passer en carte jour"); }
 paintModeBtn();
+$("#fabAsk") && ($("#fabAsk").onclick = () => { go("chat"); track("chat_ouvert", {depuis:"bouton_carte"}); });
 $("#fabMode") && ($("#fabMode").onclick = () => { const m = MAP_MODE() === "jour" ? "nuit" : "jour"; store.set("mapMode", m); paintModeBtn(); setBase(); toast(m === "jour" ? "Carte jour : rues claires et noms bien lisibles." : "Carte nuit activée."); });
 const routeLayer = L.layerGroup().addTo(map), liveLayer = L.layerGroup().addTo(map);
 let meMk = null, accC = null, startMk = null;
@@ -927,7 +928,7 @@ const CHAT_SUGG = ["Fais-moi une boucle de 5 km", "J'ai fait 10 km en 52 min, pr
 function viewChat(){
   const hello = `Salut ! Je suis le coach Traceo. Je trace ta boucle, calcule tes allures, prédis tes chronos, prépare ton plan d'entraînement et réponds à tes questions sur la course, la nutrition, les blessures et l'app.`;
   const list = [{r:"a", t:hello}, ...CHAT.msgs];
-  return `<div class="chat-head"><span class="chat-av"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/><path d="M8 9.5h8M8 12.5h5"/></svg></span><span><b>Coach Traceo</b><small>${CHAT_AI() ? "Assistant IA · répond en quelques secondes" : "Assistant intégré · toujours disponible"}</small></span>${CHAT.msgs.length ? `<button class="linkbtn" id="chatClear">Effacer</button>` : ""}</div>
+  return `<div class="chat-head"><span class="chat-av"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/><path d="M8 9.5h8M8 12.5h5"/></svg></span><span><b>Coach Traceo</b><small>${CHAT_AI() ? "Coach IA · répond à toutes tes questions" : "Calculs, plans et conseils instantanés"}</small></span>${CHAT.msgs.length ? `<button class="linkbtn" id="chatClear">Effacer</button>` : ""}</div>
     <div class="chat-list" id="chatList">${list.map(m => `<div class="msg ${m.r === "u" ? "msg-u" : "msg-b"}">${m.r === "u" ? esc(m.t) : fmtBot(m.t)}${m.act ? `<button class="btn soft msg-act" data-act="${esc(m.act)}">${esc(m.actLabel || "Ouvrir")}</button>` : ""}</div>`).join("")}${CHAT.busy ? `<div class="msg msg-b typing"><i></i><i></i><i></i></div>` : ""}</div>
     ${(() => { const last = CHAT.msgs[CHAT.msgs.length - 1], sg = CHAT.msgs.length < 2 ? CHAT_SUGG : !CHAT.busy && last && last.r === "a" && last.sugg ? last.sugg : []; return sg.length ? `<div class="chat-sugg">${sg.map(x => `<button class="chip" data-sugg="${esc(x)}">${esc(x)}</button>`).join("")}</div>` : ""; })()}
     <form class="chat-form" id="chatForm"><input id="chatIn" class="input" placeholder="Écris ta question…" autocomplete="off" enterkeyhint="send" maxlength="600"><button class="btn hero" aria-label="Envoyer"><svg viewBox="0 0 24 24"><path d="M4 12l16-8-6 16-2.5-6.5z"/></svg></button></form>`;
@@ -947,9 +948,9 @@ async function chatSend(text){
   let ans = null;
   if(CHAT_AI()){
     try{
-      const ctx = {depart:S.start?.label || null, distance_km:S.distKm, duree_min:S.durMin, mode:S.mode, allure_s_km:S.pace, poids_kg:S.weight, premium:isPremium(), beta:betaOn()};
+      const ctx = {depart:S.start?.label || null, distance_km:S.distKm, duree_min:S.durMin, mode:S.mode, allure_s_km:S.pace, poids_kg:S.weight, premium:isPremium(), beta:betaOn(), boucle_affichee:loopCtx()};
       const j = await fetchJSON(C.CHAT_API.replace(/\/$/, "") + "/chat", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({messages:CHAT.msgs.slice(-12).map(m => ({role:m.r === "u" ? "user" : "assistant", content:m.t})), context:ctx})}, 30000);
-      if(j && j.reply) ans = {t:j.reply};
+      if(j && j.reply) ans = aiActions(j.reply);
     }catch(e){}
   }
   if(!ans) ans = brainAnswer(text);
@@ -960,10 +961,29 @@ async function chatSend(text){
   if(S.tab === "chat") render();
   if(km){ S.mode = "dist"; S.distKm = km; store.set("mode", "dist"); store.set("distKm", km); }
 }
+// Réponse de l'IA : les actions proposées ([[boucle:6]], [[duree:45]], [[onglet:premium]], [[feuille]]) deviennent un bouton
+function aiActions(reply){
+  let act = null, actLabel = null, km = null, out = String(reply).replace(/\[\[([a-z]+)(?::([\w.,]+))?\]\]/gi, (m, k, v) => {
+    k = k.toLowerCase();
+    if(k === "boucle" && v){ km = Math.max(2, Math.min(42, parseFloat(v.replace(",", ".")))); act = "gen"; actLabel = `Tracer ma boucle de ${nf(1).format(km).replace(",0", "")} km`; }
+    else if(k === "duree" && v){ const mn = Math.max(10, Math.min(240, parseInt(v))); S.mode = "time"; S.durMin = mn; store.set("mode", "time"); store.set("durMin", mn); act = "gen"; actLabel = `Tracer ma boucle de ${mn} min`; }
+    else if(k === "onglet" && ["premium", "coach", "mine", "me"].includes(String(v))){ act = v; actLabel = {premium:"Voir Premium", coach:"Ouvrir le Coach", mine:"Mes boucles", me:"Mon profil"}[v]; }
+    else if(k === "feuille"){ act = "fly"; actLabel = "Voir la feuille de route"; }
+    else if(k === "localiser"){ act = "loc"; actLabel = "Me localiser"; }
+    return "";
+  }).trim();
+  return {t:out, act, actLabel, km};
+}
+// La boucle à l'écran, résumée pour le chat (distance, dénivelé, rues, points d'eau)
+function loopCtx(){
+  const r = S.results?.[S.sel]; if(!r) return null;
+  const streets = [...new Set((r.steps || []).map(x => x.name).filter(Boolean))];
+  return {km:Math.round(r.len/100)/10, ascent:r.ascent ?? null, streets, newPct:Math.round((r.newLen || 0)/r.len*100), water:(r.pois || []).filter(p => p.kind === "eau").length};
+}
 // Cerveau intégré (chat-brain.js) : calculs, connaissances running et fil de la conversation
 function brainAnswer(text){
   if(!window.TraceoBrain) return localCoach(text);
-  const ctx = {start:S.start?.label || null, distKm:S.distKm, pace:S.pace, weight:S.weight, premium:isPremium() && !betaOn(), beta:betaOn(), price:C.PRICE_LABEL};
+  const ctx = {start:S.start?.label || null, distKm:S.distKm, pace:S.pace, weight:S.weight, premium:isPremium() && !betaOn(), beta:betaOn(), price:C.PRICE_LABEL, loop:loopCtx()};
   let out; try{ out = TraceoBrain.answer(text, ctx, CHAT.mem); }catch(e){ report("brain", e.message); return localCoach(text); }
   CHAT.mem = Object.assign(CHAT.mem, out.mem || {}); store.set("chatMem", CHAT.mem);
   if(out.mode === "time"){ S.mode = "time"; S.durMin = out.durMin; store.set("mode", "time"); store.set("durMin", out.durMin); }
@@ -972,6 +992,7 @@ function brainAnswer(text){
 function chatAct(a){
   if(a === "gen3"){ S.mode = "dist"; S.distKm = 3; store.set("mode", "dist"); store.set("distKm", 3); a = "gen"; }
   if(a === "mine") return go("mine");
+  if(a === "fly"){ const r = curRoute(); if(r){ go("plan"); setTimeout(() => flyover(r), 300); } return; }
   if(a === "legal") return window.open("legal.html", "_blank", "noopener");
   if(a === "gen"){ go("plan"); if(S.start) setTimeout(generate, 250); else showGate(); }
   else if(a === "loc"){ go("plan"); locate(); }
@@ -1042,6 +1063,7 @@ function viewPlan(){
       <div class="cta-dock dock2"><button class="dock-sum" id="dockSum"><em><b>${km1(r.len)} km</b> · ${hmin(dur)}${S.results.length > 1 ? ` · ${S.results.length} boucles au choix` : ""}</em><span>Options ▲</span></button><button class="btn soft" id="goFly">${I.eye}Voir</button><button class="btn hero" id="goRun">${I.play}Commencer</button></div>
       <div class="row"><button class="btn garmin" id="toGarmin">${I.watch}Garmin${isPremium() ? "" : '<span class="lock">★</span>'}</button><button class="btn soft" id="toGpx">${I.dl}GPX${isPremium() ? "" : '<span class="lock">★</span>'}</button></div>
       <div class="row"><button class="btn soft" id="again">${I.redo}Une autre boucle</button><button class="btn soft" id="toMusic">${MI.note}Musique</button></div>
+      <button class="btn soft block ask-loop" id="askLoop"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/><path d="M8 9.5h8M8 12.5h5"/></svg>Conseils du coach pour cette boucle</button>
       <div class="row"><button class="btn soft" id="toImg">${I.img}Image</button></div>
       <div class="row"><button class="btn soft" id="fav">${I.star}${curLoop()?.fav ? "En favori" : "Favori"}</button><button class="btn soft" id="edit">Modifier</button></div>`;
   }
@@ -1618,6 +1640,7 @@ function wire(){
   }
   if(S.tab === "premium" && !betaOn()) mountPay("payMain");
   if(S.tab === "chat") wireChat();
+  $("#askLoop") && ($("#askLoop").onclick = () => { go("chat"); chatSend("Conseils pour cette boucle"); });
   $("#dockSum") && ($("#dockSum").onclick = () => { panel.classList.remove("min"); syncH(); });
   if(S.tab === "plan"){
     $("#genCancel") && ($("#genCancel").onclick = genCancel);
