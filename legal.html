@@ -117,14 +117,17 @@ footer{padding:30px 0 calc(30px + env(safe-area-inset-bottom,0px));color:var(--m
     <h3>Données du compte</h3>
     <table>
       <tr><th>Donnée</th><th>Visible par les autres coureurs</th><th>Conservation</th></tr>
+      <tr><td>Identifiant (pseudo)</td><td>Oui</td><td>Jusqu'à la suppression du compte</td></tr>
       <tr><td>Prénom et nom</td><td>Prénom et initiale du nom uniquement</td><td>Jusqu'à la suppression du compte</td></tr>
+      <tr><td>Date de naissance</td><td>Jamais (sert à vérifier l'âge minimum de 15 ans)</td><td>Jusqu'à la suppression du compte</td></tr>
+      <tr><td>Mot de passe</td><td>Jamais ; il n'est ni transmis ni stocké en clair (empreinte salée et hachée uniquement)</td><td>Jusqu'à la suppression du compte</td></tr>
       <tr><td>Adresse e-mail</td><td>Jamais</td><td>Jusqu'à la suppression du compte ; sert uniquement à vous contacter au sujet de votre compte</td></tr>
       <tr><td>Niveau et allure moyenne</td><td>Oui</td><td>Jusqu'à la suppression du compte</td></tr>
       <tr><td>Position</td><td>Jamais exacte : seulement une distance arrondie (« moins de 1 km », « 2,5 km »…)</td><td>Arrondie à environ 300 m avant enregistrement ; n'est plus montrée 3 heures après votre dernière activité</td></tr>
       <tr><td>Messages et invitations</td><td>Par le destinataire uniquement</td><td>Jusqu'à la suppression du compte de l'un des deux coureurs</td></tr>
       <tr><td>Abonnement aux notifications</td><td>Jamais</td><td>Jusqu'à leur désactivation ou la suppression du compte</td></tr>
     </table>
-    <p>Ces données sont traitées sur la base de votre consentement et de l'exécution du service, et hébergées par Cloudflare (Workers et Durable Objects). Vous pouvez à tout moment passer en mode <b>Invisible</b>, désactiver les notifications, ou <b>supprimer votre compte</b> (Ensemble &gt; Mon compte) : votre profil et vos messages sont alors effacés définitivement du serveur.</p>
+    <p>Ces données sont traitées sur la base de votre consentement et de l'exécution du service, et hébergées par Cloudflare (Workers et Durable Objects). Seul l'éditeur de Traceo (Pierre Renard EI) peut consulter la liste des membres (identifiant, nom, e-mail, date de naissance, ville, dates d'inscription et d'activité), depuis un espace d'administration protégé, pour gérer la communauté, répondre aux demandes et traiter les signalements. Ces données ne sont ni vendues ni cédées. Vous pouvez à tout moment passer en mode <b>Invisible</b>, désactiver les notifications, ou <b>supprimer votre compte</b> (Ensemble &gt; Mon compte) : votre profil et vos messages sont alors effacés définitivement du serveur.</p>
     <h3>Règles de bonne conduite</h3>
     <ul>
       <li>Ensemble est réservé aux personnes de 15 ans et plus, inscrites sous leur vrai prénom.</li>

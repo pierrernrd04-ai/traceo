@@ -88,7 +88,7 @@ function corsHeaders(req, env){
   return {
     "Access-Control-Allow-Origin":ok ? (origin || "*") : allowed[0],
     "Access-Control-Allow-Methods":"GET, POST, OPTIONS",
-    "Access-Control-Allow-Headers":"Content-Type, Authorization",
+    "Access-Control-Allow-Headers":"Content-Type, Authorization, X-Admin-Key",
     "Access-Control-Max-Age":"86400",
     "Vary":"Origin"
   };

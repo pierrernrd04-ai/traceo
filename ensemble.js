@@ -3,12 +3,14 @@
 // Ce fichier est chargé après app.js et réutilise ses outils ($, esc, S, store, render, go, openModal, toast…).
 "use strict";
 const ENS = {
-  auth:store.get("ensAuth", null),          // "id.jeton"
+  auth:store.get("ensAuth", null),          // jeton de session (48 caractères hexadécimaux)
   me:store.get("ensMe", null),
   read:store.get("ensRead", {}),            // dernier message lu, par coureur
   msgs:store.get("ensMsgs", []), users:store.get("ensUsers", {}), last:0,
   near:null, r:store.get("ensR", 5), thread:null, err:"", busy:false, timer:null, first:true
 };
+if(ENS.auth && !/^[a-f0-9]{48}$/.test(ENS.auth)) ENS.auth = null;   // ancien format de jeton
+ENS.mode = "signup";
 ENS.last = ENS.msgs.length ? ENS.msgs[ENS.msgs.length - 1].id : 0;
 const ensApi = () => (C.SOCIAL_API || C.CHAT_API || "").replace(/\/$/, "");
 const ensOn = () => !!ensApi();
@@ -26,6 +28,14 @@ const initials = n => esc(String(n || "?").split(/\s+/).map(w => w[0] || "").joi
 const avColor = id => `hsl(${[...String(id)].reduce((a, c) => a + c.charCodeAt(0)*7, 0) % 360} 70% 62%)`;
 const hhmm = t => new Date(t).toLocaleTimeString("fr-FR", {hour:"2-digit", minute:"2-digit"});
 const dayTxt = t => { const d = new Date(t), n = new Date(); return d.toDateString() === n.toDateString() ? hhmm(t) : d.toLocaleDateString("fr-FR", {day:"numeric", month:"short"}); };
+// Mot de passe : étiré sur le téléphone avant envoi (le serveur ne le voit jamais en clair)
+async function pwKey(pw){
+  const k = await crypto.subtle.importKey("raw", new TextEncoder().encode(pw), "PBKDF2", false, ["deriveBits"]);
+  const bits = await crypto.subtle.deriveBits({name:"PBKDF2", salt:new TextEncoder().encode("traceo-ensemble-v1"), iterations:150000, hash:"SHA-256"}, k, 256);
+  return [...new Uint8Array(bits)].map(b => b.toString(16).padStart(2, "0")).join("");
+}
+const ERRS = {pseudo_taken:"Cet identifiant est déjà pris, choisis-en un autre.", email_taken:"Un compte existe déjà avec cet e-mail : connecte-toi.", too_young:"Ensemble est réservé aux 15 ans et plus.", bad_pseudo:"Identifiant : 3 à 20 caractères, lettres minuscules, chiffres, point ou tiret bas.", bad_email:"Adresse e-mail invalide.", bad_birth:"Date de naissance invalide.", bad_login:"Identifiant ou mot de passe incorrect.", rate_limited:"Trop d'essais : réessaie dans quelques minutes.", consent_required:"Accepte les règles pour continuer."};
+const errTxt = e => ERRS[e.message] || "Connexion au serveur impossible, vérifie ta connexion.";
 const ensHere = () => S.here || (S.start ? [S.start.lat, S.start.lng] : null);
 
 async function ensCall(path, body, method){
@@ -104,7 +114,7 @@ function viewEnsemble(){
   if(ENS.thread) return ensThread(ENS.thread);
   const me = ENS.me || {}, av = me.avail_until > Date.now(), convs = ensConvs(), near = ENS.near?.list || [];
   const pushOk = "PushManager" in window && "serviceWorker" in navigator, perm = window.Notification ? Notification.permission : "denied";
-  return `<div class="ens-top"><span class="ens-av" style="--c:${avColor(me.id)}">${initials(me.name)}</span><span class="b"><b>Salut ${esc(me.first || "")} !</b><small>${LVL[me.level] || ""} · ${paceTxt(me.pace)}/km</small></span>
+  return `<div class="ens-top"><span class="ens-av" style="--c:${avColor(me.id)}">${initials(me.name)}</span><span class="b"><b>Salut ${esc(me.first || "")} !</b><small>@${esc(me.pseudo || "")} · ${LVL[me.level] || ""} · ${paceTxt(me.pace)}/km</small></span>
       <label class="ens-vis"><input type="checkbox" id="ensVis" ${me.visible ? "checked" : ""}><span>${me.visible ? "Visible" : "Invisible"}</span></label></div>
     ${av ? `<div class="ens-go on"><span class="ens-ic sm">${EI.run}</span><span class="b"><b>Tu es signalé·e disponible</b><small>jusqu'à ${hhmm(me.avail_until)} · les coureurs proches ont été prévenus</small></span><button class="linkbtn" id="ensStop">Annuler</button></div>`
       : `<button class="ens-go" id="ensGo"><span class="ens-ic sm">${EI.run}</span><span class="b"><b>Je pars courir</b><small>Préviens les coureurs à moins de 5 km</small></span><span class="arr">›</span></button>`}
@@ -113,7 +123,7 @@ function viewEnsemble(){
     ${!ensHere() ? `<div class="ens-empty"><p>Localise-toi pour voir les coureurs autour de toi.</p><button class="btn soft" id="ensLoc">Me localiser</button></div>`
       : ENS.near == null ? `<div class="ens-empty"><div class="spin"></div><p>Recherche des coureurs…</p></div>`
       : near.length ? `<div class="ens-list">${near.map(u => `<div class="ens-card"><span class="ens-av" style="--c:${avColor(u.id)}">${initials(u.name)}${u.online ? "<i></i>" : ""}</span>
-          <span class="b"><b>${esc(u.name)}</b><small>${LVL[u.level] || ""} · ${paceTxt(u.pace)}/km · ${esc(u.dist)}</small>${u.avail ? `<em class="ens-tag">Part courir ${u.avail.km ? nf(0).format(u.avail.km) + " km" : ""}${u.avail.note ? " · " + esc(u.avail.note) : ""}</em>` : u.online ? `<em class="ens-tag soft">En ligne</em>` : `<small>Vu·e il y a ${u.seenMin < 60 ? u.seenMin + " min" : Math.round(u.seenMin/60) + " h"}</small>`}</span>
+          <span class="b"><b>${esc(u.name)} <span class="ps">@${esc(u.pseudo || "")}</span></b><small>${LVL[u.level] || ""} · ${paceTxt(u.pace)}/km · ${esc(u.dist)}</small>${u.avail ? `<em class="ens-tag">Part courir ${u.avail.km ? nf(0).format(u.avail.km) + " km" : ""}${u.avail.note ? " · " + esc(u.avail.note) : ""}</em>` : u.online ? `<em class="ens-tag soft">En ligne</em>` : `<small>Vu·e il y a ${u.seenMin < 60 ? u.seenMin + " min" : Math.round(u.seenMin/60) + " h"}</small>`}</span>
           <span class="acts"><button class="btn hero sm" data-ensinv="${u.id}">Courir</button><button class="iconbtn" data-ensmsg="${u.id}" aria-label="Écrire à ${esc(u.name)}">${EI.send}</button></span></div>`).join("")}</div>`
       : `<div class="ens-empty"><p><b>Personne de visible à moins de ${ENS.r} km pour l'instant.</b></p><p class="small">Ensemble vient d'ouvrir : touche « Je pars courir », les coureurs qui arrivent près de toi seront prévenus. Partage Traceo à tes partenaires de course !</p><button class="btn soft" id="ensShare">Inviter des amis</button></div>`}
     ${ENS.err && ENS.err !== "auth" ? `<p class="small" style="color:var(--warn)">Connexion au serveur impossible pour l'instant, nouvel essai dans quelques secondes.</p>` : ""}
@@ -123,22 +133,33 @@ function viewEnsemble(){
     <div class="ens-foot"><button class="linkbtn" id="ensSafe">${EI.shield}Conseils de sécurité</button><button class="linkbtn" id="ensAcc">Mon compte</button></div>`;
 }
 function ensSignup(){
-  return ensPitch() + `<form class="ens-form" id="ensForm" novalidate><p class="title" style="font-size:22px">Crée ton compte coureur</p>
-    <div class="row2"><div class="field"><label for="efFirst">Prénom</label><input class="input" id="efFirst" autocomplete="given-name" maxlength="30" required></div>
-    <div class="field"><label for="efLast">Nom</label><input class="input" id="efLast" autocomplete="family-name" maxlength="40" required></div></div>
-    <div class="field"><label for="efMail">Adresse e-mail</label><input class="input" id="efMail" type="email" autocomplete="email" inputmode="email" maxlength="120" required></div>
-    <div class="field"><label>Niveau</label><div class="seg" id="efLvl">${Object.entries(LVL).map(([k, v], i) => `<button type="button" data-lvl="${k}" aria-pressed="${k === "regulier"}">${v}</button>`).join("")}</div></div>
-    <p class="small">Les autres coureurs voient ton prénom, l'initiale de ton nom, ton niveau, ton allure (${paceTxt(S.pace)}/km) et une distance arrondie. Jamais ton adresse ni ton e-mail.</p>
-    <label class="ens-ck"><input type="checkbox" id="efAge"><span>J'ai 15 ans ou plus.</span></label>
-    <label class="ens-ck"><input type="checkbox" id="efTerms"><span>J'accepte les <a href="legal.html#ensemble" target="_blank" rel="noopener">règles d'Ensemble et la politique de confidentialité</a>.</span></label>
+  if(ENS.mode === "login") return `<form class="ens-form" id="ensLogin" novalidate><p class="title" style="font-size:22px">Connexion</p>
+    <div class="field"><label for="elId">Identifiant ou e-mail</label><input class="input" id="elId" autocomplete="username" autocapitalize="none" maxlength="120"></div>
+    <div class="field"><label for="elPw">Mot de passe</label><div class="pw"><input class="input" id="elPw" type="password" autocomplete="current-password" maxlength="100"><button type="button" class="linkbtn" data-eye="elPw">Voir</button></div></div>
     <p class="small" id="efErr" style="color:var(--warn)"></p>
-    <button class="btn hero block" id="efGo">${EI.people}Rejoindre Ensemble</button></form>`;
+    <button class="btn hero block" id="efGo">${EI.people}Me connecter</button>
+    <p class="small" style="text-align:center">Pas encore de compte ? <button type="button" class="linkbtn" data-mode="signup">Créer mon compte</button></p>
+    <p class="small" style="text-align:center">Mot de passe oublié ? <a href="mailto:pierre.rnrd04@gmail.com?subject=Traceo%20-%20mot%20de%20passe%20oubli%C3%A9" style="color:var(--accent)">Écris au support</a> depuis l'e-mail de ton compte.</p></form>`;
+  const max = new Date(Date.now() - 15*365.25*864e5).toISOString().slice(0, 10);
+  return ensPitch() + `<form class="ens-form" id="ensForm" novalidate><p class="title" style="font-size:22px">Crée ton compte Traceo</p>
+    <p class="small" style="margin-top:-2px">Déjà inscrit ? <button type="button" class="linkbtn" data-mode="login">Me connecter</button></p>
+    <div class="row2"><div class="field"><label for="efFirst">Prénom</label><input class="input" id="efFirst" autocomplete="given-name" maxlength="30"></div>
+    <div class="field"><label for="efLast">Nom</label><input class="input" id="efLast" autocomplete="family-name" maxlength="40"></div></div>
+    <div class="field"><label for="efPseudo">Identifiant (visible des autres coureurs)</label><div class="pw"><span class="at">@</span><input class="input" id="efPseudo" autocomplete="username" autocapitalize="none" maxlength="20" placeholder="ex. lea_run"></div><small id="efPs" class="small"></small></div>
+    <div class="field"><label for="efMail">Adresse e-mail</label><input class="input" id="efMail" type="email" autocomplete="email" inputmode="email" maxlength="120"></div>
+    <div class="field"><label for="efPw">Mot de passe (8 caractères minimum)</label><div class="pw"><input class="input" id="efPw" type="password" autocomplete="new-password" maxlength="100"><button type="button" class="linkbtn" data-eye="efPw">Voir</button></div></div>
+    <div class="field"><label for="efBirth">Date de naissance</label><input class="input" id="efBirth" type="date" max="${max}" min="1900-01-01"></div>
+    <div class="field"><label>Niveau</label><div class="seg" id="efLvl">${Object.entries(LVL).map(([k, v]) => `<button type="button" data-lvl="${k}" aria-pressed="${k === "regulier"}">${v}</button>`).join("")}</div></div>
+    <p class="small">Les autres coureurs voient ton identifiant, ton prénom, l'initiale de ton nom, ton niveau, ton allure (${paceTxt(S.pace)}/km) et une distance arrondie. Jamais ton e-mail, ta date de naissance ni ton adresse.</p>
+    <label class="ens-ck"><input type="checkbox" id="efTerms"><span>J'ai 15 ans ou plus et j'accepte les <a href="legal.html#ensemble" target="_blank" rel="noopener">règles de la communauté et la politique de confidentialité</a>.</span></label>
+    <p class="small" id="efErr" style="color:var(--warn)"></p>
+    <button class="btn hero block" id="efGo">${EI.people}Créer mon compte</button></form>`;
 }
 function ensThread(peer){
   const u = ENS.users[peer] || (ENS.near?.list || []).find(x => x.id === peer) || {name:"Coureur"}, me = ENS.me?.id;
   const list = ENS.msgs.filter(m => m.from === peer || m.to === peer);
   const answered = new Set(list.filter(m => m.from === me && (m.kind === "accept" || m.kind === "decline")).map(m => m.meta?.ref || 0));
-  return `<div class="ens-th-h"><button class="iconbtn" id="ensBack" aria-label="Retour">${EI.back}</button><span class="ens-av" style="--c:${avColor(peer)}">${initials(u.name)}</span><span class="b"><b>${esc(u.name)}</b><small>${LVL[u.level] || ""}${u.pace ? " · " + paceTxt(u.pace) + "/km" : ""}</small></span><button class="iconbtn" id="ensMore" aria-label="Options">${EI.more}</button></div>
+  return `<div class="ens-th-h"><button class="iconbtn" id="ensBack" aria-label="Retour">${EI.back}</button><span class="ens-av" style="--c:${avColor(peer)}">${initials(u.name)}</span><span class="b"><b>${esc(u.name)}</b><small>${u.pseudo ? "@" + esc(u.pseudo) + " · " : ""}${LVL[u.level] || ""}${u.pace ? " · " + paceTxt(u.pace) + "/km" : ""}</small></span><button class="iconbtn" id="ensMore" aria-label="Options">${EI.more}</button></div>
     <div class="chat-list ens-th" id="ensList">${list.length ? "" : `<p class="small" style="text-align:center">Dis bonjour ou propose directement une course !</p>`}${list.map(m => { const mine = m.from === me, mm = m.meta || {};
       if(m.kind === "invite" || m.kind === "shout") return `<div class="ens-inv ${mine ? "mine" : ""}"><b>${m.kind === "shout" ? "📣 Part courir" : "🏃 Invitation à courir"}</b><span>${esc(m.body)}</span>${mm.when || mm.km || mm.place ? `<small>${[mm.when && esc(mm.when), mm.km && nf(0).format(mm.km) + " km", mm.place && "📍 " + esc(mm.place)].filter(Boolean).join(" · ")}</small>` : ""}
         ${!mine && !answered.has(m.id) ? `<span class="row"><button class="btn hero sm" data-ensyes="${m.id}">${m.kind === "shout" ? "Je viens !" : "J'accepte"}</button><button class="btn soft sm" data-ensno="${m.id}">Pas dispo</button></span>` : ""}<em>${hhmm(m.t)}</em></div>`;
@@ -205,15 +226,17 @@ function ensAccount(){
   openModal(`<button class="iconbtn x" data-close aria-label="Fermer">${I.x}</button><p class="eyebrow">Ensemble</p><p class="title" style="font-size:22px">Mon compte</p>
     <div class="row2"><div class="field"><label for="eaFirst">Prénom</label><input class="input" id="eaFirst" value="${esc(me.first || "")}" maxlength="30"></div><div class="field"><label for="eaLast">Nom</label><input class="input" id="eaLast" value="${esc(me.last || "")}" maxlength="40"></div></div>
     <div class="field"><label>Niveau</label><div class="seg" id="eaLvl">${Object.entries(LVL).map(([k, v]) => `<button type="button" data-lvl="${k}" aria-pressed="${k === me.level}">${v}</button>`).join("")}</div></div>
-    <p class="small">E-mail : ${esc(me.email || "")} · Allure partagée : ${paceTxt(S.pace)}/km (modifiable dans Profil)</p>
+    <p class="small">Identifiant : <b>@${esc(me.pseudo || "")}</b> · E-mail : ${esc(me.email || "")}${me.birth ? " · Né·e le " + new Date(me.birth).toLocaleDateString("fr-FR") : ""} · Allure partagée : ${paceTxt(S.pace)}/km (modifiable dans Profil)</p>
     <label class="switch"><span><b>Notifications</b><br><span class="small">Invitations, messages et coureurs qui partent près de toi.</span></span><input type="checkbox" id="eaNotif" ${me.notif !== false ? "checked" : ""}></label>
     <button class="btn hero block" id="eaSave">Enregistrer</button>
     <div class="row"><button class="btn soft" id="eaOut">Se déconnecter</button><button class="btn soft" id="eaDel" style="color:var(--warn)">Supprimer mon compte</button></div>
-    <p class="small">Se déconnecter efface le compte de ce téléphone seulement. La suppression efface définitivement ton profil et tes messages du serveur.</p>`);
+    <details class="ens-pw"><summary>Changer mon mot de passe</summary><div class="field"><label for="eaOld">Mot de passe actuel</label><input class="input" id="eaOld" type="password" autocomplete="current-password"></div><div class="field"><label for="eaNew">Nouveau mot de passe</label><input class="input" id="eaNew" type="password" autocomplete="new-password"></div><button class="btn soft block" id="eaPw">Changer le mot de passe</button></details>
+    <p class="small">Tu peux te reconnecter sur n'importe quel téléphone avec ton identifiant et ton mot de passe. La suppression efface définitivement ton profil et tes messages du serveur.</p>`);
   let lvl = me.level;
   sheet.querySelectorAll("[data-lvl]").forEach(b => b.onclick = () => { lvl = b.dataset.lvl; sheet.querySelectorAll("[data-lvl]").forEach(x => x.setAttribute("aria-pressed", x === b)); });
+  $("#eaPw").onclick = async () => { const o = $("#eaOld").value, n = $("#eaNew").value; if(n.length < 8) return toast("Nouveau mot de passe : 8 caractères minimum."); try{ await ensCall("me", {oldKey:await pwKey(o), key:await pwKey(n)}); toast("Mot de passe changé."); $("#eaOld").value = $("#eaNew").value = ""; }catch(e){ toast(errTxt(e)); } };
   $("#eaSave").onclick = async () => { try{ const j = await ensCall("me", {first:$("#eaFirst").value, last:$("#eaLast").value, level:lvl, pace:S.pace, notif:$("#eaNotif").checked}); ENS.me = j.me; ensSaveAuth(); closeModal(); render(); toast("Compte mis à jour."); }catch(e){ toast("Enregistrement impossible pour l'instant."); } };
-  $("#eaOut").onclick = () => { if(confirm("Se déconnecter d'Ensemble sur ce téléphone ? Sans sauvegarde du jeton, tu devras créer un nouveau compte.")){ ensLogout(); closeModal(); render(); } };
+  $("#eaOut").onclick = async () => { try{ await ensCall("logout", {}); }catch(e){} ensLogout(); ENS.mode = "login"; closeModal(); render(); toast("Déconnecté. À bientôt !"); };
   $("#eaDel").onclick = async () => { if(!confirm("Supprimer définitivement ton compte Ensemble et tes messages ?")) return; try{ await ensCall("delete", {}); }catch(e){} ensLogout(); closeModal(); render(); toast("Compte supprimé."); };
 }
 function ensMoreModal(peer){
@@ -240,21 +263,40 @@ async function ensEnablePush(){
 function wireEnsemble(){
   const q = s => body.querySelector(s);
   q("#ensPrem") && (q("#ensPrem").onclick = () => { track("ensemble_premium"); go("premium"); });
-  if(!ensOn() || !isPremium() || (!ENS.auth && !q("#ensForm"))) return;
+  if(!ensOn() || !isPremium() || (!ENS.auth && !q("#ensForm") && !q("#ensLogin"))) return;
+  body.querySelectorAll("[data-mode]").forEach(b => b.onclick = () => { ENS.mode = b.dataset.mode; render(); });
+  body.querySelectorAll("[data-eye]").forEach(b => b.onclick = () => { const i = q("#" + b.dataset.eye); i.type = i.type === "password" ? "text" : "password"; b.textContent = i.type === "password" ? "Voir" : "Masquer"; });
+  const done = (j, msg) => { ENS.auth = j.token; ENS.me = j.me; ENS.msgs = []; ENS.last = 0; ENS.first = true; ensSaveAuth(); ensSync(); render(); celebrate(120); toast(msg); ensNearby(); ensLoop(); ensPoll(); };
+  if(q("#ensLogin")){
+    q("#ensLogin").onsubmit = async e => {
+      e.preventDefault(); const err = q("#efErr"), id = q("#elId").value.trim(), pw = q("#elPw").value;
+      if(!id || !pw) return err.textContent = "Indique ton identifiant et ton mot de passe.";
+      q("#efGo").disabled = true; err.textContent = "";
+      try{ const j = await ensCall("login", {login:id, key:await pwKey(pw)}); track("ensemble_connexion"); done(j, `Content de te revoir, ${j.me.first} !`); }
+      catch(x){ q("#efGo").disabled = false; err.textContent = errTxt(x); }
+    };
+    return;
+  }
   if(q("#ensForm")){
-    let lvl = "regulier";
+    let lvl = "regulier", psT;
     body.querySelectorAll("#efLvl [data-lvl]").forEach(b => b.onclick = () => { lvl = b.dataset.lvl; body.querySelectorAll("#efLvl [data-lvl]").forEach(x => x.setAttribute("aria-pressed", x === b)); });
+    q("#efPseudo").oninput = () => { const v = q("#efPseudo").value = q("#efPseudo").value.toLowerCase().replace(/[^a-z0-9_.]/g, ""), ps = q("#efPs"); clearTimeout(psT);
+      if(v.length < 3){ ps.textContent = v ? "3 caractères minimum" : ""; ps.style.color = ""; return; }
+      psT = setTimeout(async () => { try{ const j = await ensCall("pseudo?p=" + encodeURIComponent(v)); if(q("#efPseudo")?.value !== v) return; ps.textContent = j.free ? "✓ Disponible" : "Déjà pris"; ps.style.color = j.free ? "var(--accent)" : "var(--warn)"; }catch(e){} }, 350); };
     q("#ensForm").onsubmit = async e => {
-      e.preventDefault(); const err = q("#efErr"), f = q("#efFirst").value.trim(), l = q("#efLast").value.trim(), m = q("#efMail").value.trim();
+      e.preventDefault(); const err = q("#efErr"), f = q("#efFirst").value.trim(), l = q("#efLast").value.trim(), m = q("#efMail").value.trim(), ps = q("#efPseudo").value.trim(), pw = q("#efPw").value, bd = q("#efBirth").value;
       if(!f || !l) return err.textContent = "Indique ton prénom et ton nom.";
-      if(!/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(m)) return err.textContent = "Adresse e-mail invalide.";
-      if(!q("#efAge").checked || !q("#efTerms").checked) return err.textContent = "Coche les deux cases pour continuer.";
+      if(!/^[a-z0-9][a-z0-9_.]{2,19}$/.test(ps)) return err.textContent = ERRS.bad_pseudo;
+      if(!/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(m)) return err.textContent = ERRS.bad_email;
+      if(pw.length < 8) return err.textContent = "Mot de passe : 8 caractères minimum.";
+      if(!bd) return err.textContent = "Indique ta date de naissance.";
+      if((Date.now() - Date.parse(bd))/(365.25*864e5) < 15) return err.textContent = ERRS.too_young;
+      if(!q("#efTerms").checked) return err.textContent = ERRS.consent_required;
       q("#efGo").disabled = true; err.textContent = "";
       try{
-        const j = await ensCall("signup", {first:f, last:l, email:m, level:lvl, pace:S.pace, age15:true, terms:true});
-        ENS.auth = j.id + "." + j.token; ENS.me = j.me; ensSaveAuth(); track("ensemble_compte"); alertOwner?.("ensemble_compte", {});
-        render(); celebrate(120); toast(`Bienvenue dans Ensemble, ${j.me.first} !`); ensNearby(); ensLoop(); ensPoll();
-      }catch(x){ q("#efGo").disabled = false; err.textContent = x.message === "rate_limited" ? "Trop d'essais, réessaie dans un moment." : "Création impossible pour l'instant, vérifie ta connexion."; }
+        const j = await ensCall("signup", {first:f, last:l, email:m, pseudo:ps, key:await pwKey(pw), birth:bd, level:lvl, pace:S.pace, terms:true, premium:paid()});
+        track("ensemble_compte"); done(j, `Bienvenue dans la communauté, ${j.me.first} !`);
+      }catch(x){ q("#efGo").disabled = false; err.textContent = errTxt(x); }
     };
     return;
   }
@@ -282,10 +324,19 @@ function wireEnsemble(){
   body.querySelectorAll("[data-ensmsg],[data-ensth]").forEach(b => b.onclick = () => { ENS.thread = b.dataset.ensmsg || b.dataset.ensth; render(); });
   if(ENS.near == null && ensHere()) ensNearby();
 }
+// Après une boucle : invitation à créer son compte (ou à trouver des partenaires)
+function ensJoinCard(){
+  if(!ensOn()) return "";
+  return ENS.auth ? `<button class="ens-join" id="ensJoin"><span class="ens-ic sm">${EI.people}</span><span><b>Courir cette boucle à plusieurs ?</b><small>Vois qui court autour de toi et propose-leur une sortie.</small></span></button>`
+    : `<button class="ens-join" id="ensJoin"><span class="ens-ic sm">${EI.people}</span><span><b>Rejoins la communauté Traceo</b><small>Crée ton compte : trouve des coureurs près de toi et programmez vos sorties.</small></span></button>`;
+}
+document.addEventListener("click", e => { if(e.target.closest?.("#ensJoin")){ track("ensemble_carte_boucle"); go("ensemble"); } });
+// statut Premium et ville affichés dans la page d'administration
+function ensSync(){ if(!ensOn() || !ENS.auth) return; const place = (S.start?.label || "").split(",").pop().replace(/\d{5}/, "").trim(); ensCall("me", {premium:paid(), place}).then(j => { ENS.me = j.me; store.set("ensMe", ENS.me); }).catch(() => {}); }
 function ensOpen(){ if(ensOn() && ENS.auth){ ensPoll(); } }
 
 // démarrage : relève des messages en arrière-plan, ouverture directe depuis une notification
-if(ensOn() && ENS.auth){ ensSaveAuth(); ensLoop(); setTimeout(ensPoll, 2500); }
+if(ensOn() && ENS.auth){ ensSaveAuth(); ensLoop(); setTimeout(ensPoll, 2500); setTimeout(ensSync, 6000); }
 setTimeout(ensBadge, 500);
 if(/[?&]tab=ensemble\b/.test(location.search)) setTimeout(() => { hideGate?.(); go("ensemble"); }, 900);
 navigator.serviceWorker?.addEventListener?.("message", e => { if(e.data === "ensemble"){ go("ensemble"); ensPoll(); } });

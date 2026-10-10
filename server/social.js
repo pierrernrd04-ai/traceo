@@ -4,8 +4,10 @@
 // Vie privée : la position est arrondie à ~300 m avant d'être enregistrée, n'est montrée qu'en distance arrondie,
 // disparaît après 3 h sans activité, et seulement si la personne a choisi d'être visible. Compte supprimable à tout moment.
 //
-// Authentification : à l'inscription, le serveur renvoie un jeton secret gardé sur le téléphone
-// (en-tête Authorization: Bearer <id>.<jeton>) ; seule son empreinte SHA-256 est enregistrée.
+// Comptes : identifiant (pseudo) unique, e-mail, mot de passe, prénom, nom, date de naissance (15 ans minimum).
+// Le mot de passe est d'abord étiré sur le téléphone (PBKDF2, 150 000 tours), puis salé et haché ici : il n'est jamais
+// stocké ni transmis en clair. Chaque connexion crée une session (jeton aléatoire ; seule son empreinte est gardée).
+// Administration (page admin.html) : en-tête X-Admin-Key = secret ADMIN_KEY du serveur.
 import { json } from "./worker.js";
 
 export async function social(req, env, cors){
@@ -33,8 +35,10 @@ const LEVELS = ["debut", "regulier", "confirme", "expert"];
 export class Hub {
   constructor(state, env){
     this.state = state; this.env = env; this.sql = state.storage.sql; this.hits = new Map();
-    this.sql.exec(`CREATE TABLE IF NOT EXISTS users(id TEXT PRIMARY KEY, tok TEXT, first TEXT, last TEXT, email TEXT, level TEXT, pace INT, bio TEXT,
-      created INT, seen INT, lat REAL, lon REAL, visible INT DEFAULT 1, avail_until INT DEFAULT 0, avail_km REAL, avail_note TEXT, push TEXT, notif INT DEFAULT 1, shout_at INT DEFAULT 0)`);
+    this.sql.exec(`CREATE TABLE IF NOT EXISTS users(id TEXT PRIMARY KEY, pseudo TEXT UNIQUE, pw TEXT, first TEXT, last TEXT, email TEXT UNIQUE, birth TEXT, level TEXT, pace INT, bio TEXT,
+      created INT, seen INT, last_login INT, lat REAL, lon REAL, place TEXT, visible INT DEFAULT 1, avail_until INT DEFAULT 0, avail_km REAL, avail_note TEXT, push TEXT, notif INT DEFAULT 1, shout_at INT DEFAULT 0, premium INT DEFAULT 0)`);
+    this.sql.exec(`CREATE TABLE IF NOT EXISTS sessions(tok TEXT PRIMARY KEY, uid TEXT, created INT, seen INT, ua TEXT)`);
+    this.sql.exec(`CREATE INDEX IF NOT EXISTS sessions_uid ON sessions(uid)`);
     this.sql.exec(`CREATE TABLE IF NOT EXISTS msgs(id INTEGER PRIMARY KEY AUTOINCREMENT, a TEXT, b TEXT, t INT, kind TEXT, body TEXT, meta TEXT)`);
     this.sql.exec(`CREATE INDEX IF NOT EXISTS msgs_b ON msgs(b, id)`);
     this.sql.exec(`CREATE INDEX IF NOT EXISTS msgs_a ON msgs(a, id)`);
@@ -48,16 +52,20 @@ export class Hub {
 
   async fetch(req){
     const url = new URL(req.url), path = url.pathname.replace(/^\/social\//, ""), ip = req.headers.get("X-IP") || "?";
-    let body = {}; if(req.method === "POST"){ try{ body = await req.json(); }catch(e){ return json({error:"bad_json"}, 400, {}); } }
+    let body = {}; if(req.method === "POST"){ const raw = await req.text(); if(raw.trim()){ try{ body = JSON.parse(raw); }catch(e){ return json({error:"bad_json"}, 400, {}); } } }
     try{
       if(path === "vapid") return json({key:(await this.vapid()).pub}, 200, {});
-      if(path === "signup") return this.signup(body, ip);
+      if(path === "signup") return this.signup(body, ip, req);
+      if(path === "login") return this.login(body, ip, req);
+      if(path === "pseudo") return json({free:!this.one("SELECT 1 AS x FROM users WHERE pseudo = ?", clean(url.searchParams.get("p"), 20).toLowerCase())}, 200, {});
+      if(path.startsWith("admin/")) return this.admin(req, path.slice(6), body, url, ip);
       const me = await this.auth(req);
       if(!me) return json({error:"auth"}, 401, {});
       this.sql.exec("UPDATE users SET seen = ? WHERE id = ?", NOW(), me.id);
       switch(path){
         case "me": return this.update(me, body);
         case "delete": return this.remove(me);
+        case "logout": this.sql.exec("DELETE FROM sessions WHERE tok = ?", await sha(this.tok(req))); return json({ok:true}, 200, {});
         case "pos": return this.pos(me, body);
         case "nearby": return this.nearby(me, +url.searchParams.get("r") || 10);
         case "send": return this.send(me, body);
@@ -70,26 +78,50 @@ export class Hub {
     }catch(e){ return json({error:"server", detail:String(e.message || e).slice(0, 200)}, 500, {}); }
   }
 
+  tok(req){ const m = /^Bearer\s+([a-f0-9]{48})$/i.exec(req.headers.get("Authorization") || ""); return m ? m[1] : ""; }
   async auth(req){
-    const m = /^Bearer\s+([a-z0-9]{8,32})\.([a-f0-9]{32,64})$/i.exec(req.headers.get("Authorization") || ""); if(!m) return null;
-    const u = this.one("SELECT * FROM users WHERE id = ?", m[1]);
-    return u && u.tok === await sha(m[2]) ? u : null;
+    const t = this.tok(req); if(!t) return null;
+    const ses = this.one("SELECT * FROM sessions WHERE tok = ?", await sha(t)); if(!ses) return null;
+    if(NOW() - ses.seen > 10*MIN) this.sql.exec("UPDATE sessions SET seen = ? WHERE tok = ?", NOW(), ses.tok);
+    return this.one("SELECT * FROM users WHERE id = ?", ses.uid);
   }
-  pub(u){ return {id:u.id, name:`${u.first} ${u.last ? u.last[0].toUpperCase() + "." : ""}`.trim(), first:u.first, level:u.level, pace:u.pace, bio:u.bio || ""}; }
-
-  async signup(b, ip){
-    if(this.limit("su:" + ip, 6, HOUR)) return json({error:"rate_limited"}, 429, {});
-    const first = clean(b.first, 30), last = clean(b.last, 40), email = clean(b.email, 120).toLowerCase();
+  pub(u){ return {id:u.id, pseudo:u.pseudo, name:`${u.first} ${u.last ? u.last[0].toUpperCase() + "." : ""}`.trim(), first:u.first, level:u.level, pace:u.pace, bio:u.bio || ""}; }
+  async newSession(u, req){
+    const token = hex(crypto.getRandomValues(new Uint8Array(24)));
+    this.sql.exec("INSERT INTO sessions(tok, uid, created, seen, ua) VALUES(?,?,?,?,?)", await sha(token), u.id, NOW(), NOW(), clean(req.headers.get("User-Agent"), 160));
+    this.sql.exec("UPDATE users SET last_login = ?, seen = ? WHERE id = ?", NOW(), NOW(), u.id);
+    return token;
+  }
+  async hashPw(key, salt){ salt = salt || hex(crypto.getRandomValues(new Uint8Array(16))); return salt + ":" + await sha(salt + ":" + key); }
+  async signup(b, ip, req){
+    if(this.limit("su:" + ip, 8, HOUR)) return json({error:"rate_limited"}, 429, {});
+    const first = clean(b.first, 30), last = clean(b.last, 40), email = clean(b.email, 120).toLowerCase(), pseudo = clean(b.pseudo, 20).toLowerCase(), birth = clean(b.birth, 10);
     if(!first || !last) return json({error:"name_required"}, 400, {});
+    if(!/^[a-z0-9][a-z0-9_.]{2,19}$/.test(pseudo)) return json({error:"bad_pseudo"}, 400, {});
     if(!/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(email)) return json({error:"bad_email"}, 400, {});
-    if(!b.age15 || !b.terms) return json({error:"consent_required"}, 400, {});
-    const id = hex(crypto.getRandomValues(new Uint8Array(8))), token = hex(crypto.getRandomValues(new Uint8Array(24)));
-    this.sql.exec("INSERT INTO users(id, tok, first, last, email, level, pace, bio, created, seen, visible) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
-      id, await sha(token), first, last, email, LEVELS.includes(b.level) ? b.level : "regulier", Math.max(150, Math.min(900, +b.pace || 345)), clean(b.bio, 140), NOW(), NOW(), b.visible === false ? 0 : 1);
-    return json({id, token, me:this.mine(this.one("SELECT * FROM users WHERE id = ?", id))}, 200, {});
+    if(!/^[a-f0-9]{64}$/.test(String(b.key || ""))) return json({error:"bad_password"}, 400, {});
+    const bd = Date.parse(birth + "T00:00:00Z");
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(birth) || !isFinite(bd) || bd < Date.parse("1900-01-01")) return json({error:"bad_birth"}, 400, {});
+    if((NOW() - bd)/(365.25*864e5) < 15) return json({error:"too_young"}, 400, {});
+    if(!b.terms) return json({error:"consent_required"}, 400, {});
+    if(this.one("SELECT 1 AS x FROM users WHERE pseudo = ?", pseudo)) return json({error:"pseudo_taken"}, 409, {});
+    if(this.one("SELECT 1 AS x FROM users WHERE email = ?", email)) return json({error:"email_taken"}, 409, {});
+    const id = hex(crypto.getRandomValues(new Uint8Array(8)));
+    this.sql.exec("INSERT INTO users(id, pseudo, pw, first, last, email, birth, level, pace, bio, created, seen, visible, premium) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+      id, pseudo, await this.hashPw(b.key), first, last, email, birth, LEVELS.includes(b.level) ? b.level : "regulier", Math.max(150, Math.min(900, +b.pace || 345)), clean(b.bio, 140), NOW(), NOW(), b.visible === false ? 0 : 1, b.premium ? 1 : 0);
+    const u = this.one("SELECT * FROM users WHERE id = ?", id), token = await this.newSession(u, req);
+    if(this.env.ALERTS_TOPIC) this.state.waitUntil(fetch("https://ntfy.sh/" + this.env.ALERTS_TOPIC, {method:"POST", headers:{Title:"Nouveau membre Traceo", Tags:"handshake"}, body:`${first} ${last} (@${pseudo}) vient de créer son compte.`}).catch(() => {}));
+    return json({token, me:this.mine(u)}, 200, {});
   }
-  mine(u){ return {...this.pub(u), last:u.last, email:u.email, visible:!!u.visible, notif:!!u.notif, push:!!u.push, avail_until:u.avail_until || 0}; }
-  update(me, b){
+  async login(b, ip, req){
+    const who = clean(b.login, 120).toLowerCase().replace(/^@/, "");
+    if(this.limit("li:" + ip, 20, 15*MIN) || this.limit("lu:" + who, 8, 15*MIN)) return json({error:"rate_limited"}, 429, {});
+    const u = this.one("SELECT * FROM users WHERE email = ? OR pseudo = ?", who, who);
+    if(!u || !/^[a-f0-9]{64}$/.test(String(b.key || "")) || await this.hashPw(b.key, u.pw.split(":")[0]) !== u.pw) return json({error:"bad_login"}, 401, {});
+    return json({token:await this.newSession(u, req), me:this.mine(u)}, 200, {});
+  }
+  mine(u){ return {...this.pub(u), last:u.last, email:u.email, birth:u.birth, visible:!!u.visible, notif:!!u.notif, push:!!u.push, avail_until:u.avail_until || 0}; }
+  async update(me, b){
     const f = {};
     if(b.first != null) f.first = clean(b.first, 30) || me.first;
     if(b.last != null) f.last = clean(b.last, 40) || me.last;
@@ -100,13 +132,21 @@ export class Hub {
     if(b.notif != null) f.notif = b.notif ? 1 : 0;
     if(b.push !== undefined) f.push = b.push && typeof b.push === "object" && /^https:\/\//.test(b.push.endpoint || "") ? JSON.stringify({endpoint:String(b.push.endpoint).slice(0, 600)}) : null;
     if(b.avail === false) f.avail_until = 0;
+    if(b.premium != null) f.premium = b.premium ? 1 : 0;
+    if(b.place != null) f.place = clean(b.place, 60);
+    if(b.key != null && /^[a-f0-9]{64}$/.test(String(b.key)) && /^[a-f0-9]{64}$/.test(String(b.oldKey || ""))){
+      if(await this.hashPw(b.oldKey, me.pw.split(":")[0]) !== me.pw) return json({error:"bad_login"}, 401, {});
+      f.pw = await this.hashPw(b.key);
+    }
     const keys = Object.keys(f);
     if(keys.length) this.sql.exec(`UPDATE users SET ${keys.map(k => k + " = ?").join(", ")} WHERE id = ?`, ...keys.map(k => f[k]), me.id);
     return json({me:this.mine(this.one("SELECT * FROM users WHERE id = ?", me.id))}, 200, {});
   }
   remove(me){
+    if(!me) return json({ok:true}, 200, {});
     this.sql.exec("DELETE FROM msgs WHERE a = ? OR b = ?", me.id, me.id);
     this.sql.exec("DELETE FROM blocks WHERE who = ? OR whom = ?", me.id, me.id);
+    this.sql.exec("DELETE FROM sessions WHERE uid = ?", me.id);
     this.sql.exec("DELETE FROM users WHERE id = ?", me.id);
     return json({ok:true}, 200, {});
   }
@@ -177,6 +217,39 @@ export class Hub {
     // alerte instantanée au responsable de l'app (même canal ntfy que les alertes de l'app)
     if(this.env.ALERTS_TOPIC) this.state.waitUntil(fetch("https://ntfy.sh/" + this.env.ALERTS_TOPIC, {method:"POST", headers:{Title:"Signalement Traceo Ensemble", Priority:"high"}, body:`${me.id} signale ${who} : ${clean(b.why, 300)}`}).catch(() => {}));
     return json({ok:true}, 200, {});
+  }
+
+  /* ---------- Administration (page admin.html) ---------- */
+  async admin(req, path, b, url, ip){
+    const key = req.headers.get("X-Admin-Key") || "";
+    if(!this.env.ADMIN_KEY) return json({error:"admin_not_configured"}, 503, {});
+    if(this.limit("ad:" + ip, 60, 15*MIN)) return json({error:"rate_limited"}, 429, {});
+    if(key.length !== this.env.ADMIN_KEY.length || await sha(key) !== await sha(this.env.ADMIN_KEY)){ this.limit("adbad:" + ip, 1, 1); return json({error:"auth"}, 401, {}); }
+    const now = NOW();
+    if(path === "stats"){
+      return json({
+        members:this.one("SELECT COUNT(*) AS n FROM users").n,
+        new7:this.one("SELECT COUNT(*) AS n FROM users WHERE created > ?", now - 7*864e5).n,
+        active24:this.one("SELECT COUNT(*) AS n FROM users WHERE seen > ?", now - 864e5).n,
+        online:this.one("SELECT COUNT(*) AS n FROM users WHERE seen > ?", now - 10*MIN).n,
+        premium:this.one("SELECT COUNT(*) AS n FROM users WHERE premium = 1").n,
+        messages:this.one("SELECT COUNT(*) AS n FROM msgs").n,
+        reports:this.one("SELECT COUNT(*) AS n FROM reports").n
+      }, 200, {});
+    }
+    if(path === "members"){
+      const rows = this.rows(`SELECT u.*, (SELECT COUNT(*) FROM msgs WHERE a = u.id) AS sent, (SELECT COUNT(*) FROM reports WHERE whom = u.id) AS reported FROM users u ORDER BY created DESC LIMIT 5000`);
+      return json({members:rows.map(u => ({id:u.id, pseudo:u.pseudo, first:u.first, last:u.last, email:u.email, birth:u.birth, level:u.level, pace:u.pace, created:u.created, last_login:u.last_login, seen:u.seen,
+        place:u.place || "", visible:!!u.visible, premium:!!u.premium, push:!!u.push, sent:u.sent, reported:u.reported}))}, 200, {});
+    }
+    if(path === "reports") return json({reports:this.rows("SELECT r.*, a.pseudo AS by_pseudo, b.pseudo AS whom_pseudo FROM reports r LEFT JOIN users a ON a.id = r.who LEFT JOIN users b ON b.id = r.whom ORDER BY t DESC LIMIT 500")}, 200, {});
+    if(path === "delete"){ const u = this.one("SELECT * FROM users WHERE id = ?", clean(b.id, 32)); if(!u) return json({error:"unknown_user"}, 404, {}); return this.remove(u); }
+    if(path === "reset"){
+      const u = this.one("SELECT * FROM users WHERE id = ?", clean(b.id, 32)); if(!u || !/^[a-f0-9]{64}$/.test(String(b.key || ""))) return json({error:"bad_request"}, 400, {});
+      this.sql.exec("UPDATE users SET pw = ? WHERE id = ?", await this.hashPw(b.key), u.id); this.sql.exec("DELETE FROM sessions WHERE uid = ?", u.id);
+      return json({ok:true}, 200, {});
+    }
+    return json({error:"not_found"}, 404, {});
   }
 
   /* ---------- Notifications (Web Push, sans contenu : le téléphone vient lire le message) ---------- */

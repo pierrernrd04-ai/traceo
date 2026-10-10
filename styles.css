@@ -887,3 +887,14 @@ div.hero .me2{fill:var(--blue);stroke:#fff;stroke-width:3}
 .chat-form #chatMic.on{background:#FF5D5D;color:#fff;animation:ensPulse 1.2s infinite}
 .ai-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#25C98F;margin-right:5px;vertical-align:1px;box-shadow:0 0 0 0 rgba(37,201,143,.6);animation:ensPulse 1.6s infinite}
 body[data-tab="chat"] .fab.ask{display:none}
+.pw{position:relative;display:flex;align-items:center}
+.pw .input{flex:1}
+.pw .linkbtn{position:absolute;right:12px;font-size:13px}
+.pw .at{position:absolute;left:14px;color:var(--muted);font-weight:800;pointer-events:none}
+.pw .at + .input{padding-left:30px}
+.ens-card .ps{font-weight:600;font-size:12.5px;color:var(--muted)}
+.ens-pw{margin:10px 0;padding:10px 12px;border-radius:14px;background:var(--surface-2)}
+.ens-pw summary{font-weight:800;cursor:pointer}
+.ens-join{display:flex;align-items:center;gap:12px;margin-top:12px;padding:13px 14px;border-radius:16px;border:1px solid rgba(43,227,155,.35);background:linear-gradient(105deg,rgba(43,227,155,.14),rgba(30,166,208,.14));color:var(--ink);width:100%;text-align:left}
+.ens-join b{display:block;font-size:15px}.ens-join small{color:var(--muted);font-size:12.5px}
+.ens-join .ens-ic{margin:0}

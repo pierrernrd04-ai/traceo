@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#07131A">
+<title>Traceo Admin</title>
+<link rel="icon" href="icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#07131A;--surface:#0E1E25;--surface-2:#14282F;--ink:#E6F2F0;--muted:#8AA4A3;--line:#1D3640;--accent:#25C98F;--accent-2:#1EA6D0;--warn:#FF8A7A;--gold:#F2C94C;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1180px;margin:0 auto;padding:18px 16px 60px}
+header{display:flex;align-items:center;gap:12px;justify-content:space-between;margin-bottom:18px}
+h1{font-size:22px;margin:0;display:flex;align-items:center;gap:10px}
+h1 img{width:34px;height:34px;border-radius:10px}
+h2{font-size:17px;margin:26px 0 10px}
+button,input,select{font:inherit;color:inherit}
+.btn{border:0;border-radius:12px;padding:10px 14px;font-weight:800;background:var(--surface-2);color:var(--ink);cursor:pointer}
+.btn.hero{background:linear-gradient(105deg,#2BE39B,#1EA6D0);color:#03140D}
+.btn.sm{padding:6px 10px;font-size:13px;border-radius:10px}
+.btn.danger{color:var(--warn)}
+.btn:disabled{opacity:.5}
+.input{width:100%;padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:var(--surface);outline:none}
+.input:focus{border-color:var(--accent)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:18px}
+.login{max-width:420px;margin:12vh auto 0;display:flex;flex-direction:column;gap:12px}
+.muted{color:var(--muted)}.small{font-size:13px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px}
+.tile b{display:block;font-size:28px;line-height:1.1}
+.tile span{color:var(--muted);font-size:13px;font-weight:600}
+.tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+.tools .input{flex:1 1 220px;width:auto}
+.tabs{display:flex;gap:6px;margin-top:22px}
+.tabs button{border:0;background:none;padding:9px 14px;border-radius:999px;font-weight:800;color:var(--muted);cursor:pointer}
+.tabs button[aria-pressed="true"]{background:var(--surface-2);color:var(--ink)}
+table{width:100%;border-collapse:collapse;background:var(--surface);border:1px solid var(--line);border-radius:16px;overflow:hidden}
+th,td{padding:10px 10px;text-align:left;border-bottom:1px solid var(--line);font-size:13.5px;vertical-align:top}
+th{color:var(--muted);font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.04em;cursor:pointer;white-space:nowrap}
+tr:last-child td{border-bottom:0}
+td a{color:var(--accent-2);text-decoration:none}
+.tag{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11.5px;font-weight:800;background:var(--surface-2);color:var(--muted);margin:1px 2px 1px 0}
+.tag.prem{background:rgba(242,201,76,.16);color:var(--gold)}
+.tag.on{background:rgba(37,201,143,.16);color:var(--accent)}
+.tag.bad{background:rgba(255,138,122,.16);color:var(--warn)}
+.who b{display:block}.who small{color:var(--muted)}
+.acts{display:flex;gap:6px;flex-wrap:wrap}
+.empty{padding:30px;text-align:center;color:var(--muted)}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--surface-2);border:1px solid var(--line);padding:12px 16px;border-radius:14px;font-weight:700;max-width:92vw;box-shadow:0 10px 30px rgba(0,0,0,.4)}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:grid;place-items:center;padding:16px;z-index:9}
+.modal .card{max-width:420px;width:100%}
+.mono{font-family:ui-monospace,Menlo,monospace;font-size:20px;background:var(--surface-2);padding:10px 12px;border-radius:12px;text-align:center;letter-spacing:.05em;user-select:all}
+@media (max-width:760px){
+  table,thead,tbody,tr,td{display:block}
+  thead{display:none}
+  table{background:none;border:0}
+  tr{background:var(--surface);border:1px solid var(--line);border-radius:16px;margin-bottom:10px;padding:6px 4px}
+  td{border:0;padding:5px 10px}
+  td[data-l]::before{content:attr(data-l) " : ";color:var(--muted);font-size:12px}
+}
+</style>
+</head>
+<body>
+<div class="wrap" id="app"></div>
+<script src="config.js"></script>
+<script>
+"use strict";
+const API = (window.TRACEO_CONFIG?.SOCIAL_API || window.TRACEO_CONFIG?.CHAT_API || "").replace(/\/$/, "");
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const d = t => t ? new Date(t).toLocaleString("fr-FR", {day:"2-digit", month:"2-digit", year:"2-digit", hour:"2-digit", minute:"2-digit"}) : "–";
+const ago = t => { if(!t) return "jamais"; const m = Math.round((Date.now() - t)/60000); return m < 2 ? "en ligne" : m < 60 ? `il y a ${m} min` : m < 1440 ? `il y a ${Math.round(m/60)} h` : `il y a ${Math.round(m/1440)} j`; };
+const age = b => { if(!b) return ""; const x = new Date(b), n = new Date(); let a = n.getFullYear() - x.getFullYear(); if(n < new Date(n.getFullYear(), x.getMonth(), x.getDate())) a--; return a; };
+const LVL = {debut:"Débutant", regulier:"Régulier", confirme:"Confirmé", expert:"Expert"};
+let KEY = sessionStorage.getItem("traceoAdmin") || localStorage.getItem("traceoAdmin") || "";
+let DATA = {members:[], reports:[], stats:null}, TAB = "members", SORT = "created", QRY = "";
+function toast(m){ const t = document.createElement("div"); t.className = "toast"; t.textContent = m; document.body.appendChild(t); setTimeout(() => t.remove(), 3200); }
+async function call(path, body){
+  const r = await fetch(API + "/social/admin/" + path, {method:body ? "POST" : "GET", headers:{"Content-Type":"application/json", "X-Admin-Key":KEY}, body:body ? JSON.stringify(body) : undefined});
+  const j = await r.json().catch(() => ({}));
+  if(!r.ok) throw new Error(j.error || "http " + r.status);
+  return j;
+}
+function loginView(err){
+  $("#app").innerHTML = `<div class="login card"><h1><img src="icons/icon-192.png" alt="">Traceo Admin</h1>
+    ${API ? `<p class="muted">Accès réservé. Entre ta clé d'administration.</p>
+    <input class="input" id="k" type="password" placeholder="Clé d'administration" autocomplete="current-password">
+    <label class="small muted"><input type="checkbox" id="rem"> Se souvenir sur cet appareil</label>
+    <button class="btn hero" id="go">Entrer</button><p class="small" style="color:var(--warn)">${esc(err || "")}</p>`
+    : `<p class="muted">Le serveur Traceo n'est pas encore en ligne : la liste des membres apparaîtra ici dès sa mise en service.</p>`}</div>`;
+  if(!API) return;
+  const go = async () => { KEY = $("#k").value.trim(); if(!KEY) return; const rem = $("#rem").checked; try{ await load(); (rem ? localStorage : sessionStorage).setItem("traceoAdmin", KEY); }catch(e){ KEY = ""; loginView(e.message === "auth" ? "Clé incorrecte." : e.message === "rate_limited" ? "Trop d'essais, attends 15 minutes." : "Serveur injoignable."); } };
+  $("#go").onclick = go; $("#k").onkeydown = e => { if(e.key === "Enter") go(); }; $("#k").focus();
+}
+async function load(){
+  const [stats, m, r] = await Promise.all([call("stats"), call("members"), call("reports")]);
+  DATA = {stats, members:m.members, reports:r.reports}; view();
+}
+function filtered(){
+  const q = QRY.toLowerCase().trim();
+  let list = DATA.members.filter(u => !q || [u.pseudo, u.first, u.last, u.email, u.place].join(" ").toLowerCase().includes(q));
+  const k = {created:u => -u.created, seen:u => -(u.seen || 0), name:u => (u.last + u.first).toLowerCase(), age:u => -(age(u.birth) || 0)}[SORT];
+  return list.sort((a, b) => k(a) < k(b) ? -1 : k(a) > k(b) ? 1 : 0);
+}
+function view(){
+  const s = DATA.stats, list = filtered();
+  $("#app").innerHTML = `<header><h1><img src="icons/icon-192.png" alt="">Traceo Admin</h1><div class="acts"><button class="btn sm" id="rf">Actualiser</button><button class="btn sm" id="out">Quitter</button></div></header>
+    <div class="tiles">${[["Membres", s.members], ["Nouveaux (7 j)", s.new7], ["Actifs (24 h)", s.active24], ["En ligne", s.online], ["Premium", s.premium], ["Messages", s.messages], ["Signalements", s.reports]].map(([l, v]) => `<div class="tile"><b>${v}</b><span>${l}</span></div>`).join("")}</div>
+    <div class="tabs"><button data-t="members" aria-pressed="${TAB === "members"}">Membres (${DATA.members.length})</button><button data-t="reports" aria-pressed="${TAB === "reports"}">Signalements (${DATA.reports.length})</button></div>
+    ${TAB === "members" ? `<h2>Membres inscrits</h2>
+      <div class="tools"><input class="input" id="q" placeholder="Rechercher : nom, identifiant, e-mail, ville…" value="${esc(QRY)}">
+      <select class="input" id="sort" style="flex:0 0 auto;width:auto">${[["created", "Plus récents"], ["seen", "Dernière activité"], ["name", "Nom"], ["age", "Âge"]].map(([k, l]) => `<option value="${k}" ${SORT === k ? "selected" : ""}>${l}</option>`).join("")}</select>
+      <button class="btn sm" id="csv">Exporter (CSV)</button></div>
+      ${list.length ? `<table><thead><tr><th>Membre</th><th>E-mail</th><th>Âge</th><th>Ville</th><th>Inscrit le</th><th>Activité</th><th>Statut</th><th></th></tr></thead><tbody>
+      ${list.map(u => `<tr><td class="who"><b>${esc(u.first)} ${esc(u.last)}</b><small>@${esc(u.pseudo)} · ${LVL[u.level] || ""}</small></td>
+        <td data-l="E-mail"><a href="mailto:${esc(u.email)}">${esc(u.email)}</a></td>
+        <td data-l="Âge">${age(u.birth)} ans <span class="muted small">(${u.birth ? new Date(u.birth).toLocaleDateString("fr-FR") : ""})</span></td>
+        <td data-l="Ville">${esc(u.place || "–")}</td>
+        <td data-l="Inscrit le">${d(u.created)}</td>
+        <td data-l="Activité">${ago(u.seen)}<br><span class="muted small">${u.sent} message${u.sent > 1 ? "s" : ""} envoyé${u.sent > 1 ? "s" : ""}</span></td>
+        <td data-l="Statut">${u.premium ? '<span class="tag prem">Premium</span>' : '<span class="tag">Gratuit</span>'}${Date.now() - u.seen < 600000 ? '<span class="tag on">En ligne</span>' : ""}${u.visible ? "" : '<span class="tag">Invisible</span>'}${u.push ? '<span class="tag">Notifs</span>' : ""}${u.reported ? `<span class="tag bad">${u.reported} signalement${u.reported > 1 ? "s" : ""}</span>` : ""}</td>
+        <td><div class="acts"><button class="btn sm" data-reset="${u.id}">Nouveau mot de passe</button><button class="btn sm danger" data-del="${u.id}">Supprimer</button></div></td></tr>`).join("")}</tbody></table>`
+      : `<div class="card empty">${DATA.members.length ? "Aucun membre ne correspond." : "Aucun membre inscrit pour l'instant."}</div>`}`
+    : `<h2>Signalements</h2>${DATA.reports.length ? `<table><thead><tr><th>Date</th><th>Par</th><th>Contre</th><th>Motif</th></tr></thead><tbody>${DATA.reports.map(r => `<tr><td data-l="Date">${d(r.t)}</td><td data-l="Par">@${esc(r.by_pseudo || "supprimé")}</td><td data-l="Contre">@${esc(r.whom_pseudo || "supprimé")}</td><td data-l="Motif">${esc(r.why || "–")}</td></tr>`).join("")}</tbody></table>` : `<div class="card empty">Aucun signalement.</div>`}`}
+    <p class="small muted" style="margin-top:20px">Données personnelles : à utiliser uniquement pour gérer la communauté Traceo (RGPD). Page non référencée, protégée par ta clé.</p>`;
+  $("#rf").onclick = () => load().then(() => toast("Données à jour.")).catch(e => toast("Erreur : " + e.message));
+  $("#out").onclick = () => { sessionStorage.removeItem("traceoAdmin"); localStorage.removeItem("traceoAdmin"); KEY = ""; loginView(); };
+  document.querySelectorAll("[data-t]").forEach(b => b.onclick = () => { TAB = b.dataset.t; view(); });
+  if(TAB !== "members") return;
+  $("#q").oninput = e => { QRY = e.target.value; const pos = e.target.selectionStart; view(); const i = $("#q"); i.focus(); i.setSelectionRange(pos, pos); };
+  $("#sort").onchange = e => { SORT = e.target.value; view(); };
+  $("#csv").onclick = () => {
+    const rows = [["Identifiant", "Prénom", "Nom", "E-mail", "Date de naissance", "Âge", "Niveau", "Ville", "Inscrit le", "Dernière activité", "Premium", "Messages envoyés"]]
+      .concat(filtered().map(u => [u.pseudo, u.first, u.last, u.email, u.birth, age(u.birth), LVL[u.level] || "", u.place, d(u.created), d(u.seen), u.premium ? "oui" : "non", u.sent]));
+    const csv = "﻿" + rows.map(r => r.map(v => `"${String(v ?? "").replace(/"/g, '""')}"`).join(";")).join("\n");
+    const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], {type:"text/csv"})); a.download = `membres-traceo-${new Date().toISOString().slice(0, 10)}.csv`; a.click();
+  };
+  document.querySelectorAll("[data-del]").forEach(b => b.onclick = async () => {
+    const u = DATA.members.find(x => x.id === b.dataset.del);
+    if(!confirm(`Supprimer définitivement le compte de ${u.first} ${u.last} (@${u.pseudo}) et ses messages ?`)) return;
+    try{ await call("delete", {id:u.id}); toast("Compte supprimé."); await load(); }catch(e){ toast("Erreur : " + e.message); }
+  });
+  document.querySelectorAll("[data-reset]").forEach(b => b.onclick = async () => {
+    const u = DATA.members.find(x => x.id === b.dataset.reset);
+    if(!confirm(`Créer un nouveau mot de passe pour @${u.pseudo} ? L'ancien ne fonctionnera plus.`)) return;
+    const abc = "abcdefghjkmnpqrstuvwxyz23456789", pw = Array.from(crypto.getRandomValues(new Uint8Array(10)), x => abc[x % abc.length]).join("");
+    try{
+      await call("reset", {id:u.id, key:await pwKey(pw)});
+      const m = document.createElement("div"); m.className = "modal";
+      m.innerHTML = `<div class="card"><h2 style="margin-top:0">Nouveau mot de passe</h2><p class="muted">Pour <b>${esc(u.first)} ${esc(u.last)}</b> (@${esc(u.pseudo)}). Envoie-le-lui ; il pourra le changer dans Ensemble › Mon compte.</p><p class="mono">${pw}</p>
+        <div class="acts"><a class="btn hero" href="mailto:${esc(u.email)}?subject=${encodeURIComponent("Ton nouveau mot de passe Traceo")}&body=${encodeURIComponent(`Bonjour ${u.first},\n\nVoici ton nouveau mot de passe Traceo : ${pw}\n\nConnecte-toi dans l'onglet Ensemble avec ton identifiant @${u.pseudo}, puis change-le dans Mon compte.\n\nBonne course !`)}">Envoyer par e-mail</a><button class="btn" id="cl">Fermer</button></div></div>`;
+      document.body.appendChild(m); $("#cl").onclick = () => m.remove();
+    }catch(e){ toast("Erreur : " + e.message); }
+  });
+}
+// même étirement du mot de passe que dans l'app (ensemble.js)
+async function pwKey(pw){
+  const k = await crypto.subtle.importKey("raw", new TextEncoder().encode(pw), "PBKDF2", false, ["deriveBits"]);
+  const bits = await crypto.subtle.deriveBits({name:"PBKDF2", salt:new TextEncoder().encode("traceo-ensemble-v1"), iterations:150000, hash:"SHA-256"}, k, 256);
+  return [...new Uint8Array(bits)].map(b => b.toString(16).padStart(2, "0")).join("");
+}
+if(KEY && API) load().catch(() => { KEY = ""; loginView(); }); else loginView();
+</script>
+</body>
+</html>

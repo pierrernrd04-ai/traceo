@@ -28,6 +28,7 @@ jobs:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      ADMIN_KEY: ${{ secrets.ADMIN_KEY }}
     steps:
       - name: Vérifier les secrets
         id: check
@@ -72,6 +73,7 @@ jobs:
           URL=$(grep -oE 'https://[a-z0-9.-]+\.workers\.dev' /tmp/deploy.log | head -1)
           echo "url=$URL" >> "$GITHUB_OUTPUT"
           if [ -n "$ANTHROPIC_API_KEY" ]; then printf '%s' "$ANTHROPIC_API_KEY" | npx wrangler secret put ANTHROPIC_API_KEY; fi
+          if [ -n "$ADMIN_KEY" ]; then printf '%s' "$ADMIN_KEY" | npx wrangler secret put ADMIN_KEY; fi
 
       - name: Tester le serveur
         if: steps.check.outputs.ok == 'true' && steps.deploy.outputs.url != ''
