@@ -1820,7 +1820,7 @@ function voiceGuide(r){
   if(d <= 230 && d > 90 && !run.ann.has(i + ":far")){ run.ann.add(i + ":far"); speak(r.st.type === "arrive" ? `Dans ${mSay(d)}, tu arrives à ton point de départ.` : `Dans ${mSay(d)}, ${lc(r.st.text)}.`); }
   // juste avant
   if(d <= 40 && !run.ann.has(i + ":now")){ run.ann.add(i + ":now"); run.ann.add(i + ":far");
-    if(r.st.type !== "arrive"){ const nxt = run.steps[i+1]; let t = `Maintenant, ${shortTurn(r.st)}.`; if(nxt && nxt.type !== "arrive" && nxt.at - r.st.at < 150) t += ` Puis, ${lc(nxt.text)}.`; speak(t, true); } }
+    if(r.st.type !== "arrive"){ const nxt = run.steps[i+1]; try{ navigator.vibrate?.([60, 80, 60]); }catch(e){} let t = `Maintenant, ${shortTurn(r.st)}.`; if(nxt && nxt.type !== "arrive" && nxt.at - r.st.at < 150) t += ` Puis, ${lc(nxt.text)}.`; speak(t, true); } }
   // fin de boucle
   if(!run.endSaid && run.total - run.along < 500 && run.total > 1500){ run.endSaid = true; speak("Plus que 500 mètres. Tu y es presque !"); }
 }
@@ -2029,8 +2029,11 @@ async function payOnLaunch(){
 
 /* ---------- Fenêtres ---------- */
 const modal = $("#modal"), sheet = $("#sheet");
-function openModal(h){ sheet.innerHTML = h; modal.hidden = false; sheet.querySelectorAll("[data-close]").forEach(b => b.addEventListener("click", closeModal)); }
+// Geste « retour » (bouton Android, balayage iPhone) : ferme la fenêtre ouverte au lieu de quitter l'app.
+// Une seule entrée d'historique est réutilisée tant qu'elle existe : pas d'empilement, pas de fermeture surprise.
+function openModal(h){ sheet.innerHTML = h; if(modal.hidden && !(history.state && history.state.traceoModal)){ try{ history.pushState({traceoModal:1}, ""); }catch(e){} } modal.hidden = false; sheet.querySelectorAll("[data-close]").forEach(b => b.addEventListener("click", closeModal)); }
 function closeModal(){ if(routine.on) stopRoutine(); modal.hidden = true; sheet.innerHTML = ""; }
+addEventListener("popstate", () => { if(!modal.hidden) closeModal(); });
 modal.addEventListener("click", e => { if(e.target === modal) closeModal(); });
 document.addEventListener("keydown", e => { if(e.key === "Escape" && !modal.hidden) closeModal(); });
 const heroSvg = `<div class="hero"><svg viewBox="0 0 360 170" preserveAspectRatio="xMidYMid slice"><path class="g" d="M0 40h360M0 85h360M0 130h360M40 0v170M100 0v170M160 0v170M220 0v170M280 0v170M340 0v170"/><path class="o" d="M100 130V85h60V40"/><path class="n" d="M100 130h60V85h60V40h60v45h60v45H220v-45h-60v45z"/><circle class="me2" cx="100" cy="130" r="9"/></svg></div>`;
@@ -2261,6 +2264,13 @@ addEventListener("offline", netBanner);
 addEventListener("online", () => { netBanner(); toast("Connexion retrouvée."); if(S.view === "error" && S.genErr === "offline"){ S.view = "form"; if(S.tab === "plan") render(); } });
 netBanner();
 document.addEventListener("visibilitychange", () => { if(!document.hidden){ $("#betaLock")?.remove(); checkBetaLock(); } });
+// Retour dans l'app pendant une course : l'écran se remet à rester allumé (le navigateur relâche ce verrou en veille),
+// et le guidage annonce où on en est
+document.addEventListener("visibilitychange", async () => {
+  if(document.hidden || !run.active) return;
+  if(!(await NATIVE?.keepAwake(true))){ try{ if(!run.wake || run.wake.released) run.wake = await navigator.wakeLock?.request("screen"); }catch(e){} }
+  try{ updateGuide(); tick(true); }catch(e){}
+});
 document.addEventListener("visibilitychange", () => { if(!document.hidden && S.tab === "premium" && modal.hidden && store.get("payPending", 0) > Date.now() - 2*3600e3) render(); });
 rebuildMemory(); render(); payOnLaunch(); checkBetaLock(); syncClock();
 if("serviceWorker" in navigator && location.protocol === "https:" && !PV && !NATIVE) navigator.serviceWorker.register("sw.js").catch(() => {});
