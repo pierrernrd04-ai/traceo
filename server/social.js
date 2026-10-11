@@ -32,6 +32,7 @@ function km(a, b){ const dLa = R(b.lat - a.lat), dLo = R(b.lon - a.lon); const h
 const shown = d => d < 1 ? "moins de 1 km" : d < 10 ? `${Math.round(d*2)/2} km`.replace(".", ",") : `${Math.round(d)} km`;
 const LEVELS = ["debut", "regulier", "confirme", "expert"];
 const ACT_PUB = {"kty":"EC","crv":"P-256","x":"__6AWyNjAcpIy9E2jeaF-pVNzipouEcuYhBleromdtE","y":"WR7Y2cF2dCOReGhUEk7DEFkf2Bmh5rNc0NveDAggRzQ"};   // clé publique d'activation (la clé privée = secret ACT_KEY)
+const FREE_LOOPS = 3;   // boucles offertes à chaque nouveau compte (version gratuite)
 const REWARD_EVERY = 100, REWARD_EUR = 5;   // un diamant (bon d'achat de 5 €) toutes les 100 courses vérifiées
 
 export class Hub {
@@ -39,6 +40,7 @@ export class Hub {
     this.state = state; this.env = env; this.sql = state.storage.sql; this.hits = new Map();
     this.sql.exec(`CREATE TABLE IF NOT EXISTS users(id TEXT PRIMARY KEY, pseudo TEXT UNIQUE, pw TEXT, first TEXT, last TEXT, email TEXT UNIQUE, birth TEXT, level TEXT, pace INT, bio TEXT,
       created INT, seen INT, last_login INT, lat REAL, lon REAL, place TEXT, visible INT DEFAULT 1, avail_until INT DEFAULT 0, avail_km REAL, avail_note TEXT, push TEXT, notif INT DEFAULT 1, shout_at INT DEFAULT 0, premium INT DEFAULT 0)`);
+    try{ this.sql.exec("ALTER TABLE users ADD COLUMN free_used INT DEFAULT 0"); }catch(e){}   // boucles gratuites utilisées (3 offertes)
     this.sql.exec(`CREATE TABLE IF NOT EXISTS sessions(tok TEXT PRIMARY KEY, uid TEXT, created INT, seen INT, ua TEXT)`);
     this.sql.exec(`CREATE INDEX IF NOT EXISTS sessions_uid ON sessions(uid)`);
     this.sql.exec(`CREATE TABLE IF NOT EXISTS msgs(id INTEGER PRIMARY KEY AUTOINCREMENT, a TEXT, b TEXT, t INT, kind TEXT, body TEXT, meta TEXT)`);
@@ -47,6 +49,9 @@ export class Hub {
     this.sql.exec(`CREATE TABLE IF NOT EXISTS blocks(who TEXT, whom TEXT, PRIMARY KEY(who, whom))`);
     this.sql.exec(`CREATE TABLE IF NOT EXISTS reports(t INT, who TEXT, whom TEXT, why TEXT)`);
     this.sql.exec(`CREATE TABLE IF NOT EXISTS kv(k TEXT PRIMARY KEY, v TEXT)`);
+    // Paiements reçus par PayPal (notification instantanée IPN) et demandes d'activation en attente
+    this.sql.exec(`CREATE TABLE IF NOT EXISTS payments(txn TEXT PRIMARY KEY, email TEXT, amount TEXT, currency TEXT, t INT, dev TEXT, until INT, name TEXT)`);
+    this.sql.exec(`CREATE TABLE IF NOT EXISTS act_requests(id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT, dev TEXT, t INT, done INT DEFAULT 0)`);
     this.sql.exec(`CREATE TABLE IF NOT EXISTS orders(id TEXT PRIMARY KEY, dev TEXT, t INT, amount TEXT, payer TEXT, until INT)`);
     // Programme « 100 courses = 1 diamant de 5 € » (bon d'achat = 31 jours de Premium) : courses vérifiées et diamants
     this.sql.exec(`CREATE TABLE IF NOT EXISTS runs(id INTEGER PRIMARY KEY AUTOINCREMENT, uid TEXT, t INT, day TEXT, dist INT, time INT, ascent INT, n_pts INT, hash TEXT, ok INT, reason TEXT, premium INT, lat REAL, lon REAL)`);
@@ -59,10 +64,12 @@ export class Hub {
 
   async fetch(req){
     const url = new URL(req.url), path = url.pathname.replace(/^\/social\//, ""), ip = req.headers.get("X-IP") || "?";
+    if(path === "ipn") return this.ipn(await req.text());
     let body = {}; if(req.method === "POST"){ const raw = await req.text(); if(raw.trim()){ try{ body = JSON.parse(raw); }catch(e){ return json({error:"bad_json"}, 400, {}); } } }
     try{
       if(path === "vapid") return json({key:(await this.vapid()).pub}, 200, {});
       if(path === "pay") return this.pay(body, ip);
+      if(path === "activate") return this.activateRequest(body, ip);
       if(path === "signup") return this.signup(body, ip, req);
       if(path === "login") return this.login(body, ip, req);
       if(path === "pseudo") return json({free:!this.one("SELECT 1 AS x FROM users WHERE pseudo = ?", clean(url.searchParams.get("p"), 20).toLowerCase())}, 200, {});
@@ -81,6 +88,8 @@ export class Hub {
         case "inbox": return this.inbox(me, +url.searchParams.get("since") || 0);
         case "block": return this.block(me, body);
         case "run": return this.run(me, body);
+        case "quota": return this.quota(me, body, false);
+        case "gen": return this.quota(me, body, true);
         case "runs": return this.runsInfo(me);
         case "claim": return this.claim(me, body);
         case "report": return this.report(me, body);
@@ -290,6 +299,69 @@ export class Hub {
     return json({ok:true}, 200, {});
   }
 
+  /* ---------- Version gratuite : 3 boucles offertes par compte ----------
+     Premium (activation signée valide) : illimité. Sinon on compte les boucles générées côté serveur,
+     pour qu'effacer les données du téléphone ou réinstaller l'app ne redonne pas de boucles gratuites. */
+  async premiumOk(code){
+    try{
+      const [p64, s64] = String(code || "").split("."); if(!p64 || !s64) return false;
+      const dec = s => Uint8Array.from(atob(s.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((s.length + 3) % 4)), c => c.charCodeAt(0));
+      const key = this._pk || (this._pk = await crypto.subtle.importKey("jwk", ACT_PUB, {name:"ECDSA", namedCurve:"P-256"}, false, ["verify"]));
+      const raw = dec(p64); if(!await crypto.subtle.verify({name:"ECDSA", hash:"SHA-256"}, key, dec(s64), raw)) return false;
+      return +new TextDecoder().decode(raw).split("|")[1] > NOW();
+    }catch(e){ return false; }
+  }
+  async quota(me, b, use){
+    if(await this.premiumOk(b.code)){ if(!me.premium) this.sql.exec("UPDATE users SET premium = 1 WHERE id = ?", me.id); return json({premium:true, left:999, used:me.free_used || 0, free:FREE_LOOPS}, 200, {}); }
+    let used = me.free_used || 0;
+    if(use){ if(used >= FREE_LOOPS) return json({premium:false, left:0, used, free:FREE_LOOPS, error:"quota"}, 402, {}); used++; this.sql.exec("UPDATE users SET free_used = ? WHERE id = ?", used, me.id); }
+    return json({premium:false, left:Math.max(0, FREE_LOOPS - used), used, free:FREE_LOOPS}, 200, {});
+  }
+
+  /* ---------- Paiement automatique par notification PayPal (IPN), sans compte développeur ----------
+     1. PayPal envoie chaque paiement reçu à /paypal/ipn ; le serveur renvoie le message à PayPal qui confirme « VERIFIED ».
+     2. Le client, de retour dans l'app, donne l'e-mail utilisé pour payer : si un paiement de 4,99 € avec cet e-mail est
+        arrivé (et n'a jamais servi), Premium est activé tout de suite sur son téléphone (activation signée).
+     3. Si le client fait sa demande avant que PayPal ne prévienne, l'activation part dès l'arrivée du paiement. */
+  async ipn(raw){
+    try{
+      const r = await fetch(this.env.PAYPAL_IPN_URL || "https://ipnpb.paypal.com/cgi-bin/webscr", {method:"POST", headers:{"Content-Type":"application/x-www-form-urlencoded", "User-Agent":"Traceo-IPN"}, body:"cmd=_notify-validate&" + raw});
+      if((await r.text()).trim() !== "VERIFIED") return new Response("ignored", {status:200});
+      const f = new URLSearchParams(raw), txn = clean(f.get("txn_id"), 40), email = clean(f.get("payer_email"), 120).toLowerCase();
+      const amount = f.get("mc_gross") || "", cur = f.get("mc_currency") || "", status = f.get("payment_status") || "";
+      if(this.env.PAYPAL_EMAIL && clean(f.get("receiver_email"), 120).toLowerCase() !== this.env.PAYPAL_EMAIL.toLowerCase()) return new Response("other receiver", {status:200});
+      if(!txn || status !== "Completed" || cur !== "EUR" || parseFloat(amount) < parseFloat(this.env.PRICE || "4.99") - .001) return new Response("not eligible", {status:200});
+      if(this.one("SELECT 1 AS x FROM payments WHERE txn = ?", txn)) return new Response("dup", {status:200});
+      const name = clean([f.get("first_name"), f.get("last_name")].filter(Boolean).join(" "), 80);
+      this.sql.exec("INSERT INTO payments(txn, email, amount, currency, t, name) VALUES(?,?,?,?,?,?)", txn, email, amount, cur, NOW(), name);
+      if(this.env.ALERTS_TOPIC) this.state.waitUntil(fetch("https://ntfy.sh/" + this.env.ALERTS_TOPIC, {method:"POST", headers:{Title:"Paiement PayPal recu", Tags:"moneybag", Priority:"high"}, body:`${amount} € reçus de ${name || email} (${email}). Activation automatique dès sa demande dans l'app.`}).catch(() => {}));
+      // demande déjà faite par le client ? on active tout de suite
+      const req = this.one("SELECT * FROM act_requests WHERE (email = ? OR email = ?) AND done = 0 AND t > ? ORDER BY id DESC", email, name.toLowerCase(), NOW() - 7*864e5);
+      if(req) await this.grant(txn, req.dev, req.id);
+    }catch(e){}
+    return new Response("ok", {status:200});
+  }
+  async grant(txn, dev, reqId){
+    const until = NOW() + 31*864e5, code = await this.signAct(dev, until, "paiement");
+    this.sql.exec("UPDATE payments SET dev = ?, until = ? WHERE txn = ?", dev, until, txn);
+    if(reqId) this.sql.exec("UPDATE act_requests SET done = 1 WHERE id = ?", reqId);
+    await fetch("https://ntfy.sh/traceo-act-" + dev, {method:"POST", body:code}).catch(() => {});
+    return code;
+  }
+  async activateRequest(b, ip){
+    if(this.limit("act:" + ip, 12, HOUR)) return json({error:"rate_limited"}, 429, {});
+    const email = clean(b.email, 120).toLowerCase(), dev = clean(b.dev, 16).toLowerCase();
+    if(email.length < 3 || !/^[a-f0-9]{16}$/.test(dev)) return json({error:"bad_request"}, 400, {});
+    if(!this.env.ACT_KEY) return json({status:"pending"}, 200, {});
+    // paiement déjà reçu avec cet e-mail (ou ce nom) et jamais utilisé : activation immédiate
+    const pay = this.one("SELECT * FROM payments WHERE (email = ? OR lower(name) = ?) AND dev IS NULL AND t > ? ORDER BY t DESC", email, email, NOW() - 30*864e5);
+    if(pay) return json({status:"active", code:await this.grant(pay.txn, dev, 0)}, 200, {});
+    const again = this.one("SELECT * FROM payments WHERE (email = ? OR lower(name) = ?) AND dev = ? AND until > ?", email, email, dev, NOW());
+    if(again) return json({status:"active", code:await this.signAct(dev, again.until, "paiement")}, 200, {});
+    if(!this.one("SELECT 1 AS x FROM act_requests WHERE email = ? AND dev = ? AND done = 0", email, dev)) this.sql.exec("INSERT INTO act_requests(email, dev, t) VALUES(?,?,?)", email, dev, NOW());
+    return json({status:"pending"}, 200, {});
+  }
+
   /* ---------- Paiement PayPal automatique ----------
      L'app paie avec les boutons PayPal (commande de 4,99 € liée au code de l'appareil), puis envoie le numéro de commande.
      Le serveur demande la commande à PayPal avec la clé secrète : payée, bon montant, bon appareil, jamais utilisée.
@@ -352,9 +424,9 @@ export class Hub {
       }, 200, {});
     }
     if(path === "members"){
-      const rows = this.rows(`SELECT u.*, (SELECT COUNT(*) FROM msgs WHERE a = u.id) AS sent, (SELECT COUNT(*) FROM reports WHERE whom = u.id) AS reported, (SELECT COUNT(*) FROM runs WHERE uid = u.id AND ok = 1) AS runs FROM users u ORDER BY created DESC LIMIT 5000`);
+      const rows = this.rows(`SELECT u.*, (SELECT COUNT(*) FROM msgs WHERE a = u.id) AS sent, (SELECT COUNT(*) FROM reports WHERE whom = u.id) AS reported, (SELECT COUNT(*) FROM runs WHERE uid = u.id AND ok = 1) AS runs, u.free_used AS free_used FROM users u ORDER BY created DESC LIMIT 5000`);
       return json({members:rows.map(u => ({id:u.id, pseudo:u.pseudo, first:u.first, last:u.last, email:u.email, birth:u.birth, level:u.level, pace:u.pace, created:u.created, last_login:u.last_login, seen:u.seen,
-        place:u.place || "", visible:!!u.visible, premium:!!u.premium, push:!!u.push, sent:u.sent, reported:u.reported, runs:u.runs}))}, 200, {});
+        place:u.place || "", visible:!!u.visible, premium:!!u.premium, push:!!u.push, sent:u.sent, reported:u.reported, runs:u.runs, free_used:u.free_used || 0}))}, 200, {});
     }
     if(path === "reports") return json({reports:this.rows("SELECT r.*, a.pseudo AS by_pseudo, b.pseudo AS whom_pseudo FROM reports r LEFT JOIN users a ON a.id = r.who LEFT JOIN users b ON b.id = r.whom ORDER BY t DESC LIMIT 500")}, 200, {});
     // Sauvegarde complète de la base (sans mots de passe ni jetons de session)
@@ -362,6 +434,7 @@ export class Hub {
       users:this.rows("SELECT id, pseudo, first, last, email, birth, level, pace, bio, created, seen, last_login, place, visible, premium, notif FROM users"),
       messages:this.rows("SELECT * FROM msgs"), runs:this.rows("SELECT id, uid, t, day, dist, time, ascent, n_pts, ok, reason, premium FROM runs"),
       diamonds:this.rows("SELECT * FROM rewards"), reports:this.rows("SELECT * FROM reports"), blocks:this.rows("SELECT * FROM blocks")}, 200, {});
+    if(path === "payments") return json({payments:this.rows("SELECT * FROM payments ORDER BY t DESC LIMIT 500"), pending:this.rows("SELECT * FROM act_requests WHERE done = 0 ORDER BY id DESC LIMIT 200")}, 200, {});
     if(path === "rewards") return json({rewards:this.rows(`SELECT r.*, u.pseudo, u.first, u.last, u.email, (SELECT COUNT(*) FROM runs WHERE uid = r.uid AND ok = 1) AS runs,
       (SELECT COUNT(*) FROM runs WHERE uid = r.uid AND ok = 0) AS refused FROM rewards r LEFT JOIN users u ON u.id = r.uid ORDER BY CASE r.status WHEN 'demandee' THEN 0 WHEN 'a_reclamer' THEN 1 ELSE 2 END, r.id DESC LIMIT 500`)}, 200, {});
     if(path === "runs") return json({runs:this.rows("SELECT id, t, dist, time, ascent, n_pts, ok, reason, premium FROM runs WHERE uid = ? ORDER BY id DESC LIMIT 300", clean(url.searchParams.get("uid"), 32))}, 200, {});

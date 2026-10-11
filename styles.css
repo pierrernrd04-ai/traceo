@@ -933,3 +933,8 @@ body:has(#betaLock) #modal{z-index:120}
 .ag-why{text-align:center;margin-top:14px}
 .ag-skip{display:block;margin:10px auto 0}
 .auth-on .fab,.auth-on .tabs{visibility:hidden}
+.ag-top{position:relative}
+.ag-x{position:absolute;right:-4px;top:-8px}
+.ag-gift{margin:-6px 0 14px;padding:10px 12px;border-radius:14px;background:rgba(242,201,76,.12);border:1px solid rgba(242,201,76,.3);font-size:14.5px}
+.safe-ok{color:var(--accent);font-weight:700}
+.safe-warn{color:#F2C94C;font-weight:700}

@@ -47,7 +47,7 @@ window.TRACEO_CONFIG = {
   GARMIN_IMPORT_ACTIVITY_URL: "https://connect.garmin.com/modern/import-data",
   GARMIN_COURSES_URL: "https://connect.garmin.com/modern/courses",
 
-  FREE_PER_WEEK: 3,
+  FREE_LOOPS: 3,                // boucles offertes (version gratuite), ensuite Premium
   DEFAULT_PACE_S_PER_KM: 345,   // 5'45"/km
   DEFAULT_WEIGHT_KG: 70
 };

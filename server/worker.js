@@ -26,12 +26,14 @@ const ACTIVE = new Set(["ACTIVE", "APPROVED"]);
 let token = null;   // jeton PayPal gardé en mémoire tant que le worker reste chaud
 
 export default {
-  async fetch(req, env){
+  async fetch(req, env, ctx){
     const url = new URL(req.url), cors = corsHeaders(req, env);
     if(req.method === "OPTIONS") return new Response(null, {status:204, headers:cors});
     if(url.pathname === "/" || url.pathname === "/health") return json({ok:true, service:"traceo"}, 200, cors);
     if(url.pathname === "/chat") return chat(req, env, cors);
     if(url.pathname.startsWith("/social/")) return social(req, env, cors);
+    if(url.pathname === "/danger") return danger(req, url, cors, ctx);
+    if(url.pathname === "/paypal/ipn" && req.method === "POST"){ const stub = env.HUB.get(env.HUB.idFromName("france")); return stub.fetch(new Request(new URL("/social/ipn", req.url), {method:"POST", body:await req.text()})); }
     if(url.pathname !== "/paypal/verify") return json({error:"not_found"}, 404, cors);
     if(req.method !== "POST") return json({error:"method_not_allowed"}, 405, cors);
 
@@ -171,4 +173,35 @@ async function workersAI(env, messages){
     }catch(e){}
   }
   return null;
+}
+
+/* ---------- Routes dangereuses (départementales, nationales, grands axes) par tuile ----------
+   L'app demande les tuiles (~4 × 4 km) autour du départ. Le serveur interroge OpenStreetMap (Overpass, plusieurs
+   miroirs, le premier qui répond) et garde la réponse 30 jours dans le cache de Cloudflare : rapide et fiable. */
+const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter", "https://maps.mail.ru/osm/tools/overpass/api/interpreter", "https://overpass.kumi.systems/api/interpreter"];
+const TLAT = .04, TLON = .06;
+async function danger(req, url, cors, ctx){
+  const m = /^(-?\d{1,5})_(-?\d{1,5})$/.exec(url.searchParams.get("t") || "");
+  if(!m) return json({error:"bad_tile"}, 400, cors);
+  const y = +m[1], x = +m[2], s = (y*TLAT).toFixed(4), w = (x*TLON).toFixed(4), n = ((y + 1)*TLAT).toFixed(4), e = ((x + 1)*TLON).toFixed(4);
+  const cacheKey = new Request(`https://traceo-cache/danger/v1/${y}_${x}`), cache = caches.default;
+  const hit = await cache.match(cacheKey);
+  if(hit){ const r = new Response(hit.body, hit); for(const [k, v] of Object.entries(cors)) r.headers.set(k, v); r.headers.set("X-Cache", "HIT"); return r; }
+  const q = `[out:json][timeout:20];(way["highway"~"^(motorway|motorway_link|trunk|trunk_link|primary|primary_link|secondary|secondary_link)$"](${s},${w},${n},${e});way["highway"]["ref"~"^(N|D|RN|RD|M|RM) ?[0-9]"](${s},${w},${n},${e}););out tags geom;`;
+  // tous les miroirs en même temps : le premier qui répond correctement l'emporte
+  const log = [], ac = new AbortController(), to = setTimeout(() => ac.abort(), 20000);
+  const tryHost = async host => {
+    const r = await fetch(host, {method:"POST", headers:{"Content-Type":"application/x-www-form-urlencoded", "User-Agent":"Traceo/1.0 (https://pierrernrd04-ai.github.io/traceo/)"}, body:"data=" + encodeURIComponent(q), signal:ac.signal});
+    if(!r.ok || !(r.headers.get("content-type") || "").includes("json")){ log.push(host.split("/")[2] + " " + r.status); throw new Error("bad"); }
+    const body = await r.arrayBuffer(); if(body.byteLength < 20) throw new Error("empty");
+    return body;
+  };
+  try{
+    // la recherche continue même si le téléphone a cessé d'attendre : la tuile sera en cache pour la prochaine fois
+    const job = Promise.any(OVERPASS.map(tryHost)).then(async body => { clearTimeout(to); ac.abort(); await cache.put(cacheKey, new Response(body, {headers:{"Content-Type":"application/json; charset=utf-8", "Cache-Control":"public, max-age=2592000"}})); return body; });
+    ctx.waitUntil(job.catch(() => {}));
+    const body = await job;
+    return new Response(body, {headers:{...cors, "Content-Type":"application/json; charset=utf-8", "Cache-Control":"public, max-age=86400", "X-Cache":"MISS"}});
+  }catch(e){ clearTimeout(to); }
+  return json({error:"overpass_unavailable", log}, 503, cors);
 }

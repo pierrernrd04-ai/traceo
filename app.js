@@ -18,7 +18,7 @@ const _track = track; track = (n, d) => { _track(n, d); alertOwner(n, d); };
 document.addEventListener("visibilitychange", () => { if(document.visibilityState === "hidden"){ const s = Math.round((Date.now() - T0)/1000); track("temps_passe", {secondes:s, tranche:s < 30 ? "moins de 30 s" : s < 120 ? "30 s à 2 min" : s < 600 ? "2 à 10 min" : "plus de 10 min", onglets:tabsSeen}); } });
 // Diagnostic temporaire : les erreurs (sans données personnelles) sont envoyées à un canal privé pour être corrigées à distance
 const DBG = "https://ntfy.sh/traceo-dbg-9591c50f";
-function report(kind, msg){ try{ fetch(DBG, {method:"POST", body:`[${kind}] ${String(msg).slice(0, 600)} | v55 | ${navigator.userAgent.replace(/\(KHTML.*$/, "").slice(0, 120)}`}).catch(() => {}); }catch(e){} }
+function report(kind, msg){ try{ fetch(DBG, {method:"POST", body:`[${kind}] ${String(msg).slice(0, 600)} | v56 | ${navigator.userAgent.replace(/\(KHTML.*$/, "").slice(0, 120)}`}).catch(() => {}); }catch(e){} }
 // Affiche toute erreur à l'écran (bandeau rouge) : une capture suffit pour corriger
 (function(){ let n = 0; const show = m => { if(n++ > 3) return; const d = document.createElement("div"); d.style.cssText = "position:fixed;left:8px;right:8px;top:calc(env(safe-area-inset-top,0px) + 8px);z-index:9999;background:#B3263E;color:#fff;font:600 12px/1.35 system-ui;padding:8px 10px;border-radius:10px;white-space:pre-wrap"; d.textContent = "Erreur : " + m; d.onclick = () => d.remove(); (document.body || document.documentElement).appendChild(d); setTimeout(() => d.remove(), 15000); };
   window.addEventListener("error", e => { report("error", (e.message || "?") + " " + (e.filename || "") + ":" + (e.lineno || "") + ":" + (e.colno || "") + " " + (e.error && e.error.stack ? String(e.error.stack).slice(0, 300) : "")); if(/^Script error/.test(e.message || "") && window.glFail){ try{ glFail(); }catch(x){} return; } show((e.message || "?") + (e.filename ? " (" + e.filename.split("/").pop() + ":" + e.lineno + ")" : "")); });
@@ -60,7 +60,9 @@ const paid = () => !!(S.premium && (!S.premium.until || S.premium.until > nowT()
 const isPremium = () => betaOn() || (PV && S.demo) || paid();
 async function syncClock(){ try{ const r = await fetch(location.pathname + "?t=" + Date.now(), {method:"HEAD", cache:"no-store"}); const d = Date.parse(r.headers.get("date")); if(d) srvSkew = d - Date.now(); }catch(e){} checkBetaLock(); }
 function checkBetaLock(){
-  const lock = $("#betaLock"); if(!betaOver() || paid() || NO_LOCK){ if(lock) lock.remove(); return; }
+  // Plus d'écran bloquant : après la bêta, l'app s'ouvre en version gratuite (3 boucles offertes), puis Premium.
+  const lock = $("#betaLock"); if(lock) lock.remove(); if(!window.TRACEO_FORCE_LOCK) return;
+  if(!betaOver() || paid() || NO_LOCK) return;
   if(lock) return;
   track("fin_beta_vue"); const d = document.createElement("div"); d.id = "betaLock"; d.className = "betalock";
   const link = C.PAYPAL_PAYMENT_LINK || (C.PAYPAL_CLIENT_ID && C.PAYPAL_PLAN_ID);
@@ -90,7 +92,9 @@ const targetM = () => S.mode === "dist" ? S.distKm*1000 : S.durMin*60/S.pace*100
 let toastT;
 function toast(msg, ms = 3000){ const t = $("#toast"); t.hidden = true; void t.offsetWidth; t.textContent = msg; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => t.hidden = true, ms); }
 function weekKey(){ const d = new Date(), t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())); const day = t.getUTCDay() || 7; t.setUTCDate(t.getUTCDate() + 4 - day); const y = new Date(Date.UTC(t.getUTCFullYear(), 0, 1)); return t.getUTCFullYear() + "-" + Math.ceil(((t - y)/864e5 + 1)/7); }
-function remaining(){ if(S.week.key !== weekKey()){ S.week = {key:weekKey(), n:0}; store.set("week", S.week); } return Math.max(0, C.FREE_PER_WEEK - S.week.n); }
+// Version gratuite : 3 boucles offertes pour découvrir Traceo (comptées sur le compte, côté serveur, et sur le téléphone)
+const FREE = () => C.FREE_LOOPS || 3;
+function remaining(){ return Math.max(0, FREE() - store.get("freeUsed", 0)); }
 const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 const NATIVE = window.TRACEO_NATIVE || null;          // app Android / iOS (Capacitor), voir native.js
 const standalone = !!NATIVE || matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
@@ -324,6 +328,7 @@ function setStart(s, fly = true){
   startMk = L.marker([s.lat, s.lng], {icon:L.divIcon({className:"", html:'<div class="pin"><span>GO</span></div>', iconSize:[40,40], iconAnchor:[4,40]}), zIndexOffset:900}).addTo(map);
   if(fly){ const z = s.city ? 15 : 16; if((TraceoGL && base instanceof TraceoGL) || map.distance(map.getCenter(), [s.lat, s.lng]) > 30000) map.setView([s.lat, s.lng], z, {animate:false}); else map.flyTo([s.lat, s.lng], z, {duration:1.3}); }
   setTimeout(() => saveCityMap(s), 2500);
+  setTimeout(() => loadDanger(s, targetM()).catch(() => {}), 600);   // sécurité : routes passantes chargées dès le choix du départ
   if(S.tab === "plan") render();
 }
 map.on("contextmenu", e => { setStart({lat:r6(e.latlng.lat), lng:r6(e.latlng.lng), label:"Point choisi sur la carte"}, false); reverseLabel(false); toast("Départ placé ici."); });
@@ -663,7 +668,7 @@ function decode6(s){ const o = []; let i = 0, la = 0, lo = 0; while(i < s.length
 const VTYPE = {9:"slight right", 10:"right", 11:"sharp right", 12:"uturn", 13:"uturn", 14:"sharp left", 15:"left", 16:"slight left"};
 async function routeValhalla(wps){ return queued("valhalla", () => routeValhalla0(wps)); }
 async function routeValhalla0(wps){
-  const q = {locations:wps.map((p, i) => ({lat:+p[0].toFixed(6), lon:+p[1].toFixed(6), type:i === 0 || i === wps.length - 1 ? "break" : "through"})), costing:"pedestrian", directions_options:{language:"fr-FR", units:"kilometers"}};
+  const q = {locations:wps.map((p, i) => ({lat:+p[0].toFixed(6), lon:+p[1].toFixed(6), type:i === 0 || i === wps.length - 1 ? "break" : "through"})), costing:"pedestrian", costing_options:{pedestrian:{walkway_factor:.6, sidewalk_factor:.8, alley_factor:1.5, driveway_factor:3, use_living_streets:.8, service_penalty:10}}, directions_options:{language:"fr-FR", units:"kilometers"}};
   const j = await fetchJSON(`https://valhalla1.openstreetmap.de/route?json=${encodeURIComponent(JSON.stringify(q))}`, {}, 15000);
   const legs = j.trip?.legs; if(!legs?.length){ routeErr = "valhalla " + (j.error || j.status_message || "sans route"); return null; }
   const pts = [], steps = [];
@@ -699,11 +704,105 @@ async function routeFoot(wps){
   if(Date.now() - osrmDown > 120000){ try{ const r = await routeOSRM(wps); if(r) return r; }catch(e){ osrmDown = Date.now(); } }
   return routeValhalla(wps);
 }
+/* ---------- Sécurité : éviter les routes départementales, nationales et grands axes ----------
+   Avant le calcul, on charge (OpenStreetMap / Overpass) les routes dangereuses autour du départ : réf. D, N, RD, RN, M
+   et grands axes (nationales, primaires, secondaires). Les points de passage de la boucle sont placés loin d'elles,
+   chaque boucle proposée est mesurée (mètres sur ces routes) et la plus sûre est retenue. Une traversée courte
+   (moins de 60 m) n'est pas comptée ; une route avec trottoir ou limitée à 30 km/h est tolérée. */
+const DANGER = {key:"", segs:[], grid:new Map(), ok:false};
+const DCELL = 60, dCell = (la, lo) => Math.floor(lo*KX/DCELL) + ":" + Math.floor(la*KY/DCELL);
+const DANGER_RE = /^(N|D|RN|RD|M|RM)\s?\d/i;
+function dangerous(t){
+  const h = t.highway || "";
+  if(/^(footway|path|cycleway|pedestrian|track|steps|living_street|residential|service|bridleway)$/.test(h)) return false;
+  if(t.sidewalk && !/^(no|none)$/.test(t.sidewalk) || t["sidewalk:both"] && t["sidewalk:both"] !== "no" || t["sidewalk:left"] === "yes" || t["sidewalk:right"] === "yes") return false;
+  if(t.maxspeed && parseInt(t.maxspeed) <= 30) return false;
+  return /^(motorway|motorway_link|trunk|trunk_link|primary|primary_link|secondary|secondary_link)$/.test(h) || DANGER_RE.test(t.ref || "");
+}
+async function loadDanger(start, target){
+  const R = target/(2*Math.PI)*2.3 + 400, key = `${start.lat.toFixed(3)},${start.lng.toFixed(3)},${Math.round(R/500)}`;
+  if(DANGER.key === key && (DANGER.ok || loadDanger.busy)) return loadDanger.busy;
+  DANGER.key = key; DANGER.segs = []; DANGER.grid = new Map(); DANGER.ok = false;
+  const dLa = R/111320, dLo = R/(111320*Math.cos(RAD(start.lat)));
+  // tuiles de ~4 × 4 km servies (et gardées en cache) par le serveur Traceo ; à défaut, Overpass directement
+  const TLAT = .04, TLON = .06, tiles = [];
+  for(let y = Math.floor((start.lat - dLa)/TLAT); y <= Math.floor((start.lat + dLa)/TLAT); y++) for(let x = Math.floor((start.lng - dLo)/TLON); x <= Math.floor((start.lng + dLo)/TLON); x++) tiles.push([y, x]);
+  const api = (C.CHAT_API || "").replace(/\/$/, "");
+  const seen = new Set();
+  const add = j => { for(const w of j.elements || []){
+    if(seen.has(w.id) || !w.geometry || !dangerous(w.tags || {})) continue; seen.add(w.id);
+    const name = (w.tags.ref || w.tags.name || "").split(";")[0];
+    for(let i = 1; i < w.geometry.length; i++){
+      const a = [w.geometry[i-1].lat, w.geometry[i-1].lon], b = [w.geometry[i].lat, w.geometry[i].lon], k = DANGER.segs.push({a, b, name}) - 1;
+      const x0 = Math.floor(Math.min(a[1], b[1])*KX/DCELL) - 1, x1 = Math.floor(Math.max(a[1], b[1])*KX/DCELL) + 1, y0 = Math.floor(Math.min(a[0], b[0])*KY/DCELL) - 1, y1 = Math.floor(Math.max(a[0], b[0])*KY/DCELL) + 1;
+      if((x1 - x0)*(y1 - y0) > 400) continue;
+      for(let x = x0; x <= x1; x++) for(let y = y0; y <= y1; y++){ const c = x + ":" + y; (DANGER.grid.get(c) || DANGER.grid.set(c, []).get(c)).push(k); }
+    } } };
+  let okTiles = 0;
+  await Promise.all(tiles.slice(0, 16).map(async ([y, x]) => {
+    const k = `danger:${y}_${x}`, mem = loadDanger.mem || (loadDanger.mem = new Map());
+    if(mem.has(k)){ add(mem.get(k)); okTiles++; return; }
+    try{
+      if(!api) throw 0;
+      const j = await fetchJSON(`${api}/danger?t=${y}_${x}`, {}, 12000); if(!j.elements) throw 0;
+      mem.set(k, j); add(j); okTiles++;
+    }catch(e){
+      try{
+        const qy = `[out:json][timeout:12];(way["highway"~"^(motorway|motorway_link|trunk|trunk_link|primary|primary_link|secondary|secondary_link)$"](${y*TLAT},${x*TLON},${(y + 1)*TLAT},${(x + 1)*TLON});way["highway"]["ref"~"^(N|D|RN|RD|M|RM) ?[0-9]"](${y*TLAT},${x*TLON},${(y + 1)*TLAT},${(x + 1)*TLON}););out tags geom;`;
+        const j = await fetchJSON("https://overpass-api.de/api/interpreter", {method:"POST", headers:{"Content-Type":"application/x-www-form-urlencoded"}, body:"data=" + encodeURIComponent(qy)}, 9000);
+        mem.set(k, j); add(j); okTiles++;
+      }catch(e2){ report("danger", "tuile " + y + "_" + x); }
+    }
+  }));
+  DANGER.ok = okTiles === Math.min(16, tiles.length);
+}
+{ const ld = loadDanger; loadDanger = function(start, target){ const p = ld(start, target); if(p && p.then){ loadDanger.busy = p; p.finally(() => { loadDanger.busy = null; }); } return p; }; loadDanger.mem = new Map(); }
+// distance (m) d'un point à un segment, en projection locale
+function segDist(p, a, b){
+  const px = p[1]*KX, py = p[0]*KY, ax = a[1]*KX, ay = a[0]*KY, bx = b[1]*KX, by = b[0]*KY, dx = bx - ax, dy = by - ay;
+  const t = dx || dy ? Math.max(0, Math.min(1, ((px - ax)*dx + (py - ay)*dy)/(dx*dx + dy*dy))) : 0;
+  return Math.hypot(px - ax - t*dx, py - ay - t*dy);
+}
+function nearDanger(p, m){
+  if(!DANGER.segs.length) return null;
+  const cx = Math.floor(p[1]*KX/DCELL), cy = Math.floor(p[0]*KY/DCELL), r = Math.ceil(m/DCELL);
+  for(let x = cx - r; x <= cx + r; x++) for(let y = cy - r; y <= cy + r; y++){
+    for(const k of DANGER.grid.get(x + ":" + y) || []){ const sg = DANGER.segs[k]; if(segDist(p, sg.a, sg.b) < m) return sg; }
+  }
+  return null;
+}
+// mètres de la boucle sur des routes dangereuses (les traversées de moins de 60 m ne comptent pas)
+function dangerOf(pts){
+  if(!DANGER.segs.length) return {len:0, names:[]};
+  let tot = 0, run = 0, names = new Set(), runNames = new Set();
+  const flush = () => { if(run >= 60){ tot += run; runNames.forEach(n => n && names.add(n)); } run = 0; runNames = new Set(); };
+  for(let i = 1; i < pts.length; i++){
+    const d = dist(pts[i-1], pts[i]), n = Math.max(1, Math.ceil(d/12));
+    for(let k = 0; k < n; k++){
+      const f = (k + .5)/n, p = [pts[i-1][0] + (pts[i][0] - pts[i-1][0])*f, pts[i-1][1] + (pts[i][1] - pts[i-1][1])*f];
+      // les 200 premiers et derniers mètres autour du départ ne comptent pas (si l'on part d'une route passante, c'est inévitable)
+      const sg = dist(p, pts[0]) > 200 ? nearDanger(p, 14) : null;
+      if(sg){ run += d/n; runNames.add(sg.name); } else flush();
+    }
+  }
+  flush();
+  return {len:tot, names:[...names].slice(0, 3)};
+}
+// point de passage : on l'écarte des routes dangereuses (sinon l'itinéraire les emprunterait)
+function safeWaypoint(center, brg, r){
+  let best = null;
+  for(let t = 0; t < 8; t++){
+    const p = dest(center, (brg + (t ? (t % 2 ? 1 : -1)*Math.ceil(t/2)*14 : 0) + 360) % 360, r*(t < 4 ? 1 : .8 + (t - 4)*.1));
+    if(!nearDanger(p, 160)) return p;
+    best = best || p;
+  }
+  return best;
+}
 async function loopOSRM(start, target, brg){
   const s = [start.lat, start.lng]; let r = target/(2*Math.PI*1.22)*(0.9 + Math.random()*0.2), best = null;
   for(let it = 0; it < 2; it++){
     const k = 4, center = dest(s, brg, r), wps = [s];
-    for(let i = 1; i < k; i++) wps.push(dest(center, (brg + 180 + i*360/k + (Math.random()-.5)*24) % 360, r*(0.85 + Math.random()*0.3)));
+    for(let i = 1; i < k; i++) wps.push(safeWaypoint(center, (brg + 180 + i*360/k + (Math.random()-.5)*24) % 360, r*(0.85 + Math.random()*0.3)));
     wps.push(s);
     const rr = await routeFoot(wps); if(!rr || rr.pts.length < 4){ routeErr = routeErr || "itinéraire vide"; break; }
     const c = {pts:rr.pts, steps:rr.steps, ascent:null};
@@ -744,16 +843,39 @@ async function tryLoops(target, n, maxMs = 16000){
   await Promise.race([all, wait(maxMs).then(() => got.length ? null : Promise.race([all, wait(maxMs*.5)]))]);
   return got.slice();
 }
+// Avant une boucle gratuite : compte obligatoire (création ou connexion), puis vérification des boucles restantes
+async function freeCheck(){
+  if(typeof needAuth === "function" && needAuth()){ authGate(() => generate(), "gen"); return false; }
+  if(typeof ENS !== "undefined" && ENS.auth && typeof ensCall === "function"){
+    try{
+      const q = await ensCall("quota", {code:S.premium?.code || ""});
+      store.set("freeUsed", q.used); if(q.premium) return true;
+      if(q.left <= 0){ freeWall(); return false; }
+      return true;
+    }catch(e){ if(e.message === "auth") return false; }   // serveur injoignable : on se fie au compteur du téléphone
+  }
+  if(remaining() <= 0){ freeWall(); return false; }
+  return true;
+}
+function freeUse(){
+  store.set("freeUsed", store.get("freeUsed", 0) + 1);
+  if(typeof ENS !== "undefined" && ENS.auth && typeof ensCall === "function") ensCall("gen", {code:S.premium?.code || ""}).then(q => store.set("freeUsed", q.used)).catch(() => {});
+  const left = remaining();
+  setTimeout(() => toast(left ? `Encore ${left} boucle${left > 1 ? "s" : ""} offerte${left > 1 ? "s" : ""}. Ensuite, Premium pour des boucles illimitées.` : "C'était ta dernière boucle offerte. Passe à Premium pour continuer à explorer.", 4500), 1800);
+  track("boucle_gratuite", {reste:left});
+}
+function freeWall(){ track("fin_gratuit_vue"); premiumModal(`Tes ${FREE()} boucles offertes sont utilisées.`); }
 async function generate(){
   if(!S.start){ showGate(); return; }
-  if(!isPremium() && remaining() === 0){ premiumModal("Tes 3 boucles gratuites de la semaine sont utilisées. Elles reviennent lundi."); return; }
+  if(!isPremium() && !(await freeCheck())) return;
   if(!PV && navigator.onLine === false){ S.view = "error"; S.genErr = "offline"; render(); return; }
   const target = targetM(), run = ++genRun; routeErr = ""; S.genErr = null;
   rebuildMemory();   // toutes les boucles déjà proposées : la nouvelle passera ailleurs
   S.view = "loading"; S.results = null; routeLayer.clearLayers(); panel.classList.remove("min"); render(); genProgress(run);
   try{
     const tStart = Date.now();
-    let got = await tryLoops(target, PV ? 4 : 3, 12000);
+    if(!PV){ genProgress.note = ""; await Promise.race([loadDanger(S.start, target), new Promise(r => setTimeout(r, 13000))]); if(run !== genRun) return; }
+    let got = await tryLoops(target, PV ? 4 : DANGER.segs.length ? 4 : 3, 12000);
     if(run !== genRun) return;   // annulé entre-temps
     // second essai seulement si le premier a échoué vite (sinon on prévient sans faire attendre davantage)
     if(!got.length && !PV && Date.now() - tStart < 14000){
@@ -764,13 +886,24 @@ async function generate(){
       if(run !== genRun) return;
     }
     if(!got.length) throw new Error("none");
+    // sécurité : si toutes les boucles empruntent des routes passantes, on cherche d'autres tracés (jusqu'à 2 essais de plus)
+    for(let extra = 0; extra < 2 && DANGER.segs.length && Date.now() - tStart < 26000; extra++){
+      const minD = Math.min(...got.map(c => (c.danger = c.danger || dangerOf(c.pts)).len));
+      if(minD < 120) break;
+      genProgress.note = "On cherche un parcours encore plus sûr, à l'écart des routes passantes…";
+      const more = await tryLoops(target, 3, 9000); if(run !== genRun) return;
+      got.push(...more);
+    }
     for(const c of got){
       c.newLen = newLen(c.pts); c.rep = repeatLen(c.pts);
-      c.score = 1.4*c.newLen/c.len - .8*c.rep/c.len - 1.1*Math.abs(c.len - target)/target;
+      c.danger = c.danger || dangerOf(c.pts);
+      // la sécurité passe avant tout : chaque mètre sur une départementale ou une nationale pénalise fortement la boucle
+      c.score = 1.4*c.newLen/c.len - .8*c.rep/c.len - 1.1*Math.abs(c.len - target)/target - 20*c.danger.len/c.len - (c.danger.len > 150 ? 1 : 0);
     }
-    got.sort((a, b) => b.score - a.score);
+    // d'abord la sécurité (par paliers de 150 m sur des routes passantes), ensuite la nouveauté et la distance
+    got.sort((a, b) => (Math.floor(a.danger.len/150) - Math.floor(b.danger.len/150)) || (b.score - a.score));
     S.results = got.slice(0, 3); S.sel = 0; S.view = "result";
-    if(!isPremium()){ S.week.n++; store.set("week", S.week); }
+    if(!isPremium()) freeUse();
     const r = S.results[0], l = {id:"l" + Date.now(), date:Date.now(), name:`Boucle du ${new Date().toLocaleDateString("fr-FR", {weekday:"long", day:"numeric", month:"long"})}`, place:(S.start.label || "").split(",").slice(-1)[0].trim(), start:S.start, pts:simplify(r.pts), len:r.len, newPct:Math.round(r.newLen/r.len*100), ascent:r.ascent, fav:false};
     S.loops.push(l); trimLoops(); store.set("loops", S.loops); S.loopId = l.id;
     try{ render(); }catch(e){ console.error(e); report("render", (e.message || e) + " " + String(e.stack || "").slice(0, 300)); toast("Affichage : " + (e.message || e), 6000); }
@@ -1137,6 +1270,7 @@ function viewPlan(){
         <div class="stat"><small>Calories estimées</small><b><span data-count="${kcal(r.len)}">${kcal(r.len)}</span><small>kcal</small></b></div>
         <div class="stat"><small>${r.ascent != null ? "Dénivelé +" : "Allure"}</small><b>${r.ascent != null ? Math.round(r.ascent) + "<small>m</small>" : paceTxt(S.pace) + "<small>/km</small>"}</b></div>
       </div>
+      ${r.danger && (DANGER.segs.length || r.danger.len >= 60) ? (r.danger.len < 60 ? `<p class="small safe-ok">🛡️ Boucle sûre : aucune route départementale ni nationale${DANGER.ok ? "" : " repérée"} sur ce parcours.</p>` : `<p class="small safe-warn">⚠️ ${Math.round(r.danger.len/10)*10} m sur ${r.danger.names.length ? r.danger.names.join(", ") : "une route passante"} : passage inévitable ici, reste sur le bas-côté et sois prudent.</p>`) : ""}
       <p class="small">${pct >= 95 ? "Boucle 100 % nouvelle : aucune rue déjà proposée." : `${pct} % de rues que Traceo ne t'avait jamais proposées.`} ${r.steps?.length ? `${r.steps.length} indications de guidage.` : ""}</p>
       <div class="cta-dock dock2"><button class="dock-sum" id="dockSum"><em><b>${km1(r.len)} km</b> · ${hmin(dur)}${S.results.length > 1 ? ` · ${S.results.length} boucles au choix` : ""}</em><span>Options ▲</span></button><button class="btn soft" id="goFly">${I.eye}Voir</button><button class="btn hero" id="goRun">${I.play}Commencer</button></div>
       <div class="row"><button class="btn garmin" id="toGarmin">${I.watch}Garmin${isPremium() ? "" : '<span class="lock">★</span>'}</button><button class="btn soft" id="toGpx">${I.dl}GPX${isPremium() ? "" : '<span class="lock">★</span>'}</button></div>
@@ -1157,7 +1291,7 @@ function viewPlan(){
     </div>
     <div class="cta-dock"><button class="btn hero block" id="gen">${I.route}Générer ma boucle<span class="gen-sub" id="genSub">${genSub()}</span></button></div>
     ${isPremium() ? "" : `<button class="promo" data-go="premium"><span class="c">★</span><span><b>Traceo Premium</b><small>Boucles illimitées, envoi Garmin, Strava et GPX · ${C.PRICE_LABEL}/mois</small></span><span class="a">›</span></button>`}
-    <p class="small" style="text-align:center">${betaOn() ? "Version bêta : boucles illimitées, tout est offert." : isPremium() ? "Premium : boucles illimitées." : `${left} boucle${left > 1 ? "s" : ""} gratuite${left > 1 ? "s" : ""} sur 3 cette semaine.`} Appui long sur la carte pour choisir un autre départ.</p>`;
+    <p class="small" style="text-align:center">${betaOn() ? "Version bêta : boucles illimitées, tout est offert." : isPremium() ? "Premium : boucles illimitées." : left ? `${left} boucle${left > 1 ? "s" : ""} offerte${left > 1 ? "s" : ""} sur ${FREE()} pour découvrir Traceo.` : `Tes ${FREE()} boucles offertes sont utilisées : passe à Premium pour continuer.`} Appui long sur la carte pour choisir un autre départ.</p>`;
 }
 const genSub = () => S.mode === "dist" ? `${nf(1).format(S.distKm).replace(",0", "")} km` : (S.durMin >= 60 ? `${Math.floor(S.durMin/60)} h ${String(S.durMin%60).padStart(2, "0")}` : `${S.durMin} min`);
 function dialTxt(){ if(S.mode === "dist") return nf(1).format(S.distKm).replace(",0", "") + "<small>km</small>"; const h = Math.floor(S.durMin/60), m = S.durMin%60; return h ? `${h}<small>h</small>${String(m).padStart(2,"0")}` : `${S.durMin}<small>min</small>`; }
@@ -1656,16 +1790,16 @@ function viewPremium(){
   if(betaOn()) return rw + `<div class="plan pro"><p class="eyebrow" style="color:var(--gold)">Version bêta</p><p class="title">Tout Traceo est offert pendant la bêta.</p>
       <p class="muted">Boucles illimitées, guidage vocal, Garmin, Strava, GPX et image à partager : tout est ouvert, sans compte et sans paiement. Merci de tester l'app avant son lancement.</p></div>
     <div class="plan"><p class="eyebrow">Au lancement</p><p class="title" style="font-size:22px">Traceo Premium · ${C.PRICE_LABEL} / mois</p>
-      <ul class="checks"><li>Boucles illimitées, partout en France</li><li>Envoi sur ta montre Garmin</li><li>Envoi de tes courses sur Strava</li><li>Export GPX pour toutes les montres</li><li>Image de ta boucle à partager</li><li><b>💎 Un diamant de 5 €</b> toutes les 100 courses (31 jours offerts)</li><li><b>Ensemble</b> : coureurs autour de toi, invitations et messages</li><li><b>Coach IA</b> personnalisé dans le chat</li></ul>
-      <p class="small">La version gratuite gardera 3 boucles par semaine, guidage compris.</p></div>`;
+      <ul class="checks"><li>Boucles illimitées, partout en France</li><li>Envoi sur ta montre Garmin</li><li>Envoi de tes courses sur Strava</li><li>Export GPX pour toutes les montres</li><li>Image de ta boucle à partager</li><li><b>🛡️ Boucles sûres</b> : petites rues et chemins</li><li><b>💎 Un diamant de 5 €</b> toutes les 100 courses (31 jours offerts)</li><li><b>Ensemble</b> : coureurs autour de toi, invitations et messages</li><li><b>Coach IA</b> personnalisé dans le chat</li></ul>
+      <p class="small">La version gratuite offre 3 boucles pour découvrir Traceo, guidage compris.</p></div>`;
   const on = isPremium() && !S.demo && S.premium;
   const left = on && S.premium.until ? Math.max(0, Math.ceil((S.premium.until - Date.now())/864e5)) : null;
   return `${rw}${on ? `<div class="plan pro"><p class="eyebrow" style="color:var(--gold)">★ Premium actif</p><p class="title" style="font-size:24px">Tout Traceo est débloqué.</p>${left != null ? `<p class="muted">Encore <b>${left} jour${left > 1 ? "s" : ""}</b>, jusqu'au ${new Date(S.premium.until).toLocaleDateString("fr-FR", {day:"numeric", month:"long"})}.</p>` : ""}</div>` : ""}<div class="plan pro"><p class="eyebrow" style="color:var(--gold)">Traceo Premium</p><p class="title">Une boucle neuve à chaque sortie, sans limite.</p>
       <p class="price">${C.PRICE_LABEL}<small> / mois</small></p>
-      <ul class="checks"><li>Boucles illimitées, partout en France</li><li>Envoi sur ta montre Garmin</li><li>Envoi de tes courses sur Strava</li><li>Export GPX pour toutes les montres</li><li>Image de ta boucle à partager</li><li><b>💎 Un diamant de 5 €</b> toutes les 100 courses (31 jours offerts)</li><li><b>Ensemble</b> : coureurs autour de toi, invitations et messages</li><li><b>Coach IA</b> personnalisé dans le chat</li></ul>
+      <ul class="checks"><li>Boucles illimitées, partout en France</li><li>Envoi sur ta montre Garmin</li><li>Envoi de tes courses sur Strava</li><li>Export GPX pour toutes les montres</li><li>Image de ta boucle à partager</li><li><b>🛡️ Boucles sûres</b> : petites rues et chemins</li><li><b>💎 Un diamant de 5 €</b> toutes les 100 courses (31 jours offerts)</li><li><b>Ensemble</b> : coureurs autour de toi, invitations et messages</li><li><b>Coach IA</b> personnalisé dans le chat</li></ul>
       ${on ? `${S.premium.via === "sub" ? `<a class="btn block night" href="${C.PAYPAL_MANAGE_URL}" target="_blank" rel="noopener">Gérer mon abonnement PayPal</a>` : S.premium.until && S.premium.until - Date.now() < 7*864e5 ? `<p class="small">Pour continuer après cette date, reprends 31 jours : ils s'ajoutent à ceux qui restent.</p>${payBlock("payMain")}` : ""}` : payBlock("payMain")}
     </div>
-    ${on ? "" : `<div class="plan"><p class="eyebrow">Gratuit</p><p class="title" style="font-size:22px">${C.FREE_PER_WEEK} boucles par semaine, guidage compris.</p><p class="small">Il te reste ${remaining()} boucle${remaining() > 1 ? "s" : ""} cette semaine.</p></div>`}`;
+    ${on ? "" : `<div class="plan"><p class="eyebrow">Gratuit</p><p class="title" style="font-size:22px">${FREE()} boucles offertes pour découvrir Traceo.</p><p class="small">${remaining() ? `Il t'en reste ${remaining()}.` : "Elles sont utilisées : Premium te donne des boucles illimitées."}</p></div>`}`;
 }
 function viewMe(){
   return `<p class="eyebrow">Profil</p><p class="title">Tes réglages</p>
@@ -2207,8 +2341,8 @@ function requestActivation(){
   const pend = store.get("actPending", null);
   openModal(`<button class="iconbtn x" data-close aria-label="Fermer">${I.x}</button><div class="center"><div class="medal">${I.star}</div></div>
     <p class="title" style="font-size:22px;text-align:center">Activer mon Premium</p>
-    <p class="muted">Pour protéger les abonnés, chaque paiement est vérifié avant l'activation. Indique l'e-mail de ton compte PayPal (ou ton nom si tu as payé par carte) : ton Premium s'active tout seul sur ce téléphone dès la vérification, en général en quelques minutes.</p>
-    <div class="field"><label for="acMail">E-mail PayPal ou nom du payeur</label><input class="input" id="acMail" maxlength="120" value="${esc(pend?.email || (typeof ENS !== "undefined" && ENS.me?.email) || "")}" autocomplete="email"></div>
+    <p class="muted">Indique l'<b>e-mail utilisé pour payer</b> (compte PayPal, ou l'e-mail donné en payant par carte ou Apple Pay). Traceo retrouve ton paiement auprès de PayPal et active ton Premium sur ce téléphone, automatiquement.</p>
+    <div class="field"><label for="acMail">E-mail utilisé pour payer</label><input class="input" id="acMail" maxlength="120" value="${esc(pend?.email || (typeof ENS !== "undefined" && ENS.me?.email) || "")}" autocomplete="email"></div>
     <p class="small">Code de ce téléphone : <b class="code">${devCode()}</b></p>
     <button class="btn hero block" id="acGo">${pend ? "Renvoyer ma demande" : "Envoyer ma demande d'activation"}</button>
     ${pend ? `<p class="small" style="text-align:center;color:var(--accent)">⏳ Demande envoyée ${new Date(pend.at).toLocaleTimeString("fr-FR", {hour:"2-digit", minute:"2-digit"})} : vérification en cours, garde l'app ouverte.</p>` : ""}
@@ -2218,8 +2352,17 @@ function requestActivation(){
     $("#acGo").disabled = true;
     const url = location.origin + location.pathname.replace(/[^/]*$/, "") + "admin.html#act=" + devId() + "&e=" + encodeURIComponent(email);
     try{
+      // 1. le serveur Traceo vérifie s'il a reçu de PayPal un paiement avec cet e-mail : activation immédiate, sans attendre personne
+      const api = (C.PAYMENT_API || C.CHAT_API || "").replace(/\/$/, "");
+      if(api){
+        try{
+          const j = await (await fetch(api + "/social/activate", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({email, dev:devId()})})).json();
+          if(j.code){ const v = await verifyAct(j.code); if(v){ store.set("actPending", null); closeModal(); unlock({via:"code", until:v.until, code:j.code, kind:"paiement"}); track("activation_auto"); return; } }
+        }catch(e){}
+      }
+      // 2. paiement pas encore signalé par PayPal : l'activation arrivera toute seule dès sa réception (et Pierre est prévenu en secours)
       await fetch("https://ntfy.sh/" + C.ALERTS_TOPIC, {method:"POST", body:`Paiement à vérifier dans PayPal : ${email} · appareil ${devCode()}${typeof ENS !== "undefined" && ENS.me ? " · compte @" + ENS.me.pseudo : ""}. Touche pour activer.`, headers:{"Title":"Activation Premium a valider", "Priority":"high", "Tags":"moneybag", "Click":url, "Actions":"view, Activer, " + url}});
-      store.set("actPending", {at:Date.now(), email}); track("activation_demandee"); closeModal(); toast("Demande envoyée ! Ton Premium s'activera ici automatiquement après vérification.", 6000); pollAct();
+      store.set("actPending", {at:Date.now(), email}); track("activation_demandee"); closeModal(); toast("C'est noté ! Dès que PayPal confirme ton paiement, ton Premium s'active ici tout seul (en général moins d'une minute).", 7000); pollAct();
     }catch(e){ $("#acGo").disabled = false; toast("Envoi impossible : vérifie ta connexion."); }
   };
 }
@@ -2258,6 +2401,9 @@ async function payOnLaunch(){
   }
   // le lien de retour de PayPal ne débloque plus rien : il ouvre seulement la demande d'activation vérifiée
   if(u.get("paiement") === "ok"){ store.set("payPending", 0); history.replaceState(null, "", location.pathname); setTimeout(requestActivation, 2200); return; }
+  // demande en attente : on redemande au serveur à chaque ouverture (le paiement a pu arriver entre-temps)
+  { const pend = store.get("actPending", null), api = (C.PAYMENT_API || C.CHAT_API || "").replace(/\/$/, "");
+    if(pend && api && Date.now() - pend.at < 7*864e5 && !paid() && !/^(commande|diamant)/.test(pend.email)) fetch(api + "/social/activate", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({email:pend.email, dev:devId()})}).then(r => r.json()).then(async j => { if(j.code){ const v = await verifyAct(j.code); if(v){ store.set("actPending", null); unlock({via:"code", until:v.until, code:j.code, kind:"paiement"}); } } }).catch(() => {}); }
   pollAct(); checkPremiumSig();
   askPaid();
   if(S.premium?.via === "sub" && C.PAYMENT_API && Date.now() - (S.premium.checked || 0) > 6*3600e3){ try{ const j = await verifySub(S.premium.id); if(j.active === false){ S.premium = null; store.set("premium", null); toast("Ton abonnement Premium a pris fin."); } else { S.premium.checked = Date.now(); store.set("premium", S.premium); } updateCrown(); }catch(e){} }
@@ -2349,7 +2495,7 @@ function splash(first){
   let w = 0; splash.iv = setInterval(() => { const r = $("#spRot"); if(!r || el.hidden){ clearInterval(splash.iv); return; } r.classList.add("out"); spT.push(setTimeout(() => { w = (w + 1) % ROTW.length; r.textContent = ROTW[w]; r.classList.remove("out"); r.classList.add("in"); spT.push(setTimeout(() => r.classList.remove("in"), 500)); }, 300)); }, 2400);
   spT.push(setTimeout(wmRoll, 150)); clearInterval(splash.wm); splash.wm = setInterval(() => { if(el.hidden) return clearInterval(splash.wm); wmRoll(); }, 9000);
   el.querySelectorAll("[data-spm]").forEach(b => b.onclick = () => { store.set("spModel", b.dataset.spm); splash(first); });
-  $("#spGoBtn").onclick = () => { celebrate(60); el.classList.add("out"); clearInterval(splash.iv); spT.forEach(clearTimeout); setTimeout(() => { el.hidden = true; el.classList.remove("out"); store.set("onboarded", true); const go2 = () => { if(!gateOn() && !S.start) autoStart(); }; if(typeof needAuth === "function" && needAuth()) authGate(go2); else go2(); }, 420);
+  $("#spGoBtn").onclick = () => { celebrate(60); el.classList.add("out"); clearInterval(splash.iv); spT.forEach(clearTimeout); setTimeout(() => { el.hidden = true; el.classList.remove("out"); store.set("onboarded", true); if(!gateOn() && !S.start) autoStart(); }, 420);
     // le toucher compte comme geste : on demande la position tout de suite (fenêtre « Autoriser » du téléphone)
     if(!S.start && !PV){ showGate(); gateLocate(); } };
 }

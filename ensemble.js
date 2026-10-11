@@ -237,7 +237,7 @@ function ensAccount(){
   sheet.querySelectorAll("[data-lvl]").forEach(b => b.onclick = () => { lvl = b.dataset.lvl; sheet.querySelectorAll("[data-lvl]").forEach(x => x.setAttribute("aria-pressed", x === b)); });
   $("#eaPw").onclick = async () => { const o = $("#eaOld").value, n = $("#eaNew").value; if(n.length < 8) return toast("Nouveau mot de passe : 8 caractères minimum."); try{ await ensCall("me", {oldKey:await pwKey(o), key:await pwKey(n)}); toast("Mot de passe changé."); $("#eaOld").value = $("#eaNew").value = ""; }catch(e){ toast(errTxt(e)); } };
   $("#eaSave").onclick = async () => { try{ const j = await ensCall("me", {first:$("#eaFirst").value, last:$("#eaLast").value, level:lvl, pace:S.pace, notif:$("#eaNotif").checked}); ENS.me = j.me; ensSaveAuth(); closeModal(); render(); toast("Compte mis à jour."); }catch(e){ toast("Enregistrement impossible pour l'instant."); } };
-  $("#eaOut").onclick = async () => { try{ await ensCall("logout", {}); }catch(e){} ensLogout(); ENS.mode = "login"; closeModal(); render(); toast("Déconnecté. À bientôt !"); if(needAuth()) authGate(() => render()); };
+  $("#eaOut").onclick = async () => { try{ await ensCall("logout", {}); }catch(e){} ensLogout(); ENS.mode = "login"; closeModal(); render(); toast("Déconnecté. À bientôt !"); };
   $("#eaDel").onclick = async () => { if(!confirm("Supprimer définitivement ton compte Ensemble et tes messages ?")) return; try{ await ensCall("delete", {}); }catch(e){} ensLogout(); closeModal(); render(); toast("Compte supprimé."); };
 }
 function ensMoreModal(peer){
@@ -412,13 +412,15 @@ if(ensOn() && ENS.auth) setTimeout(() => { ensFlushRuns(false); ensRefreshRew(fa
 
 /* ---------- Écran d'entrée : se connecter ou créer son compte avant d'utiliser l'app ---------- */
 const needAuth = () => ensOn() && !ENS.auth && !PV && !/[?&](test|noauth)\b/.test(location.search);
-function authGate(next){
+function authGate(next, why){
   let el = document.getElementById("authGate");
   if(!el){ el = document.createElement("div"); el.id = "authGate"; el.className = "authgate"; document.body.appendChild(el); }
   document.body.classList.add("auth-on");
   const paint = () => {
     el.innerHTML = `<div class="ag-in"><div class="ag-top"><svg viewBox="0 0 32 32" class="ag-logo"><path d="M7 23c0-8 5.5-14 11.5-14 4.6 0 7.5 2.9 7.5 6.6 0 3.8-3 6.6-6.8 6.6-2.8 0-4.7-1.9-4.7-4.2" fill="none" stroke="#25C98F" stroke-width="3.6" stroke-linecap="round"/><circle cx="7" cy="23" r="3.8" fill="#E6F2F0"/></svg>
-      <p class="eyebrow">Bienvenue sur Traceo</p><p class="ag-h">${ENS.mode === "login" ? "Content de te revoir !" : "Ton compte coureur"}</p>
+      <button class="iconbtn ag-x" id="agX" aria-label="Fermer">${I.x}</button>
+      <p class="eyebrow">${why === "gen" ? "Avant ta première boucle" : "Bienvenue sur Traceo"}</p><p class="ag-h">${ENS.mode === "login" ? "Content de te revoir !" : why === "gen" ? "Crée ton compte, c'est gratuit" : "Ton compte coureur"}</p>
+      ${why === "gen" && ENS.mode !== "login" ? `<p class="ag-gift">🎁 <b>${C.FREE_LOOPS || 3} boucles offertes</b> pour découvrir Traceo, sans payer.</p>` : ""}
       <div class="seg ag-seg"><button type="button" data-mode="signup" aria-pressed="${ENS.mode !== "login"}">Créer un compte</button><button type="button" data-mode="login" aria-pressed="${ENS.mode === "login"}">Se connecter</button></div></div>
       ${ensSignup(true)}
       <p class="small ag-why">Ton compte garde tes courses, compte tes diamants 💎 et te connecte aux coureurs autour de toi.</p>
@@ -429,6 +431,7 @@ function authGate(next){
     const sk = el.querySelector("#agSkip");
     fetch(ensApi() + "/health").then(r => { if(!r.ok) throw 0; }).catch(() => { sk.hidden = false; });
     sk.onclick = () => { el.remove(); document.body.classList.remove("auth-on"); next && next(); };
+    el.querySelector("#agX").onclick = () => { el.remove(); document.body.classList.remove("auth-on"); track("entree_compte_fermee"); };
   };
   paint(); track("entree_compte_vue");
 }
