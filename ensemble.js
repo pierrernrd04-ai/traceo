@@ -411,16 +411,16 @@ document.addEventListener("click", async e => {
 if(ensOn() && ENS.auth) setTimeout(() => { ensFlushRuns(false); ensRefreshRew(false); }, 4000);
 
 /* ---------- Écran d'entrée : se connecter ou créer son compte avant d'utiliser l'app ---------- */
-const needAuth = () => ensOn() && !ENS.auth && !PV && !/[?&](test|noauth)\b/.test(location.search);
+const needAuth = () => ensOn() && !ENS.auth && !PV && !window.TRACEO_TEST && !/[?&](test|noauth)\b/.test(location.search);
 function authGate(next, why){
   let el = document.getElementById("authGate");
   if(!el){ el = document.createElement("div"); el.id = "authGate"; el.className = "authgate"; document.body.appendChild(el); }
   document.body.classList.add("auth-on");
   const paint = () => {
     el.innerHTML = `<div class="ag-in"><div class="ag-top"><svg viewBox="0 0 32 32" class="ag-logo"><path d="M7 23c0-8 5.5-14 11.5-14 4.6 0 7.5 2.9 7.5 6.6 0 3.8-3 6.6-6.8 6.6-2.8 0-4.7-1.9-4.7-4.2" fill="none" stroke="#25C98F" stroke-width="3.6" stroke-linecap="round"/><circle cx="7" cy="23" r="3.8" fill="#E6F2F0"/></svg>
-      <button class="iconbtn ag-x" id="agX" aria-label="Fermer">${I.x}</button>
-      <p class="eyebrow">${why === "gen" ? "Avant ta première boucle" : "Bienvenue sur Traceo"}</p><p class="ag-h">${ENS.mode === "login" ? "Content de te revoir !" : why === "gen" ? "Crée ton compte, c'est gratuit" : "Ton compte coureur"}</p>
-      ${why === "gen" && ENS.mode !== "login" ? `<p class="ag-gift">🎁 <b>${C.FREE_LOOPS || 3} boucles offertes</b> pour découvrir Traceo, sans payer.</p>` : ""}
+      ${why === "entry" ? "" : `<button class="iconbtn ag-x" id="agX" aria-label="Fermer">${I.x}</button>`}
+      <p class="eyebrow">${why === "gen" ? "Avant ta première boucle" : why === "pay" ? "Abonnement Premium" : "Bienvenue sur Traceo"}</p><p class="ag-h">${ENS.mode === "login" ? "Content de te revoir !" : why === "pay" ? "Crée ton compte pour t'abonner" : "Crée ton compte, c'est gratuit"}</p>
+      ${why !== "pay" && ENS.mode !== "login" ? `<p class="ag-gift">🎁 <b>${C.FREE_LOOPS || 3} boucles offertes</b> pour découvrir Traceo, sans payer.</p>` : ""}
       <div class="seg ag-seg"><button type="button" data-mode="signup" aria-pressed="${ENS.mode !== "login"}">Créer un compte</button><button type="button" data-mode="login" aria-pressed="${ENS.mode === "login"}">Se connecter</button></div></div>
       ${ensSignup(true)}
       <p class="small ag-why">Ton compte garde tes courses, compte tes diamants 💎 et te connecte aux coureurs autour de toi.</p>
@@ -431,7 +431,7 @@ function authGate(next, why){
     const sk = el.querySelector("#agSkip");
     fetch(ensApi() + "/health").then(r => { if(!r.ok) throw 0; }).catch(() => { sk.hidden = false; });
     sk.onclick = () => { el.remove(); document.body.classList.remove("auth-on"); next && next(); };
-    el.querySelector("#agX").onclick = () => { el.remove(); document.body.classList.remove("auth-on"); track("entree_compte_fermee"); };
+    el.querySelector("#agX") && (el.querySelector("#agX").onclick = () => { el.remove(); document.body.classList.remove("auth-on"); track("entree_compte_fermee"); });
   };
   paint(); track("entree_compte_vue");
 }

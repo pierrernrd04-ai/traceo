@@ -117,7 +117,7 @@ function view(){
       <button class="btn sm" id="csv">Exporter (CSV)</button></div>
       ${list.length ? `<table><thead><tr><th>Membre</th><th>E-mail</th><th>Âge</th><th>Ville</th><th>Inscrit le</th><th>Activité</th><th>Statut</th><th></th></tr></thead><tbody>
       ${list.map(u => `<tr><td class="who"><b>${esc(u.first)} ${esc(u.last)}</b><small>@${esc(u.pseudo)} · ${LVL[u.level] || ""}</small></td>
-        <td data-l="E-mail"><a href="mailto:${esc(u.email)}">${esc(u.email)}</a></td>
+        <td data-l="E-mail"><a href="mailto:${esc(u.email)}">${esc(u.email)}</a>${u.phone ? `<br><span class="muted small">${esc(u.phone)}${u.phone_ok ? " ✓" : ""}</span>` : ""}</td>
         <td data-l="Âge">${age(u.birth)} ans <span class="muted small">(${u.birth ? new Date(u.birth).toLocaleDateString("fr-FR") : ""})</span></td>
         <td data-l="Ville">${esc(u.place || "–")}</td>
         <td data-l="Inscrit le">${d(u.created)}</td>

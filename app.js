@@ -18,7 +18,7 @@ const _track = track; track = (n, d) => { _track(n, d); alertOwner(n, d); };
 document.addEventListener("visibilitychange", () => { if(document.visibilityState === "hidden"){ const s = Math.round((Date.now() - T0)/1000); track("temps_passe", {secondes:s, tranche:s < 30 ? "moins de 30 s" : s < 120 ? "30 s à 2 min" : s < 600 ? "2 à 10 min" : "plus de 10 min", onglets:tabsSeen}); } });
 // Diagnostic temporaire : les erreurs (sans données personnelles) sont envoyées à un canal privé pour être corrigées à distance
 const DBG = "https://ntfy.sh/traceo-dbg-9591c50f";
-function report(kind, msg){ try{ fetch(DBG, {method:"POST", body:`[${kind}] ${String(msg).slice(0, 600)} | v56 | ${navigator.userAgent.replace(/\(KHTML.*$/, "").slice(0, 120)}`}).catch(() => {}); }catch(e){} }
+function report(kind, msg){ try{ fetch(DBG, {method:"POST", body:`[${kind}] ${String(msg).slice(0, 600)} | v57 | ${navigator.userAgent.replace(/\(KHTML.*$/, "").slice(0, 120)}`}).catch(() => {}); }catch(e){} }
 // Affiche toute erreur à l'écran (bandeau rouge) : une capture suffit pour corriger
 (function(){ let n = 0; const show = m => { if(n++ > 3) return; const d = document.createElement("div"); d.style.cssText = "position:fixed;left:8px;right:8px;top:calc(env(safe-area-inset-top,0px) + 8px);z-index:9999;background:#B3263E;color:#fff;font:600 12px/1.35 system-ui;padding:8px 10px;border-radius:10px;white-space:pre-wrap"; d.textContent = "Erreur : " + m; d.onclick = () => d.remove(); (document.body || document.documentElement).appendChild(d); setTimeout(() => d.remove(), 15000); };
   window.addEventListener("error", e => { report("error", (e.message || "?") + " " + (e.filename || "") + ":" + (e.lineno || "") + ":" + (e.colno || "") + " " + (e.error && e.error.stack ? String(e.error.stack).slice(0, 300) : "")); if(/^Script error/.test(e.message || "") && window.glFail){ try{ glFail(); }catch(x){} return; } show((e.message || "?") + (e.filename ? " (" + e.filename.split("/").pop() + ":" + e.lineno + ")" : "")); });
@@ -700,7 +700,78 @@ function queued(host, fn, tries = 3){
       try{ return await fn(); }catch(e){ routeErr = host + " " + (e.message || e); report("route", routeErr + " try " + k); if(!/HTTP (429|5\d\d)|abort|Failed|Load failed|NetworkError/i.test(String(e.message || e)) || k === tries - 1) throw e; await new Promise(r => setTimeout(r, 1500*(k + 1))); } } };
   const p = routeQ.then(run, run); routeQ = p.catch(() => {}); return p;
 }
+/* ---------- Moteur « piéton sécurité » : BRouter avec le profil Traceo ----------
+   Rues calmes, trottoirs, chemins et sentiers ; départementales, nationales et grands axes évités (autoroutes interdites).
+   BRouter renvoie le type de chaque tronçon : la part de routes dangereuses est mesurée directement sur le tracé. */
+const BR_PROFILE = "# Traceo \u2014 profil pi\u00e9ton \u00ab s\u00e9curit\u00e9 \u00bb pour BRouter\n# Rues calmes, trottoirs, chemins et sentiers. Routes d\u00e9partementales, nationales et grands axes \u00e9vit\u00e9s :\n# autoris\u00e9s seulement avec trottoir ou en zone 30, et tr\u00e8s p\u00e9nalis\u00e9s sinon (autoroutes et voies express interdites).\n---context:global\nassign validForFoot = true\nassign processUnusedTags = false\nassign turnInstructionMode = 1\nassign turnInstructionCatchingRange = 20\nassign downhillcost = 0\nassign downhillcutoff = 0\nassign uphillcost = 0\nassign uphillcutoff = 0\nassign elevationpenaltybuffer = 5\nassign elevationmaxbuffer = 10\nassign elevationbufferreduce = 1.0\n\n---context:way\nassign turncost = 0\nassign initialcost = 0\nassign hassidewalk = or sidewalk=both|left|right|yes|separate or sidewalk:both=yes|separate or sidewalk:left=yes|separate sidewalk:right=yes|separate\nassign slow = maxspeed=30|20|10\nassign fast = maxspeed=70|80|90|100|110|120|130|rural\nassign busy = estimated_traffic_class=5|6|7\nassign denied = or foot=no|private and access=no|private not foot=yes|designated|permissive\nassign costfactor =\n  switch denied 10000\n  switch or highway=motorway|motorway_link|trunk|trunk_link motorroad=yes 10000\n  switch highway=primary|primary_link|secondary|secondary_link switch slow 4 switch hassidewalk 8 80\n  switch highway=tertiary|tertiary_link switch slow 2.5 switch hassidewalk 4 40\n  switch highway=unclassified switch busy 25 switch fast 8 switch hassidewalk 1.5 2.5\n  switch highway=road 4\n  switch highway=service 1.4\n  switch highway=residential|living_street|pedestrian switch busy 4 1.05\n  switch highway=footway|path|cycleway|bridleway|track 1\n  switch highway=steps 1.6\n  10000\n\n---context:node\nassign initialcost = 0";
+const BR = {id:null, at:0, down:0};
+async function brProfile(force){
+  if(!force && BR.id && Date.now() - BR.at < 4*3600e3) return BR.id;
+  const j = await fetchJSON("https://brouter.de/brouter/profile", {method:"POST", headers:{"Content-Type":"text/plain"}, body:BR_PROFILE}, 10000);
+  if(!j.profileid) throw new Error("profil " + (j.error || "refusé"));
+  BR.id = j.profileid; BR.at = Date.now(); return BR.id;
+}
+// tronçon dangereux d'après ses étiquettes OpenStreetMap (grand axe sans trottoir ni zone 30, ou route très circulée)
+function brDangerTags(t){
+  const h = (/highway=(\S+)/.exec(t) || [])[1] || "";
+  if(/sidewalk(:both|:left|:right)?=(both|left|right|yes|separate)/.test(t) || /maxspeed=(30|20|10)\b/.test(t)) return false;
+  if(/^(motorway|motorway_link|trunk|trunk_link|primary|primary_link|secondary|secondary_link|tertiary|tertiary_link)$/.test(h)) return true;
+  return h === "unclassified" && /estimated_traffic_class=[567]/.test(t);
+}
+const BR_CMD = {1:["turn", "straight"], 2:["turn", "left"], 3:["turn", "slight left"], 4:["turn", "sharp left"], 5:["turn", "right"], 6:["turn", "slight right"], 7:["turn", "sharp right"], 8:["fork", "slight left"], 9:["fork", "slight right"], 10:["turn", "uturn"], 11:["turn", "uturn"], 12:["turn", "uturn"], 14:["roundabout", "right"], 15:["roundabout", "left"]};
+function stepText(st){
+  const on = st.name ? ` sur ${/^(rue|avenue|boulevard|bd|place|quai|chemin|allée|impasse|route|cours|square|passage|promenade|sentier|voie|esplanade|parvis|pont|rond-point)\b/i.test(st.name) ? st.name : "« " + st.name + " »"}` : "";
+  if(st.type === "depart") return `Pars${on}`;
+  if(st.type === "arrive") return "Arrivée : tu es revenu à ton point de départ";
+  if(st.type === "roundabout") return `Au rond-point, prends la ${st.exit || 1}${(st.exit || 1) === 1 ? "re" : "e"} sortie${on}`;
+  if(st.type === "fork") return `À l'embranchement, garde ${st.mod.includes("left") ? "la gauche" : "la droite"}${on}`;
+  return st.mod === "uturn" ? "Fais demi-tour" : st.mod === "straight" ? `Continue tout droit${on}` : `Tourne ${MOD[st.mod]}${on}`;
+}
+async function routeBRouter(wps){ return queued("brouter", () => routeBRouter0(wps), 2); }
+async function routeBRouter0(wps, again){
+  const id = await brProfile(again);
+  const url = `https://brouter.de/brouter?lonlats=${wps.map(p => p[1].toFixed(6) + "," + p[0].toFixed(6)).join("|")}&profile=${id}&alternativeidx=0&format=geojson&timode=2`;
+  const r = await fetch(url, {signal:AbortSignal.timeout ? AbortSignal.timeout(15000) : undefined});
+  const txt = await r.text();
+  if(!r.ok || txt[0] !== "{"){ if(!again && /profile|not found|unknown/i.test(txt)) return routeBRouter0(wps, true); throw new Error("brouter " + r.status + " " + txt.slice(0, 80)); }
+  const f = JSON.parse(txt).features?.[0]; if(!f) return null;
+  const pts = f.geometry.coordinates.map(x => [x[1], x[0]]), pr = f.properties || {};
+  // mesure de sécurité : mètres sur des tronçons dangereux (hors 200 m autour du départ, traversées < 60 m ignorées)
+  let dl = 0, run = 0; const names = new Set();
+  for(const m of (pr.messages || []).slice(1)){
+    const d = +m[3] || 0, at = [+m[1]/1e6, +m[0]/1e6];
+    if(brDangerTags(m[9] || "") && dist(at, pts[0]) > 200){ run += d; } else { if(run >= 60) dl += run; run = 0; }
+  }
+  if(run >= 60) dl += run;
+  // étiquettes du tronçon pour chaque point du tracé (contrôle croisé avec les départementales repérées par OpenStreetMap)
+  const rows = (pr.messages || []).slice(1).map(m => ({end:[+m[1]/1e6, +m[0]/1e6], tags:m[9] || ""})), ptTags = new Array(pts.length);
+  // le tronçon (i-1 → i) appartient à la première ligne dont l'extrémité est au point i ou après
+  { let ri = 0; for(let i = 0; i < pts.length; i++){ ptTags[i] = (rows[ri] || {}).tags || ""; if(rows[ri] && dist(pts[i], rows[ri].end) < 2 && ri < rows.length - 1) ri++; } }
+  const steps = [{loc:pts[0], type:"depart", mod:"straight", name:"", text:"Pars"}];
+  for(const v of pr.voicehints || []){ const c = BR_CMD[v[1]]; if(!c) continue; steps.push({loc:pts[Math.min(v[0], pts.length - 1)], idx:v[0], type:c[0], mod:c[1], exit:v[2] || 0, name:"", text:""}); }
+  steps.push({loc:pts[pts.length - 1], type:"arrive", mod:"straight", name:"", text:"Arrivée : tu es revenu à ton point de départ"});
+  steps.forEach(st => st.text = stepText(st));
+  return {pts, steps, ptTags, ascent:pr["filtered ascend"] != null ? Math.round(+pr["filtered ascend"]) : null, brDanger:{len:dl, names:[]}, engine:"brouter"};
+}
+// Noms des rues (et numéros de route) de la boucle retenue : Valhalla « trace_attributes », pour un guidage vocal rue par rue
+async function enrichNames(r){
+  if(!r || r.named || r.engine !== "brouter") return; r.named = true;
+  try{
+    const shape = r.pts.filter((_, i) => i % Math.max(1, Math.ceil(r.pts.length/900)) === 0 || i === r.pts.length - 1), k = Math.max(1, Math.ceil(r.pts.length/900));
+    const q = {shape:shape.map(p => ({lat:+p[0].toFixed(6), lon:+p[1].toFixed(6)})), costing:"pedestrian", shape_match:"map_snap", filters:{attributes:["edge.names", "edge.road_class", "matched.edge_index"], action:"include"}};
+    const j = await queued("valhalla", () => fetchJSON("https://valhalla1.openstreetmap.de/trace_attributes", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(q)}, 15000), 1);
+    const mp = j.matched_points || [], ed = j.edges || [];
+    const nameAt = i => { const m = mp[Math.min(mp.length - 1, Math.max(0, Math.round(i/k) + 1))], e = m && ed[m.edge_index]; return e && e.names ? e.names.find(n => !/^(D|N|RN|RD|M)\s?\d/.test(n)) || e.names[0] || "" : ""; };
+    r.steps.forEach((st, n) => { if(st.type === "arrive") return; st.name = n === 0 ? nameAt(0) : nameAt(st.idx || 0); st.text = stepText(st); });
+    // contrôle supplémentaire : numéros de départementales / nationales relevés sur le tracé
+    const refs = new Set(); for(const e of ed) for(const n of e.names || []) if(/^(D|N|RN|RD)\s?\d/.test(n) && /primary|secondary|tertiary|trunk/.test(e.road_class || "")) refs.add(n);
+    if(r.danger && r.danger.len >= 60) r.danger.names = [...refs].slice(0, 3);
+  }catch(e){ report("noms", e.message || e); }
+}
 async function routeFoot(wps){
+  // 1. BRouter, profil piéton sécurité (petites rues et chemins, à l'écart des départementales)
+  if(Date.now() - BR.down > 90000){ try{ const r = await routeBRouter(wps); if(r && r.pts.length > 3) return r; }catch(e){ BR.down = Date.now(); report("brouter", e.message || e); } }
+  // 2. secours : OSRM puis Valhalla (la sécurité est alors contrôlée avec les routes repérées par OpenStreetMap)
   if(Date.now() - osrmDown > 120000){ try{ const r = await routeOSRM(wps); if(r) return r; }catch(e){ osrmDown = Date.now(); } }
   return routeValhalla(wps);
 }
@@ -788,6 +859,26 @@ function dangerOf(pts){
   flush();
   return {len:tot, names:[...names].slice(0, 3)};
 }
+// Mesure finale de sécurité d'une boucle BRouter : tronçon dangereux selon son type (grand axe sans trottoir…)
+// OU petite route non classée qui est en fait une départementale/nationale (repérée par OpenStreetMap).
+// Un trottoir ou un chemin séparé qui longe une départementale reste sûr.
+function brSafety(c){
+  if(!c.ptTags) return c.brDanger || {len:0, names:[]};
+  let tot = 0, run = 0; const names = new Set(); let rn = new Set();
+  const flush = () => { if(run >= 60){ tot += run; rn.forEach(n => n && names.add(n)); } run = 0; rn = new Set(); };
+  for(let i = 1; i < c.pts.length; i++){
+    const a = c.pts[i-1], b = c.pts[i], d = dist(a, b), t = c.ptTags[i] || "", n = Math.max(1, Math.ceil(d/12));
+    const roadish = /highway=(unclassified|road|tertiary|tertiary_link|secondary|secondary_link|primary|primary_link|trunk|trunk_link)\b/.test(t);
+    for(let k = 0; k < n; k++){
+      const f = (k + .5)/n, p = [a[0] + (b[0] - a[0])*f, a[1] + (b[1] - a[1])*f];
+      if(dist(p, c.pts[0]) <= 200){ flush(); continue; }
+      const sg = roadish ? nearDanger(p, 14) : null;
+      if(brDangerTags(t) || sg){ run += d/n; if(sg) rn.add(sg.name); } else flush();
+    }
+  }
+  flush();
+  return {len:tot, names:[...names].slice(0, 3)};
+}
 // point de passage : on l'écarte des routes dangereuses (sinon l'itinéraire les emprunterait)
 function safeWaypoint(center, brg, r){
   let best = null;
@@ -805,7 +896,7 @@ async function loopOSRM(start, target, brg){
     for(let i = 1; i < k; i++) wps.push(safeWaypoint(center, (brg + 180 + i*360/k + (Math.random()-.5)*24) % 360, r*(0.85 + Math.random()*0.3)));
     wps.push(s);
     const rr = await routeFoot(wps); if(!rr || rr.pts.length < 4){ routeErr = routeErr || "itinéraire vide"; break; }
-    const c = {pts:rr.pts, steps:rr.steps, ascent:null};
+    const c = {pts:rr.pts, steps:rr.steps, ptTags:rr.ptTags, ascent:rr.ascent ?? null, engine:rr.engine || "osrm", brDanger:rr.brDanger};
     c.len = lineLen(c.pts);
     if(!best || Math.abs(c.len - target) < Math.abs(best.len - target)) best = c;
     if(Math.abs(c.len - target)/target < .1) break;
@@ -874,7 +965,7 @@ async function generate(){
   S.view = "loading"; S.results = null; routeLayer.clearLayers(); panel.classList.remove("min"); render(); genProgress(run);
   try{
     const tStart = Date.now();
-    if(!PV){ genProgress.note = ""; await Promise.race([loadDanger(S.start, target), new Promise(r => setTimeout(r, 13000))]); if(run !== genRun) return; }
+    if(!PV){ genProgress.note = ""; await Promise.race([loadDanger(S.start, target), new Promise(r => setTimeout(r, Date.now() - BR.down > 90000 ? 3000 : 13000))]); if(run !== genRun) return; }
     let got = await tryLoops(target, PV ? 4 : DANGER.segs.length ? 4 : 3, 12000);
     if(run !== genRun) return;   // annulé entre-temps
     // second essai seulement si le premier a échoué vite (sinon on prévient sans faire attendre davantage)
@@ -888,7 +979,7 @@ async function generate(){
     if(!got.length) throw new Error("none");
     // sécurité : si toutes les boucles empruntent des routes passantes, on cherche d'autres tracés (jusqu'à 2 essais de plus)
     for(let extra = 0; extra < 2 && DANGER.segs.length && Date.now() - tStart < 26000; extra++){
-      const minD = Math.min(...got.map(c => (c.danger = c.danger || dangerOf(c.pts)).len));
+      const minD = Math.min(...got.map(c => (c.danger = c.ptTags ? brSafety(c) : c.danger || dangerOf(c.pts)).len));
       if(minD < 120) break;
       genProgress.note = "On cherche un parcours encore plus sûr, à l'écart des routes passantes…";
       const more = await tryLoops(target, 3, 9000); if(run !== genRun) return;
@@ -896,13 +987,15 @@ async function generate(){
     }
     for(const c of got){
       c.newLen = newLen(c.pts); c.rep = repeatLen(c.pts);
-      c.danger = c.danger || dangerOf(c.pts);
+      c.danger = c.ptTags ? brSafety(c) : c.danger || dangerOf(c.pts);
       // la sécurité passe avant tout : chaque mètre sur une départementale ou une nationale pénalise fortement la boucle
       c.score = 1.4*c.newLen/c.len - .8*c.rep/c.len - 1.1*Math.abs(c.len - target)/target - 20*c.danger.len/c.len - (c.danger.len > 150 ? 1 : 0);
     }
     // d'abord la sécurité (par paliers de 150 m sur des routes passantes), ensuite la nouveauté et la distance
     got.sort((a, b) => (Math.floor(a.danger.len/150) - Math.floor(b.danger.len/150)) || (b.score - a.score));
     S.results = got.slice(0, 3); S.sel = 0; S.view = "result";
+    // noms des rues (guidage vocal) : boucle choisie d'abord, puis les deux autres
+    (async () => { for(const x of S.results){ await enrichNames(x); if(S.results && S.results[S.sel] === x && S.view === "result") try{ render(); }catch(e){} } })();
     if(!isPremium()) freeUse();
     const r = S.results[0], l = {id:"l" + Date.now(), date:Date.now(), name:`Boucle du ${new Date().toLocaleDateString("fr-FR", {weekday:"long", day:"numeric", month:"long"})}`, place:(S.start.label || "").split(",").slice(-1)[0].trim(), start:S.start, pts:simplify(r.pts), len:r.len, newPct:Math.round(r.newLen/r.len*100), ascent:r.ascent, fav:false};
     S.loops.push(l); trimLoops(); store.set("loops", S.loops); S.loopId = l.id;
@@ -1270,7 +1363,7 @@ function viewPlan(){
         <div class="stat"><small>Calories estimées</small><b><span data-count="${kcal(r.len)}">${kcal(r.len)}</span><small>kcal</small></b></div>
         <div class="stat"><small>${r.ascent != null ? "Dénivelé +" : "Allure"}</small><b>${r.ascent != null ? Math.round(r.ascent) + "<small>m</small>" : paceTxt(S.pace) + "<small>/km</small>"}</b></div>
       </div>
-      ${r.danger && (DANGER.segs.length || r.danger.len >= 60) ? (r.danger.len < 60 ? `<p class="small safe-ok">🛡️ Boucle sûre : aucune route départementale ni nationale${DANGER.ok ? "" : " repérée"} sur ce parcours.</p>` : `<p class="small safe-warn">⚠️ ${Math.round(r.danger.len/10)*10} m sur ${r.danger.names.length ? r.danger.names.join(", ") : "une route passante"} : passage inévitable ici, reste sur le bas-côté et sois prudent.</p>`) : ""}
+      ${r.danger && (r.engine === "brouter" || DANGER.segs.length || r.danger.len >= 60) ? (r.danger.len < 60 ? `<p class="small safe-ok">🛡️ Boucle sûre : petites rues et chemins, aucune route départementale ni nationale${r.engine === "brouter" || DANGER.ok ? "" : " repérée"}.</p>` : `<p class="small safe-warn">⚠️ ${Math.round(r.danger.len/10)*10} m sur ${r.danger.names.length ? r.danger.names.join(", ") : "une route passante"} : passage inévitable ici, reste sur le bas-côté et sois prudent.</p>`) : ""}
       <p class="small">${pct >= 95 ? "Boucle 100 % nouvelle : aucune rue déjà proposée." : `${pct} % de rues que Traceo ne t'avait jamais proposées.`} ${r.steps?.length ? `${r.steps.length} indications de guidage.` : ""}</p>
       <div class="cta-dock dock2"><button class="dock-sum" id="dockSum"><em><b>${km1(r.len)} km</b> · ${hmin(dur)}${S.results.length > 1 ? ` · ${S.results.length} boucles au choix` : ""}</em><span>Options ▲</span></button><button class="btn soft" id="goFly">${I.eye}Voir</button><button class="btn hero" id="goRun">${I.play}Commencer</button></div>
       <div class="row"><button class="btn garmin" id="toGarmin">${I.watch}Garmin${isPremium() ? "" : '<span class="lock">★</span>'}</button><button class="btn soft" id="toGpx">${I.dl}GPX${isPremium() ? "" : '<span class="lock">★</span>'}</button></div>
@@ -2259,8 +2352,8 @@ const orderReady = () => !!(C.PAYPAL_CLIENT_ID && !C.PAYPAL_PLAN_ID && (C.PAYMEN
 function payBlock(id){
   const live = !PV && (subReady() || orderReady() || C.PAYPAL_PAYMENT_LINK);
   // Retour de PayPal arrivé ailleurs (ex. Safari au lieu de l'app sur l'écran d'accueil) : activation manuelle, 2 h maximum après le clic
-  const pending = !subReady() && !orderReady() && C.PAYPAL_PAYMENT_LINK;
-  return `<div class="paybox" id="${id}">${live && (subReady() || orderReady()) ? `<div class="skel" style="height:52px"></div>` : `<button class="btn block paypal" data-pp>Payer avec <b>PayPal</b></button>`}</div>
+  const pending = !subReady() && !orderReady() && C.PAYPAL_PAYMENT_LINK && !autoPay();
+  return `<div class="paybox" id="${id}">${live && (subReady() || orderReady()) ? `<div class="skel" style="height:52px"></div>` : `<button class="btn block paypal" data-pp>${autoPay() ? "S'abonner · paiement sécurisé <b>PayPal</b>" : "Payer avec <b>PayPal</b>"}</button>${autoPay() ? `<p class="small pay-steps">① Vérification de ton téléphone ② Paiement PayPal (compte, carte ou Apple Pay) ③ Premium activé automatiquement</p>` : ""}`}</div>
     ${pending ? `<button class="btn soft block" data-paid>${store.get("actPending", null) ? "⏳ Vérification en cours : voir ma demande" : "J'ai déjà payé : activer mon Premium"}</button>` : ""}
     <p class="small consent">En payant, tu demandes l'accès immédiat à Premium et renonces à ton droit de rétractation (art. L221-28 du Code de la consommation). <a href="legal.html#cgv" target="_blank" rel="noopener">Conditions de vente</a></p>
     <p class="small">${subReady() ? "Paiement sécurisé par PayPal : compte PayPal ou carte bancaire. Sans engagement, résiliable à tout moment." : "Paiement sécurisé par PayPal (compte PayPal ou carte bancaire). Un paiement = 31 jours de Premium, sans abonnement ni renouvellement automatique."}</p>`;
@@ -2275,6 +2368,7 @@ async function mountPay(id){
   if(paid) paid.onclick = () => requestActivation();
   if(btn){ btn.onclick = () => {
     if(PV){ toast("Dans l'app en ligne, ce bouton ouvre le paiement PayPal.", 4000); return; }
+    if(autoPay()){ premiumCheckout(); return; }
     if(C.PAYPAL_PAYMENT_LINK){ track("paiement_clic", {depuis:"onglet_premium"}); store.set("payPending", Date.now()); if(NATIVE) openExt(C.PAYPAL_PAYMENT_LINK); else location.href = C.PAYPAL_PAYMENT_LINK; return; }
     toast("Le paiement arrive très bientôt. Réessaie dans quelques jours.", 4500);
   }; return; }
@@ -2380,6 +2474,70 @@ async function pollAct(){
   }catch(e){}
   actT = setTimeout(pollAct, document.hidden ? 60000 : 12000);
 }
+/* ---------- Abonnement Premium en un parcours simple et automatique ----------
+   1. Compte Traceo (obligatoire)  2. Téléphone vérifié par un code à 6 chiffres (SMS)
+   3. Paiement PayPal (compte, carte ou Apple Pay) : le code du téléphone voyage avec le paiement
+   4. PayPal prévient le serveur Traceo, qui vérifie le paiement et active Premium sur CE téléphone, sans intervention. */
+const apiBase = () => (C.PAYMENT_API || C.CHAT_API || "").replace(/\/$/, "");
+const autoPay = () => !!(C.PAYPAL_MERCHANT_ID && apiBase());
+function premiumCheckout(){
+  if(typeof ENS !== "undefined" && typeof needAuth === "function" && needAuth()){ closeModal(); authGate(() => premiumCheckout(), "pay"); return; }
+  if(typeof ENS !== "undefined" && ENS.auth && !ENS.me?.phone_ok){
+    // le serveur dit si la vérification par SMS est active (sinon on passe directement au paiement)
+    ensCall("phone/start", {}).then(j => { if(j.skip || j.verified) payNow(); else phoneStep(); }).catch(e => { if(e.message === "bad_phone") phoneStep(); else payNow(); });
+    return;
+  }
+  payNow();
+}
+function phoneStep(){
+  openModal(`<button class="iconbtn x" data-close aria-label="Fermer">${I.x}</button><p class="eyebrow">Étape 1 sur 2 · sécurité</p><p class="title" style="font-size:22px">Vérifie ton téléphone</p>
+    <p class="muted">On t'envoie un code à 6 chiffres par SMS : il prouve que c'est bien toi et ton téléphone. Ensuite, paiement PayPal et Premium s'active tout seul.</p>
+    <div class="field"><label for="phIn">Numéro de mobile</label><input class="input" id="phIn" type="tel" inputmode="tel" autocomplete="tel" placeholder="06 12 34 56 78" maxlength="20"></div>
+    <div class="field" id="phCodeF" hidden><label for="phCode">Code reçu par SMS</label><input class="input code6" id="phCode" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="••••••"></div>
+    <p class="small" id="phErr" style="color:var(--warn)"></p>
+    <button class="btn hero block" id="phGo">Recevoir mon code</button>`);
+  let sent = false;
+  const err = t => { $("#phErr").textContent = t; $("#phGo").disabled = false; };
+  $("#phGo").onclick = async () => {
+    $("#phGo").disabled = true; $("#phErr").textContent = "";
+    try{
+      if(!sent){
+        const j = await ensCall("phone/start", {phone:$("#phIn").value});
+        if(j.skip || j.verified){ closeModal(); return payNow(); }
+        sent = true; $("#phCodeF").hidden = false; $("#phGo").textContent = "Valider le code"; $("#phGo").disabled = false; $("#phCode").focus();
+        toast(`Code envoyé au ${j.phone}.`); return;
+      }
+      await ensCall("phone/check", {code:$("#phCode").value});
+      ENS.me.phone_ok = true; store.set("ensMe", ENS.me); closeModal(); track("telephone_verifie"); payNow();
+    }catch(e){ err(e.message === "bad_phone" ? "Numéro invalide : écris-le comme 06 12 34 56 78." : e.message === "bad_code" ? "Code incorrect, vérifie le SMS." : e.message === "rate_limited" ? "Trop d'essais, réessaie dans un moment." : "Envoi impossible pour l'instant, réessaie."); }
+  };
+}
+function payNow(){
+  track("paiement_clic", {depuis:"premium_auto"});
+  const app = location.origin + location.pathname.replace(/[^/]*$/, "") + "app.html";
+  const q = new URLSearchParams({cmd:"_xclick", business:C.PAYPAL_MERCHANT_ID, item_name:"Traceo Premium - 31 jours", item_number:"premium31", amount:(C.PRICE_VALUE || "4.99"), currency_code:"EUR",
+    custom:devId() + (typeof ENS !== "undefined" && ENS.me?.id ? "." + ENS.me.id : ""), notify_url:apiBase() + "/paypal/ipn", return:app + "?paiement=ok", cancel_return:app + "?paiement=annule",
+    no_shipping:"1", no_note:"1", rm:"1", lc:"FR", charset:"utf-8", cbt:"Revenir à Traceo"});
+  store.set("actPending", {at:Date.now(), email:"auto"});
+  const url = "https://www.paypal.com/cgi-bin/webscr?" + q.toString();
+  if(NATIVE) openExt(url); else location.href = url;
+}
+// Retour de PayPal : on attend la confirmation du serveur (quelques secondes) et Premium s'active tout seul
+async function waitActivation(){
+  openModal(`<div class="center"><div class="medal">${I.star}</div><p class="title">Paiement reçu, merci !</p><p class="muted" id="waMsg">Activation de ton Premium en cours…</p><div class="spin2"></div></div>`);
+  const t0 = Date.now();
+  while(Date.now() - t0 < 120000){
+    try{
+      const j = await (await fetch(apiBase() + "/social/activate", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({dev:devId()})})).json();
+      if(j.code){ const v = await verifyAct(j.code); if(v){ store.set("actPending", null); unlock({via:"code", until:v.until, code:j.code, kind:"paiement"}); track("activation_auto"); return; } }
+    }catch(e){}
+    if(paid()) return;
+    if(Date.now() - t0 > 25000 && $("#waMsg")) $("#waMsg").textContent = "PayPal finalise ton paiement, encore quelques secondes…";
+    await new Promise(r => setTimeout(r, 3000));
+  }
+  if($("#waMsg")) $("#waMsg").innerHTML = "PayPal met un peu plus de temps que d'habitude. Ton Premium s'activera tout seul dès sa confirmation, tu peux continuer à utiliser Traceo.";
+  pollAct();
+}
 function askPaid(){
   const t = store.get("payPending", 0); if(!t || t < Date.now() - 6*3600e3 || paid() || $("#paidBox")) return;
   const d = document.createElement("div"); d.id = "paidBox"; d.className = "betalock"; d.style.zIndex = 99;
@@ -2400,10 +2558,11 @@ async function payOnLaunch(){
     else if(days <= 3){ store.set("payNag", today); setTimeout(() => toast(`Ton Premium se termine dans ${days} jour${days > 1 ? "s" : ""}. Prolonge-le dans l'onglet Premium.`, 5000), 2500); }
   }
   // le lien de retour de PayPal ne débloque plus rien : il ouvre seulement la demande d'activation vérifiée
-  if(u.get("paiement") === "ok"){ store.set("payPending", 0); history.replaceState(null, "", location.pathname); setTimeout(requestActivation, 2200); return; }
+  if(u.get("paiement") === "ok"){ store.set("payPending", 0); history.replaceState(null, "", location.pathname); setTimeout(autoPay() ? waitActivation : requestActivation, 1500); return; }
+  if(u.get("paiement") === "annule"){ history.replaceState(null, "", location.pathname); store.set("actPending", null); setTimeout(() => toast("Paiement annulé : rien n'a été débité."), 1500); }
   // demande en attente : on redemande au serveur à chaque ouverture (le paiement a pu arriver entre-temps)
   { const pend = store.get("actPending", null), api = (C.PAYMENT_API || C.CHAT_API || "").replace(/\/$/, "");
-    if(pend && api && Date.now() - pend.at < 7*864e5 && !paid() && !/^(commande|diamant)/.test(pend.email)) fetch(api + "/social/activate", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({email:pend.email, dev:devId()})}).then(r => r.json()).then(async j => { if(j.code){ const v = await verifyAct(j.code); if(v){ store.set("actPending", null); unlock({via:"code", until:v.until, code:j.code, kind:"paiement"}); } } }).catch(() => {}); }
+    if(pend && api && Date.now() - pend.at < 7*864e5 && !paid() && !/^(commande|diamant)/.test(pend.email || "")) fetch(api + "/social/activate", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({email:pend.email, dev:devId()})}).then(r => r.json()).then(async j => { if(j.code){ const v = await verifyAct(j.code); if(v){ store.set("actPending", null); unlock({via:"code", until:v.until, code:j.code, kind:"paiement"}); } } }).catch(() => {}); }
   pollAct(); checkPremiumSig();
   askPaid();
   if(S.premium?.via === "sub" && C.PAYMENT_API && Date.now() - (S.premium.checked || 0) > 6*3600e3){ try{ const j = await verifySub(S.premium.id); if(j.active === false){ S.premium = null; store.set("premium", null); toast("Ton abonnement Premium a pris fin."); } else { S.premium.checked = Date.now(); store.set("premium", S.premium); } updateCrown(); }catch(e){} }
@@ -2495,7 +2654,9 @@ function splash(first){
   let w = 0; splash.iv = setInterval(() => { const r = $("#spRot"); if(!r || el.hidden){ clearInterval(splash.iv); return; } r.classList.add("out"); spT.push(setTimeout(() => { w = (w + 1) % ROTW.length; r.textContent = ROTW[w]; r.classList.remove("out"); r.classList.add("in"); spT.push(setTimeout(() => r.classList.remove("in"), 500)); }, 300)); }, 2400);
   spT.push(setTimeout(wmRoll, 150)); clearInterval(splash.wm); splash.wm = setInterval(() => { if(el.hidden) return clearInterval(splash.wm); wmRoll(); }, 9000);
   el.querySelectorAll("[data-spm]").forEach(b => b.onclick = () => { store.set("spModel", b.dataset.spm); splash(first); });
-  $("#spGoBtn").onclick = () => { celebrate(60); el.classList.add("out"); clearInterval(splash.iv); spT.forEach(clearTimeout); setTimeout(() => { el.hidden = true; el.classList.remove("out"); store.set("onboarded", true); if(!gateOn() && !S.start) autoStart(); }, 420);
+  $("#spGoBtn").onclick = () => { celebrate(60); el.classList.add("out"); clearInterval(splash.iv); spT.forEach(clearTimeout); setTimeout(() => { el.hidden = true; el.classList.remove("out"); store.set("onboarded", true); const go2 = () => { if(!gateOn() && !S.start) autoStart(); };
+      // compte obligatoire dès l'entrée (« Essayer gratuitement ») : ensuite navigation libre et 3 boucles offertes
+      if(typeof needAuth === "function" && needAuth()) authGate(go2, "entry"); else go2(); }, 420);
     // le toucher compte comme geste : on demande la position tout de suite (fenêtre « Autoriser » du téléphone)
     if(!S.start && !PV){ showGate(); gateLocate(); } };
 }

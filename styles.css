@@ -938,3 +938,6 @@ body:has(#betaLock) #modal{z-index:120}
 .ag-gift{margin:-6px 0 14px;padding:10px 12px;border-radius:14px;background:rgba(242,201,76,.12);border:1px solid rgba(242,201,76,.3);font-size:14.5px}
 .safe-ok{color:var(--accent);font-weight:700}
 .safe-warn{color:#F2C94C;font-weight:700}
+.pay-steps{margin:8px 2px 0;color:var(--muted)}
+.code6{letter-spacing:.5em;font-size:22px;text-align:center;font-family:ui-monospace,Menlo,monospace}
+.spin2{width:30px;height:30px;margin:14px auto 4px;border-radius:50%;border:3px solid var(--accent);border-right-color:transparent;animation:spin .8s linear infinite}

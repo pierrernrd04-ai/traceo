@@ -40,7 +40,9 @@ export class Hub {
     this.state = state; this.env = env; this.sql = state.storage.sql; this.hits = new Map();
     this.sql.exec(`CREATE TABLE IF NOT EXISTS users(id TEXT PRIMARY KEY, pseudo TEXT UNIQUE, pw TEXT, first TEXT, last TEXT, email TEXT UNIQUE, birth TEXT, level TEXT, pace INT, bio TEXT,
       created INT, seen INT, last_login INT, lat REAL, lon REAL, place TEXT, visible INT DEFAULT 1, avail_until INT DEFAULT 0, avail_km REAL, avail_note TEXT, push TEXT, notif INT DEFAULT 1, shout_at INT DEFAULT 0, premium INT DEFAULT 0)`);
-    try{ this.sql.exec("ALTER TABLE users ADD COLUMN free_used INT DEFAULT 0"); }catch(e){}   // boucles gratuites utilisées (3 offertes)
+    try{ this.sql.exec("ALTER TABLE users ADD COLUMN free_used INT DEFAULT 0"); }catch(e){}
+    try{ this.sql.exec("ALTER TABLE users ADD COLUMN phone TEXT"); }catch(e){}
+    try{ this.sql.exec("ALTER TABLE users ADD COLUMN phone_ok INT DEFAULT 0"); }catch(e){}   // boucles gratuites utilisées (3 offertes)
     this.sql.exec(`CREATE TABLE IF NOT EXISTS sessions(tok TEXT PRIMARY KEY, uid TEXT, created INT, seen INT, ua TEXT)`);
     this.sql.exec(`CREATE INDEX IF NOT EXISTS sessions_uid ON sessions(uid)`);
     this.sql.exec(`CREATE TABLE IF NOT EXISTS msgs(id INTEGER PRIMARY KEY AUTOINCREMENT, a TEXT, b TEXT, t INT, kind TEXT, body TEXT, meta TEXT)`);
@@ -89,6 +91,8 @@ export class Hub {
         case "block": return this.block(me, body);
         case "run": return this.run(me, body);
         case "quota": return this.quota(me, body, false);
+        case "phone/start": return this.phoneStart(me, body, ip);
+        case "phone/check": return this.phoneCheck(me, body);
         case "gen": return this.quota(me, body, true);
         case "runs": return this.runsInfo(me);
         case "claim": return this.claim(me, body);
@@ -140,7 +144,7 @@ export class Hub {
     if(!u || !/^[a-f0-9]{64}$/.test(String(b.key || "")) || await this.hashPw(b.key, u.pw.split(":")[0]) !== u.pw) return json({error:"bad_login"}, 401, {});
     return json({token:await this.newSession(u, req), me:this.mine(u)}, 200, {});
   }
-  mine(u){ return {...this.pub(u), last:u.last, email:u.email, birth:u.birth, visible:!!u.visible, notif:!!u.notif, push:!!u.push, avail_until:u.avail_until || 0}; }
+  mine(u){ return {...this.pub(u), last:u.last, email:u.email, birth:u.birth, phone_ok:!!u.phone_ok, visible:!!u.visible, notif:!!u.notif, push:!!u.push, avail_until:u.avail_until || 0}; }
   async update(me, b){
     const f = {};
     if(b.first != null) f.first = clean(b.first, 30) || me.first;
@@ -318,6 +322,31 @@ export class Hub {
     return json({premium:false, left:Math.max(0, FREE_LOOPS - used), used, free:FREE_LOOPS}, 200, {});
   }
 
+  /* ---------- Vérification du numéro de téléphone (code à 6 chiffres par SMS, service Twilio Verify) ----------
+     Prouve qu'une vraie personne paie avec son propre téléphone. Sans identifiants Twilio, l'étape est sautée. */
+  normPhone(p){ let x = String(p || "").replace(/[\s.\-()]/g, ""); if(/^0[1-9]\d{8}$/.test(x)) x = "+33" + x.slice(1); return /^\+[1-9]\d{7,14}$/.test(x) ? x : null; }
+  async twilio(path, form){
+    return fetch("https://verify.twilio.com/v2/Services/" + this.env.TWILIO_VERIFY_SID + path, {method:"POST", headers:{Authorization:"Basic " + btoa(this.env.TWILIO_ACCOUNT_SID + ":" + this.env.TWILIO_AUTH_TOKEN), "Content-Type":"application/x-www-form-urlencoded"}, body:new URLSearchParams(form).toString()}).then(r => r.json());
+  }
+  async phoneStart(me, b, ip){
+    if(me.phone_ok) return json({ok:true, verified:true, phone:me.phone}, 200, {});
+    if(!this.env.TWILIO_ACCOUNT_SID || !this.env.TWILIO_AUTH_TOKEN || !this.env.TWILIO_VERIFY_SID) return json({skip:true}, 200, {});
+    const ph = this.normPhone(b.phone); if(!ph) return json({error:"bad_phone"}, 400, {});
+    if(this.limit("sms:" + me.id, 4, HOUR) || this.limit("smsip:" + ip, 8, HOUR)) return json({error:"rate_limited"}, 429, {});
+    const j = await this.twilio("/Verifications", {To:ph, Channel:"sms", Locale:"fr"});
+    if(j.status !== "pending") return json({error:"sms_failed"}, 502, {});
+    this.sql.exec("UPDATE users SET phone = ? WHERE id = ?", ph, me.id);
+    return json({ok:true, sent:true, phone:ph}, 200, {});
+  }
+  async phoneCheck(me, b){
+    const code = String(b.code || "").replace(/\D/g, ""); if(code.length !== 6 || !me.phone) return json({error:"bad_code"}, 400, {});
+    if(this.limit("smschk:" + me.id, 8, HOUR)) return json({error:"rate_limited"}, 429, {});
+    const j = await this.twilio("/VerificationCheck", {To:me.phone, Code:code});
+    if(j.status !== "approved") return json({error:"bad_code"}, 400, {});
+    this.sql.exec("UPDATE users SET phone_ok = 1 WHERE id = ?", me.id);
+    return json({ok:true, verified:true}, 200, {});
+  }
+
   /* ---------- Paiement automatique par notification PayPal (IPN), sans compte développeur ----------
      1. PayPal envoie chaque paiement reçu à /paypal/ipn ; le serveur renvoie le message à PayPal qui confirme « VERIFIED ».
      2. Le client, de retour dans l'app, donne l'e-mail utilisé pour payer : si un paiement de 4,99 € avec cet e-mail est
@@ -329,12 +358,18 @@ export class Hub {
       if((await r.text()).trim() !== "VERIFIED") return new Response("ignored", {status:200});
       const f = new URLSearchParams(raw), txn = clean(f.get("txn_id"), 40), email = clean(f.get("payer_email"), 120).toLowerCase();
       const amount = f.get("mc_gross") || "", cur = f.get("mc_currency") || "", status = f.get("payment_status") || "";
+      // seul un paiement fait vers TON compte PayPal (identifiant marchand) peut activer Premium
+      const mid = this.env.PAYPAL_MERCHANT_ID || "";
+      if(mid && f.get("receiver_id") !== mid && f.get("business") !== mid) return new Response("other receiver", {status:200});
       if(this.env.PAYPAL_EMAIL && clean(f.get("receiver_email"), 120).toLowerCase() !== this.env.PAYPAL_EMAIL.toLowerCase()) return new Response("other receiver", {status:200});
       if(!txn || status !== "Completed" || cur !== "EUR" || parseFloat(amount) < parseFloat(this.env.PRICE || "4.99") - .001) return new Response("not eligible", {status:200});
       if(this.one("SELECT 1 AS x FROM payments WHERE txn = ?", txn)) return new Response("dup", {status:200});
       const name = clean([f.get("first_name"), f.get("last_name")].filter(Boolean).join(" "), 80);
       this.sql.exec("INSERT INTO payments(txn, email, amount, currency, t, name) VALUES(?,?,?,?,?,?)", txn, email, amount, cur, NOW(), name);
       if(this.env.ALERTS_TOPIC) this.state.waitUntil(fetch("https://ntfy.sh/" + this.env.ALERTS_TOPIC, {method:"POST", headers:{Title:"Paiement PayPal recu", Tags:"moneybag", Priority:"high"}, body:`${amount} € reçus de ${name || email} (${email}). Activation automatique dès sa demande dans l'app.`}).catch(() => {}));
+      // paiement lancé depuis l'app : le code du téléphone voyage avec le paiement (champ « custom ») → activation immédiate
+      const cdev = (f.get("custom") || "").split(".")[0].toLowerCase();
+      if(/^[a-f0-9]{16}$/.test(cdev)){ await this.grant(txn, cdev, 0); return new Response("ok", {status:200}); }
       // demande déjà faite par le client ? on active tout de suite
       const req = this.one("SELECT * FROM act_requests WHERE (email = ? OR email = ?) AND done = 0 AND t > ? ORDER BY id DESC", email, name.toLowerCase(), NOW() - 7*864e5);
       if(req) await this.grant(txn, req.dev, req.id);
@@ -351,8 +386,12 @@ export class Hub {
   async activateRequest(b, ip){
     if(this.limit("act:" + ip, 12, HOUR)) return json({error:"rate_limited"}, 429, {});
     const email = clean(b.email, 120).toLowerCase(), dev = clean(b.dev, 16).toLowerCase();
-    if(email.length < 3 || !/^[a-f0-9]{16}$/.test(dev)) return json({error:"bad_request"}, 400, {});
+    if(!/^[a-f0-9]{16}$/.test(dev)) return json({error:"bad_request"}, 400, {});
     if(!this.env.ACT_KEY) return json({status:"pending"}, 200, {});
+    // paiement déjà reçu pour ce téléphone (bouton de paiement de l'app) : on renvoie l'activation
+    const mine = this.one("SELECT * FROM payments WHERE dev = ? AND until > ? ORDER BY t DESC", dev, NOW());
+    if(mine) return json({status:"active", code:await this.signAct(dev, mine.until, "paiement")}, 200, {});
+    if(email.length < 3) return json({status:"pending"}, 200, {});
     // paiement déjà reçu avec cet e-mail (ou ce nom) et jamais utilisé : activation immédiate
     const pay = this.one("SELECT * FROM payments WHERE (email = ? OR lower(name) = ?) AND dev IS NULL AND t > ? ORDER BY t DESC", email, email, NOW() - 30*864e5);
     if(pay) return json({status:"active", code:await this.grant(pay.txn, dev, 0)}, 200, {});
@@ -426,7 +465,7 @@ export class Hub {
     if(path === "members"){
       const rows = this.rows(`SELECT u.*, (SELECT COUNT(*) FROM msgs WHERE a = u.id) AS sent, (SELECT COUNT(*) FROM reports WHERE whom = u.id) AS reported, (SELECT COUNT(*) FROM runs WHERE uid = u.id AND ok = 1) AS runs, u.free_used AS free_used FROM users u ORDER BY created DESC LIMIT 5000`);
       return json({members:rows.map(u => ({id:u.id, pseudo:u.pseudo, first:u.first, last:u.last, email:u.email, birth:u.birth, level:u.level, pace:u.pace, created:u.created, last_login:u.last_login, seen:u.seen,
-        place:u.place || "", visible:!!u.visible, premium:!!u.premium, push:!!u.push, sent:u.sent, reported:u.reported, runs:u.runs, free_used:u.free_used || 0}))}, 200, {});
+        place:u.place || "", visible:!!u.visible, premium:!!u.premium, push:!!u.push, sent:u.sent, reported:u.reported, runs:u.runs, free_used:u.free_used || 0, phone:u.phone || "", phone_ok:!!u.phone_ok}))}, 200, {});
     }
     if(path === "reports") return json({reports:this.rows("SELECT r.*, a.pseudo AS by_pseudo, b.pseudo AS whom_pseudo FROM reports r LEFT JOIN users a ON a.id = r.who LEFT JOIN users b ON b.id = r.whom ORDER BY t DESC LIMIT 500")}, 200, {});
     // Sauvegarde complète de la base (sans mots de passe ni jetons de session)

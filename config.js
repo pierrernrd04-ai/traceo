@@ -29,6 +29,8 @@ window.TRACEO_CONFIG = {
   PAYPAL_PLAN_ID: "",
   // Option 2, la plus rapide : un lien de paiement PayPal à 4,99 € (Premium débloqué 31 jours).
   PAYPAL_PAYMENT_LINK: "https://www.paypal.com/ncp/payment/423Z9M8RCJPF2",
+  // Paiement automatique : identifiant marchand sécurisé PayPal (le code du téléphone voyage avec le paiement, Premium s'active seul)
+  PAYPAL_MERCHANT_ID: "7AR8HKPQ9RGH2",
   PAYPAL_MANAGE_URL: "https://www.paypal.com/myaccount/autopay/",
   PAYMENT_API: "",                                   // optionnel : serveur de vérification (dossier server/)
   // Chat IA (Claude) : adresse du serveur server/worker.js une fois déployé avec ta clé Anthropic,

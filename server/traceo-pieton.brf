@@ -1,0 +1,39 @@
+# Traceo — profil piéton « sécurité » pour BRouter
+# Rues calmes, trottoirs, chemins et sentiers. Routes départementales, nationales et grands axes évités :
+# autorisés seulement avec trottoir ou en zone 30, et très pénalisés sinon (autoroutes et voies express interdites).
+---context:global
+assign validForFoot = true
+assign processUnusedTags = false
+assign turnInstructionMode = 1
+assign turnInstructionCatchingRange = 20
+assign downhillcost = 0
+assign downhillcutoff = 0
+assign uphillcost = 0
+assign uphillcutoff = 0
+assign elevationpenaltybuffer = 5
+assign elevationmaxbuffer = 10
+assign elevationbufferreduce = 1.0
+
+---context:way
+assign turncost = 0
+assign initialcost = 0
+assign hassidewalk = or sidewalk=both|left|right|yes|separate or sidewalk:both=yes|separate or sidewalk:left=yes|separate sidewalk:right=yes|separate
+assign slow = maxspeed=30|20|10
+assign fast = maxspeed=70|80|90|100|110|120|130|rural
+assign busy = estimated_traffic_class=5|6|7
+assign denied = or foot=no|private and access=no|private not foot=yes|designated|permissive
+assign costfactor =
+  switch denied 10000
+  switch or highway=motorway|motorway_link|trunk|trunk_link motorroad=yes 10000
+  switch highway=primary|primary_link|secondary|secondary_link switch slow 4 switch hassidewalk 8 80
+  switch highway=tertiary|tertiary_link switch slow 2.5 switch hassidewalk 4 40
+  switch highway=unclassified switch busy 25 switch fast 8 switch hassidewalk 1.5 2.5
+  switch highway=road 4
+  switch highway=service 1.4
+  switch highway=residential|living_street|pedestrian switch busy 4 1.05
+  switch highway=footway|path|cycleway|bridleway|track 1
+  switch highway=steps 1.6
+  10000
+
+---context:node
+assign initialcost = 0
