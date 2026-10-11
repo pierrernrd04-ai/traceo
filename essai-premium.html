@@ -83,7 +83,7 @@ async function call(path, body, extra = {}){
   const r = await fetch(API + "/social/" + path, {method:body ? "POST" : "GET", headers:{"Content-Type":"application/json", ...(S.auth ? {Authorization:"Bearer " + S.auth} : {}), ...extra}, body:body ? JSON.stringify(body) : undefined});
   const j = await r.json().catch(() => ({}));
   if(r.status === 401 && path !== "login"){ S.auth = null; st.set("ensAuth", null); }
-  if(!r.ok) throw new Error(j.error || "http " + r.status);
+  if(!r.ok){ const e = new Error(j.error || "http " + r.status); e.detail = j.detail || ""; throw e; }
   return j;
 }
 async function pwKey(pw){
@@ -168,12 +168,12 @@ function phoneView(v){
         const adm = ADMIN();
         const j = await call("phone/start", {phone:S.phone, force:true}, adm ? {"X-Admin-Key":adm} : {});
         if(j.verified){ S.step = 3; return render(); }
-        if(j.skip){ if(!adm) return askAdmin(); S.step = 3; return render(); }
+        if(j.skip){ if(!adm && !j.reason) return askAdmin(); S.step = 3; return render(); }
         S.sent = true; S.channel = j.channel; S.phone = j.phone; render(); $("#cd")?.focus(); return;
       }
       await call("phone/check", {code:$("#cd").value});
       S.me.phone_ok = true; st.set("ensMe", S.me); S.step = 3; render();
-    }catch(e){ $("#go").disabled = false; err.textContent = errTxt(e); }
+    }catch(e){ $("#go").disabled = false; err.textContent = errTxt(e) + (e.detail ? " (" + e.detail + ")" : ""); }
   };
 }
 // Sans fournisseur SMS, le code de test n'est envoyé qu'à Pierre : la page demande sa clé d'administration une fois

@@ -342,7 +342,8 @@ export class Hub {
     if(this.limit("sms:" + me.id, 5, HOUR) || this.limit("smsip:" + ip, 10, HOUR)) return json({error:"rate_limited"}, 429, {});
     if(this.smsReady()){
       const j = await this.twilio("/Verifications", {To:ph, Channel:"sms", Locale:"fr"});
-      if(j.status !== "pending") return json({error:"sms_failed", detail:String(j.message || "").slice(0, 120)}, 502, {});
+      // SMS impossible (compte Twilio d'essai, numéro non autorisé…) : on ne bloque jamais un client, il passe au paiement
+      if(j.status !== "pending"){ return admin ? json({error:"sms_failed", detail:String(j.message || "").slice(0, 160), code:j.code || 0}, 502, {}) : json({skip:true, reason:"sms_failed"}, 200, {}); }
       this.sql.exec("UPDATE users SET phone = ?, phone_code = NULL WHERE id = ?", ph, me.id);
       return json({ok:true, sent:true, phone:ph, channel:"sms"}, 200, {});
     }
