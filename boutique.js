@@ -16,7 +16,8 @@
       ["shoeF","👟","Chaussures de running femme","légères et confortables","chaussures running femme"],
       ["trail","⛰️","Chaussures de trail","accroche chemins et sentiers","chaussures trail running"],
       ["socks","🧦","Chaussettes de running","anti-ampoules, sans couture","chaussettes running anti ampoules"],
-      ["insole","🦶","Semelles running","soutien de la voûte plantaire","semelles running sport"]]],
+      ["insole","🦶","Semelles running","soutien de la voûte plantaire","semelles running sport"],
+      ["sandal","🩴","Sandales de récupération","pieds reposés après la course","sandales recuperation sport"]]],
     ["Montres & audio", [
       ["watch","⌚","Montre GPS running","compatible Strava et GPX","montre gps running"],
       ["hrm","❤️","Ceinture cardio","fréquence cardiaque précise","ceinture cardio bluetooth running"],
@@ -30,7 +31,12 @@
       ["tights","🩳","Collant / short de running","liberté de mouvement","collant running"],
       ["jacket","🧥","Veste coupe-vent","pluie fine et vent","veste coupe vent running"],
       ["cap","🧢","Casquette de running","soleil et pluie","casquette running"],
-      ["gloves","🧤","Gants et bonnet","pour l'hiver","gants running tactiles"]]],
+      ["gloves","🧤","Gants et bonnet","pour l'hiver","gants running tactiles"],
+      ["bra","👙","Brassière de sport","maintien fort pour courir","brassiere sport maintien fort running"],
+      ["shorts","🩳","Short de running","léger, avec poche","short running homme poche"],
+      ["glasses","🕶️","Lunettes de soleil sport","légères, ne bougent pas","lunettes soleil running sport"],
+      ["band","🎽","Bandeau anti-transpiration","la sueur reste loin des yeux","bandeau sport running"],
+      ["sleeve","🦵","Manchons de compression","mollets soutenus","manchons compression mollet running"]]],
     ["Nuit & sécurité", [
       ["lamp","🔦","Lampe frontale","pour courir après 19 h","lampe frontale running rechargeable"],
       ["vest","🦺","Gilet réfléchissant","être vu des voitures","gilet réfléchissant running"],
@@ -41,18 +47,25 @@
       ["gel","⚡","Gels énergétiques","au-delà d'1 h de course","gel energetique running"],
       ["iso","🥤","Boisson isotonique","hydratation et sels minéraux","boisson isotonique poudre"],
       ["bar","🍫","Barres énergétiques","avant ou après la course","barres energetiques sport"],
-      ["whey","🥛","Protéines de récupération","après les séances dures","proteine whey recuperation"]]],
+      ["whey","🥛","Protéines de récupération","après les séances dures","proteine whey recuperation"],
+      ["elec","🧂","Pastilles d'électrolytes","contre les crampes quand il fait chaud","pastilles electrolytes sport"],
+      ["flask","🧴","Flasques souples","pour gilet ou ceinture","flasque souple running 500ml"]]],
     ["Récupération", [
       ["roller","🌀","Rouleau de massage","détend les mollets","rouleau massage foam roller"],
       ["gun","🔫","Pistolet de massage","récupération musculaire","pistolet de massage"],
       ["socksC","🧦","Chaussettes de compression","jambes légères","chaussettes compression running"],
       ["bands","🟢","Élastiques de renforcement","gainage et prévention","bandes elastiques musculation"],
       ["mat","🧘","Tapis d'étirement","routines du Coach","tapis yoga epais"],
-      ["anti","🧴","Crème anti-frottements","fini les irritations","creme anti frottement sport"]]],
+      ["anti","🧴","Crème anti-frottements","fini les irritations","creme anti frottement sport"],
+      ["ice","🧊","Poche de froid réutilisable","genoux et chevilles","poche froid chaud reutilisable sport"],
+      ["scale","⚖️","Balance connectée","suivi du poids et de la masse musculaire","balance connectee impedancemetre"],
+      ["tread","🏃","Tapis de course pliable","quand il pleut vraiment trop","tapis de course pliable"]]],
     ["Livres & cadeaux", [
       ["book","📘","Livres de running","plans et motivation","livre running entrainement"],
       ["frame","🖼️","Cadre pour ta boucle","imprime l'image Traceo de ta course","cadre photo 30x40"],
-      ["medal","🏅","Porte-médailles","pour tes courses officielles","porte medailles running"]]]
+      ["medal","🏅","Porte-médailles","pour tes courses officielles","porte medailles running"],
+      ["carnet","📓","Carnet d'entraînement","note tes sorties et tes progrès","carnet entrainement running"],
+      ["gift","🎁","Idées cadeaux coureur","pour un ami qui court","cadeau coureur running"]]]
   ];
   const ALL = {}; CATS.forEach(([, items]) => items.forEach(it => ALL[it[0]] = it));
 
@@ -99,6 +112,7 @@
 .shop-tx{flex:1;min-width:0;display:flex;flex-direction:column}.shop-tx b{font-size:14.5px;line-height:1.25}.shop-tx small{font-size:12.5px;color:var(--muted,#8aa)}
 .shop-go{font-weight:800;font-size:13px;color:var(--accent,#2be3a0);flex:none}
 .shop-cat{margin:18px 4px 4px;font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted,#8aa)}
+.shop-chat{margin-top:10px}.shop-chat .shop-it{margin:0}.shop-chat .shop-disc{margin:4px 2px 0}
 .shop-disc{margin:10px 4px 2px;font-size:10.5px;line-height:1.35;color:var(--muted,#8aa);opacity:.75}`;
   document.head.appendChild(st);
 
@@ -122,6 +136,20 @@
   }
   wrapView("viewCoach", "coach", "L'équipement du Coach");
   wrapView("viewMe", "profil", "Boutique du coureur");
+  wrapView("viewMine", "boucles", "Pour tes prochaines boucles");
+  // 4) Chat : sous une réponse du coach qui parle d'équipement, un bouton vers le bon produit
+  const KW = [[/chaussure|basket|semelle|drop/i, "shoeH"], [/trail|sentier|chemin/i, "trail"], [/montre|gps|garmin|coros|suunto|polar/i, "watch"], [/cardio|fréquence card|frequence card|bpm/i, "hrm"],
+    [/écouteur|ecouteur|musique|playlist|podcast/i, "bone"], [/\bgels?\b|glucide|ravito/i, "gel"], [/hydrat|boire|gourde|soif/i, "bottle"], [/nuit|lampe|frontale|obscurit/i, "lamp"],
+    [/réfléch|reflech|visib/i, "vest"], [/étire|etire|courbature|récup|recup|massage|rouleau/i, "roller"], [/compression/i, "socksC"], [/ampoule|chaussette/i, "socks"],
+    [/froid|hiver|gants|bonnet/i, "gloves"], [/pluie|vent|imperm/i, "jacket"], [/protéine|proteine|whey/i, "whey"], [/crampe|électrolyte|electrolyte|sel min/i, "elec"],
+    [/genou|renfo|gainage|élastique|elastique/i, "bands"], [/frottement|irritation/i, "anti"], [/brassard|téléphone|telephone/i, "armband"], [/soleil|chaleur|canicule/i, "cap"], [/brassière|brassiere|poitrine/i, "bra"]];
+  function chatShop(){
+    const L = document.getElementById("chatList"); if(!L) return;
+    L.querySelectorAll(".msg-b").forEach((m, i) => { if(m.querySelector(".shop-it") || m.classList.contains("typing") || i === 0) return;
+      const t = m.textContent || ""; const hit = KW.find(([re]) => re.test(t)); if(!hit) return;
+      const it = ALL[hit[1]]; m.insertAdjacentHTML("beforeend", `<div class="shop-chat">${row(it, "chat")}<small class="shop-disc">Lien partenaire Amazon</small></div>`); });
+  }
+  const pb = document.getElementById("panelBody"); if(pb) new MutationObserver(() => { try{ chatShop(); }catch(err){} }).observe(pb, {childList:true, subtree:true});
   // Câblage après chaque rendu (délégation, sans toucher au reste de l'app)
   document.addEventListener("click", ev => {
     const b = ev.target.closest && ev.target.closest("[data-shop],[data-shopall]"); if(!b || b._w) return;
