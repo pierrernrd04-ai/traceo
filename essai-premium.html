@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#07131A">
+<title>Traceo Premium</title>
+<link rel="icon" href="icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600..800&family=Figtree:wght@400;600;700;800&display=swap">
+<style>
+:root{--bg:#07131A;--surface:#0E1E25;--surface-2:#14282F;--ink:#E6F2F0;--muted:#8AA4A3;--line:#1D3640;--accent:#25C98F;--accent-2:#1EA6D0;--gold:#F2C94C;--warn:#FF8A7A;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:radial-gradient(90% 40% at 85% 0%,#0F3B3A 0%,transparent 70%),radial-gradient(70% 40% at 0% 100%,rgba(30,166,208,.16),transparent 70%),var(--bg);color:var(--ink);font:16px/1.5 Figtree,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+.wrap{max-width:460px;margin:0 auto;padding:calc(env(safe-area-inset-top,0px) + 22px) 16px 40px}
+.top{display:flex;align-items:center;gap:10px;margin-bottom:18px}
+.top svg{width:40px;height:40px}
+.top b{font:800 22px "Bricolage Grotesque",sans-serif;letter-spacing:-.01em}
+.top .tag{margin-left:auto;font-size:12px;font-weight:800;color:var(--gold);background:rgba(242,201,76,.12);border:1px solid rgba(242,201,76,.3);padding:4px 10px;border-radius:999px}
+h1{font:800 30px/1.1 "Bricolage Grotesque",sans-serif;margin:6px 0 8px;letter-spacing:-.02em}
+.muted{color:var(--muted)}.small{font-size:13.5px}
+.steps{display:flex;gap:6px;margin:16px 0 18px}
+.steps i{flex:1;height:5px;border-radius:3px;background:var(--line)}
+.steps i.on{background:linear-gradient(90deg,#2BE39B,#1EA6D0)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:18px;margin-bottom:14px}
+.eyebrow{font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);margin:0 0 4px}
+.title{font:800 22px/1.2 "Bricolage Grotesque",sans-serif;margin:0 0 6px}
+label{display:block;font-size:13px;font-weight:700;color:var(--muted);margin:12px 0 6px}
+.input{width:100%;padding:13px 14px;border-radius:14px;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);font:inherit;outline:none}
+.input:focus{border-color:var(--accent)}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;border:0;border-radius:16px;padding:15px 16px;font:800 16px Figtree,sans-serif;cursor:pointer;margin-top:14px;color:var(--ink);background:var(--surface-2)}
+.btn.hero{background:linear-gradient(105deg,#2BE39B,#1EA6D0);color:#03140D;box-shadow:0 10px 26px rgba(37,201,143,.3)}
+.btn.paypal{background:#FFC439;color:#111}
+.btn.ghost{background:none;border:1px dashed var(--line);color:var(--muted);font-weight:700}
+.btn:disabled{opacity:.55}
+.link{background:none;border:0;color:var(--accent);font:700 14px Figtree,sans-serif;cursor:pointer;padding:0}
+.err{color:var(--warn);font-size:14px;min-height:20px;margin:8px 0 0}
+.ok{color:var(--accent);font-weight:800}
+.price{font:800 44px/1 "Bricolage Grotesque",sans-serif;margin:8px 0}.price small{font-size:16px;color:var(--muted);font-weight:600}
+ul.checks{list-style:none;padding:0;margin:10px 0 0}
+ul.checks li{position:relative;padding-left:28px;margin:7px 0;font-weight:600}
+ul.checks li::before{content:"✓";position:absolute;left:0;top:1px;width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font-size:11px;font-weight:900;background:linear-gradient(135deg,#25C98F,#1EA6D0);color:#03140D}
+.code6{letter-spacing:.5em;font-size:26px;text-align:center;font-family:ui-monospace,Menlo,monospace}
+.note{font-size:13px;padding:10px 12px;border-radius:12px;background:rgba(242,201,76,.1);border:1px solid rgba(242,201,76,.28);margin-top:12px}
+.seg{display:grid;grid-template-columns:1fr 1fr;background:var(--surface-2);border-radius:14px;padding:4px;margin-bottom:6px}
+.seg button{border:0;background:none;color:var(--muted);font:800 14px Figtree,sans-serif;padding:10px;border-radius:11px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--accent)}
+.done{text-align:center}
+.done .medal{width:78px;height:78px;border-radius:50%;margin:6px auto 10px;display:grid;place-items:center;font-size:38px;background:radial-gradient(circle at 30% 30%,#7FE3C3,#25C98F)}
+.ck{display:flex;gap:10px;align-items:flex-start;font-size:14px;margin-top:12px}
+.ck input{width:20px;height:20px;accent-color:var(--accent);flex:none;margin:1px 0 0}
+.ck a{color:var(--accent)}
+.spin{width:28px;height:28px;margin:12px auto;border-radius:50%;border:3px solid var(--accent);border-right-color:transparent;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+footer{text-align:center;font-size:12.5px;color:var(--muted);margin-top:22px}
+footer a{color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><svg viewBox="0 0 32 32"><path d="M7 23c0-8 5.5-14 11.5-14 4.6 0 7.5 2.9 7.5 6.6 0 3.8-3 6.6-6.8 6.6-2.8 0-4.7-1.9-4.7-4.2" fill="none" stroke="#25C98F" stroke-width="3.6" stroke-linecap="round"/><circle cx="7" cy="23" r="3.8" fill="#E6F2F0"/></svg><b>traceo</b><span class="tag">★ Premium</span></div>
+  <div class="steps" id="steps"><i></i><i></i><i></i><i></i></div>
+  <div id="view"></div>
+  <footer>Traceo © 2026 · Pierre Renard EI · <a href="legal.html" target="_blank" rel="noopener">Informations légales</a> · <a href="app.html">Ouvrir l'app</a></footer>
+</div>
+<script src="config.js"></script>
+<script>
+"use strict";
+// Page officielle d'abonnement Traceo Premium : compte → téléphone vérifié (code à 6 chiffres) → paiement PayPal → Premium actif.
+// Même stockage que l'app (même site) : le compte et le Premium obtenus ici sont ceux de l'app.
+const C = window.TRACEO_CONFIG || {}, API = (C.PAYMENT_API || C.CHAT_API || "").replace(/\/$/, "");
+const ACT_PUB = {"kty":"EC","crv":"P-256","x":"__6AWyNjAcpIy9E2jeaF-pVNzipouEcuYhBleromdtE","y":"WR7Y2cF2dCOReGhUEk7DEFkf2Bmh5rNc0NveDAggRzQ"};
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const st = {get(k, d){ try{ const v = localStorage.getItem("traceo2:" + k); return v ? JSON.parse(v) : d; }catch(e){ return d; } }, set(k, v){ try{ localStorage.setItem("traceo2:" + k, JSON.stringify(v)); }catch(e){} }};
+const ADMIN = () => sessionStorage.getItem("traceoAdmin") || localStorage.getItem("traceoAdmin") || "";
+let S = {auth:st.get("ensAuth", null), me:st.get("ensMe", null), mode:"signup", step:0, phone:"", sent:false, channel:""};
+if(S.auth && !/^[a-f0-9]{48}$/.test(S.auth)) S.auth = null;
+function devId(){ let d = st.get("devId", ""); if(!/^[a-f0-9]{16}$/.test(d)){ d = [...crypto.getRandomValues(new Uint8Array(8))].map(b => b.toString(16).padStart(2, "0")).join(""); st.set("devId", d); } return d; }
+async function call(path, body, extra = {}){
+  const r = await fetch(API + "/social/" + path, {method:body ? "POST" : "GET", headers:{"Content-Type":"application/json", ...(S.auth ? {Authorization:"Bearer " + S.auth} : {}), ...extra}, body:body ? JSON.stringify(body) : undefined});
+  const j = await r.json().catch(() => ({}));
+  if(r.status === 401 && path !== "login"){ S.auth = null; st.set("ensAuth", null); }
+  if(!r.ok) throw new Error(j.error || "http " + r.status);
+  return j;
+}
+async function pwKey(pw){
+  const k = await crypto.subtle.importKey("raw", new TextEncoder().encode(pw), "PBKDF2", false, ["deriveBits"]);
+  const bits = await crypto.subtle.deriveBits({name:"PBKDF2", salt:new TextEncoder().encode("traceo-ensemble-v1"), iterations:150000, hash:"SHA-256"}, k, 256);
+  return [...new Uint8Array(bits)].map(b => b.toString(16).padStart(2, "0")).join("");
+}
+const b64u = s => Uint8Array.from(atob(s.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((s.length + 3) % 4)), c => c.charCodeAt(0));
+async function verifyAct(code){
+  try{ const [p, s] = code.split("."), key = await crypto.subtle.importKey("jwk", ACT_PUB, {name:"ECDSA", namedCurve:"P-256"}, false, ["verify"]), raw = b64u(p);
+    if(!await crypto.subtle.verify({name:"ECDSA", hash:"SHA-256"}, key, b64u(s), raw)) return null;
+    const [dev, until, kind] = new TextDecoder().decode(raw).split("|"); return dev === devId() && +until > Date.now() ? {until:+until, kind} : null; }catch(e){ return null; }
+}
+const ERR = {pseudo_taken:"Cet identifiant est déjà pris.", email_taken:"Un compte existe déjà avec cet e-mail : connecte-toi.", too_young:"Réservé aux 15 ans et plus.", bad_pseudo:"Identifiant : 3 à 20 caractères (minuscules, chiffres, point, tiret bas).", bad_email:"Adresse e-mail invalide.", bad_login:"Identifiant ou mot de passe incorrect.", bad_phone:"Numéro invalide : écris-le comme 06 12 34 56 78.", bad_code:"Code incorrect ou expiré.", rate_limited:"Trop d'essais : réessaie dans quelques minutes.", sms_failed:"Le SMS n'a pas pu partir. Vérifie le numéro.", auth:"Clé d'administration incorrecte."};
+const errTxt = e => ERR[e.message] || "Connexion impossible, réessaie.";
+const paidNow = () => { const p = st.get("premium", null); return p && p.until > Date.now() ? p : null; };
+
+function paintSteps(){ document.querySelectorAll("#steps i").forEach((x, i) => x.classList.toggle("on", i <= S.step)); }
+function render(){
+  if(!S.auth) S.step = 0; paintSteps();
+  const v = $("#view");
+  if(S.step === 0) return accountView(v);
+  if(S.step === 1) return offerView(v);
+  if(S.step === 2) return phoneView(v);
+  if(S.step === 3) return payView(v);
+  return doneView(v);
+}
+function accountView(v){
+  const login = S.mode === "login";
+  v.innerHTML = `<p class="eyebrow">Étape 1 · ton compte</p><h1>${login ? "Content de te revoir" : "Crée ton compte Traceo"}</h1><p class="muted">Gratuit, en 30 secondes. Il garde tes courses, tes diamants et ton abonnement.</p>
+    <div class="card"><div class="seg"><button data-m="signup" aria-pressed="${!login}">Créer un compte</button><button data-m="login" aria-pressed="${login}">Se connecter</button></div>
+    ${login ? `<label for="lId">Identifiant ou e-mail</label><input class="input" id="lId" autocomplete="username" autocapitalize="none">
+      <label for="lPw">Mot de passe</label><input class="input" id="lPw" type="password" autocomplete="current-password">`
+    : `<div class="row2"><div><label for="fF">Prénom</label><input class="input" id="fF" autocomplete="given-name"></div><div><label for="fL">Nom</label><input class="input" id="fL" autocomplete="family-name"></div></div>
+      <label for="fP">Identifiant</label><input class="input" id="fP" autocapitalize="none" placeholder="ex. lea_run" maxlength="20">
+      <label for="fM">E-mail</label><input class="input" id="fM" type="email" inputmode="email" autocomplete="email">
+      <label for="fW">Mot de passe (8 caractères minimum)</label><input class="input" id="fW" type="password" autocomplete="new-password">
+      <label for="fB">Date de naissance</label><input class="input" id="fB" type="date">
+      <label class="ck"><input type="checkbox" id="fT"><span>J'ai 15 ans ou plus et j'accepte les <a href="legal.html" target="_blank" rel="noopener">conditions et la politique de confidentialité</a>.</span></label>`}
+    <p class="err" id="err"></p><button class="btn hero" id="go">${login ? "Me connecter" : "Créer mon compte"}</button></div>`;
+  v.querySelectorAll("[data-m]").forEach(b => b.onclick = () => { S.mode = b.dataset.m; render(); });
+  $("#fP") && ($("#fP").oninput = e => e.target.value = e.target.value.toLowerCase().replace(/[^a-z0-9_.]/g, ""));
+  $("#go").onclick = async () => {
+    const err = $("#err"); err.textContent = ""; $("#go").disabled = true;
+    try{
+      let j;
+      if(login){ j = await call("login", {login:$("#lId").value.trim(), key:await pwKey($("#lPw").value)}); }
+      else{
+        if(!$("#fF").value.trim() || !$("#fL").value.trim()) throw new Error("Indique ton prénom et ton nom.");
+        if($("#fW").value.length < 8) throw new Error("Mot de passe : 8 caractères minimum.");
+        if(!$("#fB").value) throw new Error("Indique ta date de naissance.");
+        if(!$("#fT").checked) throw new Error("Coche la case pour continuer.");
+        j = await call("signup", {first:$("#fF").value.trim(), last:$("#fL").value.trim(), pseudo:$("#fP").value.trim(), email:$("#fM").value.trim(), key:await pwKey($("#fW").value), birth:$("#fB").value, terms:true, level:"regulier"});
+      }
+      S.auth = j.token; S.me = j.me; st.set("ensAuth", S.auth); st.set("ensMe", S.me); S.step = paidNow() ? 4 : 1; render();
+    }catch(e){ $("#go").disabled = false; err.textContent = ERR[e.message] || (/^[A-ZÉ]/.test(e.message) ? e.message : errTxt(e)); }
+  };
+}
+function offerView(v){
+  v.innerHTML = `<p class="eyebrow">Étape 2 · l'offre</p><h1>Salut ${esc(S.me?.first || "")} !</h1><p class="muted">Passe à Traceo Premium pour courir sans limite.</p>
+    <div class="card"><p class="eyebrow" style="color:var(--gold)">Traceo Premium</p><p class="price">4,99 €<small> / 31 jours</small></p>
+    <ul class="checks"><li>Boucles illimitées, partout en France</li><li>Boucles sûres : petites rues et chemins</li><li>Guidage vocal rue par rue</li><li>Coach IA, Ensemble, diamants 💎</li><li>Strava, Garmin, GPX</li></ul>
+    <button class="btn hero" id="go">M'abonner à Premium</button><p class="small muted" style="text-align:center;margin:10px 0 0">Sans engagement, sans renouvellement automatique.</p></div>
+    <button class="link" id="out">Changer de compte</button>`;
+  $("#go").onclick = () => { S.step = S.me?.phone_ok ? 3 : 2; render(); };
+  $("#out").onclick = () => { S.auth = null; S.me = null; st.set("ensAuth", null); st.set("ensMe", null); render(); };
+}
+function phoneView(v){
+  v.innerHTML = `<p class="eyebrow">Étape 3 · sécurité</p><h1>Vérifie ton téléphone</h1><p class="muted">On t'envoie un code à 6 chiffres : il prouve que c'est bien toi et ton téléphone.</p>
+    <div class="card"><label for="ph">Numéro de mobile</label><input class="input" id="ph" type="tel" inputmode="tel" autocomplete="tel" placeholder="06 12 34 56 78" value="${esc(S.phone)}" ${S.sent ? "disabled" : ""}>
+    ${S.sent ? `<label for="cd">Code reçu</label><input class="input code6" id="cd" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="••••••">
+      ${S.channel === "test" ? `<p class="note">🧪 Mode test : l'envoi de vrais SMS n'est pas encore branché. Ton code vient d'arriver en <b>notification ntfy</b> sur ton téléphone (« Code Traceo »).</p>` : `<p class="small muted">SMS envoyé au ${esc(S.phone)}.</p>`}` : ""}
+    <p class="err" id="err"></p><button class="btn hero" id="go">${S.sent ? "Valider le code" : "Recevoir mon code"}</button>
+    ${S.sent ? `<button class="link" id="again" style="margin-top:12px">Renvoyer un code / changer de numéro</button>` : ""}</div>`;
+  const err = $("#err");
+  $("#again") && ($("#again").onclick = () => { S.sent = false; render(); });
+  $("#go").onclick = async () => {
+    err.textContent = ""; $("#go").disabled = true;
+    try{
+      if(!S.sent){
+        S.phone = $("#ph").value.trim();
+        const adm = ADMIN();
+        const j = await call("phone/start", {phone:S.phone, force:true}, adm ? {"X-Admin-Key":adm} : {});
+        if(j.verified){ S.step = 3; return render(); }
+        if(j.skip){ if(!adm) return askAdmin(); S.step = 3; return render(); }
+        S.sent = true; S.channel = j.channel; S.phone = j.phone; render(); $("#cd")?.focus(); return;
+      }
+      await call("phone/check", {code:$("#cd").value});
+      S.me.phone_ok = true; st.set("ensMe", S.me); S.step = 3; render();
+    }catch(e){ $("#go").disabled = false; err.textContent = errTxt(e); }
+  };
+}
+// Sans fournisseur SMS, le code de test n'est envoyé qu'à Pierre : la page demande sa clé d'administration une fois
+function askAdmin(){
+  $("#view").insertAdjacentHTML("beforeend", `<div class="card" id="adm"><p class="eyebrow" style="color:var(--gold)">Mode test</p><p class="small">L'envoi de vrais SMS n'est pas encore branché (compte Twilio à créer). Pour tester le parcours, entre ta clé d'administration : le code arrivera en notification sur ton téléphone.</p>
+    <input class="input" id="ak" type="password" placeholder="Clé d'administration"><button class="btn" id="akGo">Continuer le test</button></div>`);
+  $("#akGo").onclick = () => { const k = $("#ak").value.trim(); if(!k) return; sessionStorage.setItem("traceoAdmin", k); $("#adm").remove(); $("#go").disabled = false; $("#go").click(); };
+}
+function payView(v){
+  v.innerHTML = `<p class="eyebrow">Étape 4 · paiement</p><h1>Dernière étape</h1><p class="muted"><span class="ok">✓ Téléphone vérifié.</span> Paie en toute sécurité avec PayPal : compte PayPal, carte bancaire ou Apple Pay.</p>
+    <div class="card"><p class="price">4,99 €<small> / 31 jours</small></p>
+    <button class="btn paypal" id="pp">Payer avec <b>PayPal</b></button>
+    <p class="small muted" style="text-align:center;margin:10px 0 0">Premium s'active tout seul dès que PayPal confirme le paiement.</p>
+    <button class="btn ghost" id="sim">🧪 Simuler le paiement (test, sans débit)</button><p class="err" id="err"></p></div>`;
+  $("#pp").onclick = () => {
+    const back = location.origin + location.pathname.replace(/[^/]*$/, "") + "essai-premium.html";
+    const q = new URLSearchParams({cmd:"_xclick", business:C.PAYPAL_MERCHANT_ID, item_name:"Traceo Premium - 31 jours", item_number:"premium31", amount:"4.99", currency_code:"EUR",
+      custom:devId() + (S.me?.id ? "." + S.me.id : ""), notify_url:API + "/paypal/ipn", return:back + "?paiement=ok", cancel_return:back + "?paiement=annule", no_shipping:"1", no_note:"1", rm:"1", lc:"FR", charset:"utf-8", cbt:"Revenir à Traceo"});
+    st.set("actPending", {at:Date.now(), email:"auto"});
+    location.href = "https://www.paypal.com/cgi-bin/webscr?" + q;
+  };
+  $("#sim").onclick = async () => {
+    const err = $("#err"); err.textContent = "";
+    let k = ADMIN(); if(!k){ k = prompt("Clé d'administration (simulation réservée à Pierre) :") || ""; if(!k) return; sessionStorage.setItem("traceoAdmin", k); }
+    $("#sim").disabled = true;
+    try{
+      const j = await call("admin/testpay", {dev:devId()}, {"X-Admin-Key":k});
+      const vv = await verifyAct(j.code); if(!vv) throw new Error("signature");
+      st.set("premium", {via:"code", until:vv.until, code:j.code, kind:"test"}); st.set("actPending", null); S.step = 4; render();
+    }catch(e){ $("#sim").disabled = false; err.textContent = e.message === "auth" ? (sessionStorage.removeItem("traceoAdmin"), "Clé d'administration incorrecte.") : "Simulation impossible : " + e.message; }
+  };
+}
+function doneView(v){
+  const p = paidNow();
+  v.innerHTML = `<div class="card done"><div class="medal">★</div><p class="eyebrow">Bienvenue dans Premium</p><h1>C'est parti, ${esc(S.me?.first || "")} !</h1>
+    <p class="muted">${p ? `Premium actif jusqu'au <b style="color:var(--ink)">${new Date(p.until).toLocaleString("fr-FR", {day:"numeric", month:"long", hour:"2-digit", minute:"2-digit"})}</b>${p.kind === "test" ? " (simulation de 30 minutes)" : ""}.` : ""}</p>
+    <a class="btn hero" href="app.html" style="text-decoration:none">Ouvrir Traceo</a>
+    ${p?.kind === "test" ? `<button class="btn ghost" id="redo">Recommencer le test depuis le début</button>` : ""}</div>`;
+  $("#redo") && ($("#redo").onclick = () => { st.set("premium", null); S.sent = false; S.step = 1; render(); });
+}
+// Retour de PayPal : Premium s'active dès la confirmation du serveur
+async function afterPayPal(){
+  S.step = 3; paintSteps();
+  $("#view").innerHTML = `<div class="card done"><div class="medal">★</div><h1>Paiement reçu, merci !</h1><p class="muted" id="wm">Activation de ton Premium…</p><div class="spin"></div></div>`;
+  const t0 = Date.now();
+  while(Date.now() - t0 < 120000){
+    try{ const r = await fetch(API + "/social/activate", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({dev:devId()})}); const j = await r.json();
+      if(j.code){ const vv = await verifyAct(j.code); if(vv){ st.set("premium", {via:"code", until:vv.until, code:j.code, kind:"paiement"}); st.set("actPending", null); S.step = 4; return render(); } } }catch(e){}
+    if(Date.now() - t0 > 25000) $("#wm").textContent = "PayPal finalise ton paiement, encore quelques secondes…";
+    await new Promise(r => setTimeout(r, 3000));
+  }
+  $("#wm").textContent = "PayPal met un peu plus de temps que d'habitude : ton Premium s'activera tout seul dans l'app dès sa confirmation.";
+}
+const u = new URLSearchParams(location.search);
+if(u.get("paiement") === "ok"){ history.replaceState(null, "", location.pathname); afterPayPal(); }
+else{ if(u.get("paiement") === "annule") history.replaceState(null, "", location.pathname); S.step = !S.auth ? 0 : paidNow() ? 4 : 1; render(); }
+</script>
+</body>
+</html>

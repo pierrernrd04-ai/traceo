@@ -42,7 +42,9 @@ export class Hub {
       created INT, seen INT, last_login INT, lat REAL, lon REAL, place TEXT, visible INT DEFAULT 1, avail_until INT DEFAULT 0, avail_km REAL, avail_note TEXT, push TEXT, notif INT DEFAULT 1, shout_at INT DEFAULT 0, premium INT DEFAULT 0)`);
     try{ this.sql.exec("ALTER TABLE users ADD COLUMN free_used INT DEFAULT 0"); }catch(e){}
     try{ this.sql.exec("ALTER TABLE users ADD COLUMN phone TEXT"); }catch(e){}
-    try{ this.sql.exec("ALTER TABLE users ADD COLUMN phone_ok INT DEFAULT 0"); }catch(e){}   // boucles gratuites utilisées (3 offertes)
+    try{ this.sql.exec("ALTER TABLE users ADD COLUMN phone_ok INT DEFAULT 0"); }catch(e){}
+    try{ this.sql.exec("ALTER TABLE users ADD COLUMN phone_code TEXT"); }catch(e){}
+    try{ this.sql.exec("ALTER TABLE users ADD COLUMN phone_code_exp INT DEFAULT 0"); }catch(e){}   // boucles gratuites utilisées (3 offertes)
     this.sql.exec(`CREATE TABLE IF NOT EXISTS sessions(tok TEXT PRIMARY KEY, uid TEXT, created INT, seen INT, ua TEXT)`);
     this.sql.exec(`CREATE INDEX IF NOT EXISTS sessions_uid ON sessions(uid)`);
     this.sql.exec(`CREATE TABLE IF NOT EXISTS msgs(id INTEGER PRIMARY KEY AUTOINCREMENT, a TEXT, b TEXT, t INT, kind TEXT, body TEXT, meta TEXT)`);
@@ -76,6 +78,7 @@ export class Hub {
       if(path === "login") return this.login(body, ip, req);
       if(path === "pseudo") return json({free:!this.one("SELECT 1 AS x FROM users WHERE pseudo = ?", clean(url.searchParams.get("p"), 20).toLowerCase())}, 200, {});
       if(path.startsWith("admin/")) return this.admin(req, path.slice(6), body, url, ip);
+      if(path === "sms-status") return json({sms:this.smsReady()}, 200, {});
       const me = await this.auth(req);
       if(!me) return json({error:"auth"}, 401, {});
       this.sql.exec("UPDATE users SET seen = ? WHERE id = ?", NOW(), me.id);
@@ -91,7 +94,7 @@ export class Hub {
         case "block": return this.block(me, body);
         case "run": return this.run(me, body);
         case "quota": return this.quota(me, body, false);
-        case "phone/start": return this.phoneStart(me, body, ip);
+        case "phone/start": return this.phoneStart(me, body, ip, await this.isAdmin(req));
         case "phone/check": return this.phoneCheck(me, body);
         case "gen": return this.quota(me, body, true);
         case "runs": return this.runsInfo(me);
@@ -328,22 +331,35 @@ export class Hub {
   async twilio(path, form){
     return fetch("https://verify.twilio.com/v2/Services/" + this.env.TWILIO_VERIFY_SID + path, {method:"POST", headers:{Authorization:"Basic " + btoa(this.env.TWILIO_ACCOUNT_SID + ":" + this.env.TWILIO_AUTH_TOKEN), "Content-Type":"application/x-www-form-urlencoded"}, body:new URLSearchParams(form).toString()}).then(r => r.json());
   }
-  async phoneStart(me, b, ip){
+  async isAdmin(req){ const k = req.headers.get("X-Admin-Key") || ""; return !!(this.env.ADMIN_KEY && k.length === this.env.ADMIN_KEY.length && await sha(k) === await sha(this.env.ADMIN_KEY)); }
+  smsReady(){ return !!(this.env.TWILIO_ACCOUNT_SID && this.env.TWILIO_AUTH_TOKEN && this.env.TWILIO_VERIFY_SID); }
+  async phoneStart(me, b, ip, admin){
+    if(admin && b.force){ this.sql.exec("UPDATE users SET phone_ok = 0 WHERE id = ?", me.id); me.phone_ok = 0; }   // test : on recommence la vérification
     if(me.phone_ok) return json({ok:true, verified:true, phone:me.phone}, 200, {});
-    if(!this.env.TWILIO_ACCOUNT_SID || !this.env.TWILIO_AUTH_TOKEN || !this.env.TWILIO_VERIFY_SID) return json({skip:true}, 200, {});
+    // SMS réel non configuré : les clients passent directement au paiement ; Pierre (clé admin) reçoit le code en notification
+    if(!this.smsReady() && !admin) return json({skip:true}, 200, {});
     const ph = this.normPhone(b.phone); if(!ph) return json({error:"bad_phone"}, 400, {});
-    if(this.limit("sms:" + me.id, 4, HOUR) || this.limit("smsip:" + ip, 8, HOUR)) return json({error:"rate_limited"}, 429, {});
-    const j = await this.twilio("/Verifications", {To:ph, Channel:"sms", Locale:"fr"});
-    if(j.status !== "pending") return json({error:"sms_failed"}, 502, {});
-    this.sql.exec("UPDATE users SET phone = ? WHERE id = ?", ph, me.id);
-    return json({ok:true, sent:true, phone:ph}, 200, {});
+    if(this.limit("sms:" + me.id, 5, HOUR) || this.limit("smsip:" + ip, 10, HOUR)) return json({error:"rate_limited"}, 429, {});
+    if(this.smsReady()){
+      const j = await this.twilio("/Verifications", {To:ph, Channel:"sms", Locale:"fr"});
+      if(j.status !== "pending") return json({error:"sms_failed", detail:String(j.message || "").slice(0, 120)}, 502, {});
+      this.sql.exec("UPDATE users SET phone = ?, phone_code = NULL WHERE id = ?", ph, me.id);
+      return json({ok:true, sent:true, phone:ph, channel:"sms"}, 200, {});
+    }
+    // mode test (admin) : code à 6 chiffres envoyé dans les notifications ntfy de Pierre
+    const code = String(100000 + (crypto.getRandomValues(new Uint32Array(1))[0] % 900000));
+    this.sql.exec("UPDATE users SET phone = ?, phone_code = ?, phone_code_exp = ? WHERE id = ?", ph, await sha("pc:" + code), NOW() + 10*MIN, me.id);
+    if(this.env.ALERTS_TOPIC) await fetch("https://ntfy.sh/" + this.env.ALERTS_TOPIC, {method:"POST", headers:{Title:"Code Traceo (SMS de test)", Tags:"iphone", Priority:"high"}, body:`Ton code de vérification Traceo : ${code}\n(numéro ${ph}, valable 10 minutes)`}).catch(() => {});
+    return json({ok:true, sent:true, phone:ph, channel:"test"}, 200, {});
   }
   async phoneCheck(me, b){
     const code = String(b.code || "").replace(/\D/g, ""); if(code.length !== 6 || !me.phone) return json({error:"bad_code"}, 400, {});
     if(this.limit("smschk:" + me.id, 8, HOUR)) return json({error:"rate_limited"}, 429, {});
-    const j = await this.twilio("/VerificationCheck", {To:me.phone, Code:code});
-    if(j.status !== "approved") return json({error:"bad_code"}, 400, {});
-    this.sql.exec("UPDATE users SET phone_ok = 1 WHERE id = ?", me.id);
+    let ok = false;
+    if(me.phone_code){ ok = me.phone_code_exp > NOW() && me.phone_code === await sha("pc:" + code); }
+    else if(this.smsReady()){ const j = await this.twilio("/VerificationCheck", {To:me.phone, Code:code}); ok = j.status === "approved"; }
+    if(!ok) return json({error:"bad_code"}, 400, {});
+    this.sql.exec("UPDATE users SET phone_ok = 1, phone_code = NULL WHERE id = ?", me.id);
     return json({ok:true, verified:true}, 200, {});
   }
 
@@ -473,6 +489,12 @@ export class Hub {
       users:this.rows("SELECT id, pseudo, first, last, email, birth, level, pace, bio, created, seen, last_login, place, visible, premium, notif FROM users"),
       messages:this.rows("SELECT * FROM msgs"), runs:this.rows("SELECT id, uid, t, day, dist, time, ascent, n_pts, ok, reason, premium FROM runs"),
       diamonds:this.rows("SELECT * FROM rewards"), reports:this.rows("SELECT * FROM reports"), blocks:this.rows("SELECT * FROM blocks")}, 200, {});
+    if(path === "testpay"){
+      const dev = clean(b.dev, 16).toLowerCase(); if(!/^[a-f0-9]{16}$/.test(dev)) return json({error:"bad_device"}, 400, {});
+      const until = NOW() + 30*MIN, txn = "TEST-" + hex(crypto.getRandomValues(new Uint8Array(4)));
+      this.sql.exec("INSERT INTO payments(txn, email, amount, currency, t, dev, until, name) VALUES(?,?,?,?,?,?,?,?)", txn, "simulation", "0.00", "EUR", NOW(), dev, until, "Paiement simulé (test)");
+      return json({code:await this.signAct(dev, until, "test"), until}, 200, {});
+    }
     if(path === "payments") return json({payments:this.rows("SELECT * FROM payments ORDER BY t DESC LIMIT 500"), pending:this.rows("SELECT * FROM act_requests WHERE done = 0 ORDER BY id DESC LIMIT 200")}, 200, {});
     if(path === "rewards") return json({rewards:this.rows(`SELECT r.*, u.pseudo, u.first, u.last, u.email, (SELECT COUNT(*) FROM runs WHERE uid = r.uid AND ok = 1) AS runs,
       (SELECT COUNT(*) FROM runs WHERE uid = r.uid AND ok = 0) AS refused FROM rewards r LEFT JOIN users u ON u.id = r.uid ORDER BY CASE r.status WHEN 'demandee' THEN 0 WHEN 'a_reclamer' THEN 1 ELSE 2 END, r.id DESC LIMIT 500`)}, 200, {});
