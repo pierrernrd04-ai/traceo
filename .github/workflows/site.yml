@@ -29,4 +29,11 @@ jobs:
         with:
           node-version: 20
       - name: Déployer sur Cloudflare Pages
-        run: npx --yes wrangler@3 pages deploy _site --project-name=traceorun --branch=main --commit-dirty=true
+        run: |
+          set +e
+          npx --yes wrangler@3 pages project list > projects.txt 2>&1
+          while IFS= read -r l; do echo "::notice::projets: $l"; done < <(tail -n 25 projects.txt | sed 's/\x1b\[[0-9;]*m//g')
+          npx --yes wrangler@3 pages deploy _site --project-name=traceorun --branch=main --commit-dirty=true > out.txt 2>&1
+          code=$?
+          while IFS= read -r l; do echo "::notice::deploy: $l"; done < <(tail -n 25 out.txt | sed 's/\x1b\[[0-9;]*m//g')
+          exit $code
