@@ -18,7 +18,7 @@ const _track = track; track = (n, d) => { _track(n, d); alertOwner(n, d); };
 document.addEventListener("visibilitychange", () => { if(document.visibilityState === "hidden"){ const s = Math.round((Date.now() - T0)/1000); track("temps_passe", {secondes:s, tranche:s < 30 ? "moins de 30 s" : s < 120 ? "30 s à 2 min" : s < 600 ? "2 à 10 min" : "plus de 10 min", onglets:tabsSeen}); } });
 // Diagnostic temporaire : les erreurs (sans données personnelles) sont envoyées à un canal privé pour être corrigées à distance
 const DBG = "https://ntfy.sh/traceo-dbg-9591c50f";
-function report(kind, msg){ try{ fetch(DBG, {method:"POST", body:`[${kind}] ${String(msg).slice(0, 600)} | v57 | ${navigator.userAgent.replace(/\(KHTML.*$/, "").slice(0, 120)}`}).catch(() => {}); }catch(e){} }
+function report(kind, msg){ try{ fetch(DBG, {method:"POST", body:`[${kind}] ${String(msg).slice(0, 600)} | v58 | ${navigator.userAgent.replace(/\(KHTML.*$/, "").slice(0, 120)}`}).catch(() => {}); }catch(e){} }
 // Affiche toute erreur à l'écran (bandeau rouge) : une capture suffit pour corriger
 (function(){ let n = 0; const show = m => { if(n++ > 3) return; const d = document.createElement("div"); d.style.cssText = "position:fixed;left:8px;right:8px;top:calc(env(safe-area-inset-top,0px) + 8px);z-index:9999;background:#B3263E;color:#fff;font:600 12px/1.35 system-ui;padding:8px 10px;border-radius:10px;white-space:pre-wrap"; d.textContent = "Erreur : " + m; d.onclick = () => d.remove(); (document.body || document.documentElement).appendChild(d); setTimeout(() => d.remove(), 15000); };
   window.addEventListener("error", e => { report("error", (e.message || "?") + " " + (e.filename || "") + ":" + (e.lineno || "") + ":" + (e.colno || "") + " " + (e.error && e.error.stack ? String(e.error.stack).slice(0, 300) : "")); if(/^Script error/.test(e.message || "") && window.glFail){ try{ glFail(); }catch(x){} return; } show((e.message || "?") + (e.filename ? " (" + e.filename.split("/").pop() + ":" + e.lineno + ")" : "")); });
@@ -260,8 +260,9 @@ async function traceoStyleJSON(url, mode = MAP_MODE()){
       else if(/highway_name/.test(id)){
         // Noms des rues : priorité absolue (gras, foncés sur halo blanc le jour, grands, répétés le long de la rue)
         pt["text-color"] = P.street; pt["text-halo-width"] = 2.6; pt["text-halo-blur"] = 0;
-        ly["text-font"] = ["Noto Sans Bold"]; ly["text-size"] = ["interpolate", ["linear"], ["zoom"], 12, 11, 14, 12.5, 15, 14, 16, 15.5, 18, 19];
-        ly["text-letter-spacing"] = .02; ly["symbol-spacing"] = 200; ly["text-max-angle"] = 38; ly["text-padding"] = 1;
+        ly["text-font"] = ["Noto Sans Bold"]; ly["text-size"] = ["interpolate", ["linear"], ["zoom"], 12, 11.5, 13.5, 12.5, 15, 14.5, 16, 16, 18, 19.5];
+        ly["text-letter-spacing"] = .02; ly["symbol-spacing"] = 170; ly["text-max-angle"] = 38; ly["text-padding"] = 1;
+        if(/minor|other/.test(id)) l.minzoom = Math.min(l.minzoom ?? 14, 13.2);   // petites rues nommées dès le zoom quartier
       }
       else if(/place_city|place_country|place_state/.test(id)){ pt["text-color"] = /country/.test(id) ? P.country : P.city; ly["text-font"] = ["Noto Sans Bold"]; if(/country|state/.test(id)){ ly["text-transform"] = "uppercase"; ly["text-letter-spacing"] = .12; } }
       else if(id === "place_town"){ pt["text-color"] = P.town; ly["text-font"] = ["Noto Sans Bold"]; }
@@ -696,8 +697,12 @@ let osrmDown = 0;   // après un échec OSRM, on passe directement par Valhalla 
 // Les serveurs gratuits limitent à ~1 demande par seconde : toutes les demandes passent dans une file, espacées, avec nouvel essai si refus
 let routeQ = Promise.resolve(), lastRoute = {}, routeErr = "";
 function queued(host, fn, tries = 3){
-  const run = async () => { for(let k = 0; k < tries; k++){ const w = (lastRoute[host] || 0) + 1150 - Date.now(); if(w > 0) await new Promise(r => setTimeout(r, w)); lastRoute[host] = Date.now();
+  // espacement des demandes par serveur : BRouter accepte des demandes rapprochées, les serveurs FOSSGIS ~1 par seconde
+  const gap = host === "brouter" ? 200 : 1150;
+  const run = async () => { for(let k = 0; k < tries; k++){ const w = (lastRoute[host] || 0) + gap - Date.now(); if(w > 0) await new Promise(r => setTimeout(r, w)); lastRoute[host] = Date.now();
       try{ return await fn(); }catch(e){ routeErr = host + " " + (e.message || e); report("route", routeErr + " try " + k); if(!/HTTP (429|5\d\d)|abort|Failed|Load failed|NetworkError/i.test(String(e.message || e)) || k === tries - 1) throw e; await new Promise(r => setTimeout(r, 1500*(k + 1))); } } };
+  // BRouter : demandes en parallèle (pas de file d'attente commune), les autres serveurs restent en file
+  if(host === "brouter"){ const q = queued.br || Promise.resolve(); const p = q.then(() => new Promise(r => setTimeout(r, Math.max(0, (lastRoute.brouter || 0) + gap - Date.now())))).then(() => { lastRoute.brouter = Date.now(); }); queued.br = p; return p.then(async () => { for(let k = 0; k < tries; k++){ try{ return await fn(); }catch(e){ routeErr = host + " " + (e.message || e); if(k === tries - 1) throw e; await new Promise(r => setTimeout(r, 800)); } } }); }
   const p = routeQ.then(run, run); routeQ = p.catch(() => {}); return p;
 }
 /* ---------- Moteur « piéton sécurité » : BRouter avec le profil Traceo ----------
@@ -899,7 +904,7 @@ async function loopOSRM(start, target, brg){
     const c = {pts:rr.pts, steps:rr.steps, ptTags:rr.ptTags, ascent:rr.ascent ?? null, engine:rr.engine || "osrm", brDanger:rr.brDanger};
     c.len = lineLen(c.pts);
     if(!best || Math.abs(c.len - target) < Math.abs(best.len - target)) best = c;
-    if(Math.abs(c.len - target)/target < .1) break;
+    if(Math.abs(c.len - target)/target < .13) break;
     r *= Math.max(.55, Math.min(1.6, target/c.len));
   }
   return best;
@@ -927,7 +932,7 @@ function genCancel(){ genRun++; clearInterval(genTick); S.view = "form"; render(
 // Calcule n boucles en parallèle ; au-delà de maxMs, on garde celles déjà prêtes plutôt que de faire attendre
 async function tryLoops(target, n, maxMs = 16000){
   const b0 = Math.random()*360, wait = ms => new Promise(r => setTimeout(r, ms)), got = [];
-  const jobs = Array.from({length:n}, (_, i) => (PV ? PV.loop(S.start, target, (b0 + i*90) % 360) : C.ORS_KEY ? loopORS(S.start, target) : wait(i*350).then(() => loopOSRM(S.start, target, (b0 + i*120) % 360)))
+  const jobs = Array.from({length:n}, (_, i) => (PV ? PV.loop(S.start, target, (b0 + i*90) % 360) : C.ORS_KEY ? loopORS(S.start, target) : wait(i*250).then(() => loopOSRM(S.start, target, (b0 + i*360/n) % 360)))
     .then(v => { if(v && v.pts.length > 3) got.push(v); }, () => {}));
   const all = Promise.all(jobs);
   // délai dépassé : on rend ce qui est prêt, ou on attend encore un peu la première boucle
@@ -965,8 +970,9 @@ async function generate(){
   S.view = "loading"; S.results = null; routeLayer.clearLayers(); panel.classList.remove("min"); render(); genProgress(run);
   try{
     const tStart = Date.now();
-    if(!PV){ genProgress.note = ""; await Promise.race([loadDanger(S.start, target), new Promise(r => setTimeout(r, Date.now() - BR.down > 90000 ? 3000 : 13000))]); if(run !== genRun) return; }
-    let got = await tryLoops(target, PV ? 4 : DANGER.segs.length ? 4 : 3, 12000);
+    if(!PV){ genProgress.note = ""; if(Date.now() - BR.down > 90000) loadDanger(S.start, target).catch(() => {});   // BRouter mesure lui-même la sécurité : pas d'attente
+      else await Promise.race([loadDanger(S.start, target), new Promise(r => setTimeout(r, 13000))]); if(run !== genRun) return; }
+    let got = await tryLoops(target, PV ? 4 : 4, 12000);
     if(run !== genRun) return;   // annulé entre-temps
     // second essai seulement si le premier a échoué vite (sinon on prévient sans faire attendre davantage)
     if(!got.length && !PV && Date.now() - tStart < 14000){
@@ -1061,12 +1067,16 @@ function glLayers(g){
   g.addSource("tr-route", {type:"geojson", lineMetrics:true, data:{type:"FeatureCollection", features:[]}});
   g.addSource("tr-live", {type:"geojson", data:{type:"FeatureCollection", features:[]}});
   const c = RC();
-  // tracé épais et bien bordé : visible d'un coup d'œil en courant
-  g.addLayer({id:"tr-glow", type:"line", source:"tr-route", layout:ln, paint:{"line-color":c.glow, "line-width":22, "line-blur":9, "line-opacity":c.glowOp}}, before);
-  g.addLayer({id:"tr-case", type:"line", source:"tr-route", layout:ln, paint:{"line-color":c.kase, "line-width":13, "line-opacity":.9}}, before);
-  g.addLayer({id:"tr-core", type:"line", source:"tr-route", layout:ln, paint:{"line-width":7.5, "line-gradient":glGrad(c.neon, 1)}}, before);
-  g.addLayer({id:"tr-live-glow", type:"line", source:"tr-live", layout:ln, paint:{"line-color":c.live, "line-width":18, "line-blur":7, "line-opacity":.45}}, before);
-  g.addLayer({id:"tr-live", type:"line", source:"tr-live", layout:ln, paint:{"line-color":c.live, "line-width":6}}, before);
+  // Tracé réaliste : sa largeur suit celle de la rue à chaque niveau de zoom (jamais plus large que la rue),
+  // fin liseré pour le détacher du fond, halo très discret ; les noms des rues restent au-dessus et lisibles.
+  const W = zw(10, 1.8, 12, 2.4, 13, 2.8, 14, 3.3, 15, 4.2, 16, 5.4, 17, 7, 18, 9.5, 19, 12.5, 20, 16);
+  const WC = zw(10, 3, 12, 3.8, 13, 4.4, 14, 5, 15, 6.2, 16, 7.8, 17, 9.8, 18, 12.8, 19, 16.5, 20, 21);
+  const WG = zw(10, 6, 13, 8, 15, 11, 17, 16, 20, 30);
+  g.addLayer({id:"tr-glow", type:"line", source:"tr-route", layout:ln, paint:{"line-color":c.glow, "line-width":WG, "line-blur":4, "line-opacity":c.glowOp*.55}}, before);
+  g.addLayer({id:"tr-case", type:"line", source:"tr-route", layout:ln, paint:{"line-color":c.kase, "line-width":WC, "line-opacity":.85}}, before);
+  g.addLayer({id:"tr-core", type:"line", source:"tr-route", layout:ln, paint:{"line-width":W, "line-gradient":glGrad(c.neon, 1)}}, before);
+  g.addLayer({id:"tr-live-glow", type:"line", source:"tr-live", layout:ln, paint:{"line-color":c.live, "line-width":WG, "line-blur":4, "line-opacity":.3}}, before);
+  g.addLayer({id:"tr-live", type:"line", source:"tr-live", layout:ln, paint:{"line-color":c.live, "line-width":W}}, before);
 }
 const lineFC = pts => ({type:"FeatureCollection", features:pts && pts.length > 1 ? [{type:"Feature", properties:{}, geometry:{type:"LineString", coordinates:pts.map(p => [p[1], p[0]])}}] : []});
 function glDraw(g, p){
@@ -1102,6 +1112,9 @@ function showRoute(r, fit = true){
   const casing = L.polyline(r.pts, {...o, color:"#02110B", weight:11, opacity:.85, className:"route-casing"}).addTo(routeLayer);
   const line = L.polyline(r.pts, {...o, color:acc, weight:6, className:"route-core"}).addTo(routeLayer);
   const flow = L.polyline(r.pts, {...o, color:"#fff", weight:3, opacity:0, className:"route-flow"}).addTo(routeLayer);
+  // carte de secours (sans MapLibre) : même règle, largeur du tracé proportionnée à celle des rues selon le zoom
+  { const fitW = () => { const z = map.getZoom(), k = Math.max(.4, Math.min(1.7, Math.pow(1.32, z - 16))); glow.setStyle({weight:14*k, opacity:.3}); casing.setStyle({weight:8.5*k}); line.setStyle({weight:5.2*k}); flow.setStyle({weight:2.4*k}); };
+    fitW(); map.off("zoomend", showRoute.fitW); showRoute.fitW = fitW; map.on("zoomend", fitW); }
   let a = 0, next = 1000;
   for(let i = 1; i < r.pts.length; i++){ a += dist(r.pts[i-1], r.pts[i]); if(a >= next && a < r.len - 250){ L.marker(r.pts[i], {interactive:false, icon:L.divIcon({className:"", html:`<span class="km"><b>${next/1000}</b>km</span>`, iconSize:[0,0], iconAnchor:[0,0]})}).addTo(routeLayer); next += 1000; } }
   if(fit) fitSafe(L.latLngBounds(r.pts), {...pad(), duration:1});
@@ -1887,7 +1900,7 @@ function viewPremium(){
       <p class="small">La version gratuite offre 3 boucles pour découvrir Traceo, guidage compris.</p></div>`;
   const on = isPremium() && !S.demo && S.premium;
   const left = on && S.premium.until ? Math.max(0, Math.ceil((S.premium.until - Date.now())/864e5)) : null;
-  return `${rw}${on ? `<div class="plan pro"><p class="eyebrow" style="color:var(--gold)">★ Premium actif</p><p class="title" style="font-size:24px">Tout Traceo est débloqué.</p>${left != null ? `<p class="muted">Encore <b>${left} jour${left > 1 ? "s" : ""}</b>, jusqu'au ${new Date(S.premium.until).toLocaleDateString("fr-FR", {day:"numeric", month:"long"})}.</p>` : ""}</div>` : ""}<div class="plan pro"><p class="eyebrow" style="color:var(--gold)">Traceo Premium</p><p class="title">Une boucle neuve à chaque sortie, sans limite.</p>
+  return `${rw}${on ? `<div class="plan pro"><p class="eyebrow" style="color:var(--gold)">★ Premium actif</p><p class="title" style="font-size:24px">Tout Traceo est débloqué.</p>${left != null ? `<p class="muted">Encore <b>${left} jour${left > 1 ? "s" : ""}</b>, jusqu'au ${new Date(S.premium.until).toLocaleDateString("fr-FR", {day:"numeric", month:"long"})}.</p>` : ""}${store.get("lastReceipt", null) ? `<button class="linkbtn" data-receipt>Voir mon reçu de paiement</button>` : ""}</div>` : ""}<div class="plan pro"><p class="eyebrow" style="color:var(--gold)">Traceo Premium</p><p class="title">Une boucle neuve à chaque sortie, sans limite.</p>
       <p class="price">${C.PRICE_LABEL}<small> / mois</small></p>
       <ul class="checks"><li>Boucles illimitées, partout en France</li><li>Envoi sur ta montre Garmin</li><li>Envoi de tes courses sur Strava</li><li>Export GPX pour toutes les montres</li><li>Image de ta boucle à partager</li><li><b>🛡️ Boucles sûres</b> : petites rues et chemins</li><li><b>💎 Un diamant de 5 €</b> toutes les 100 courses (31 jours offerts)</li><li><b>Ensemble</b> : coureurs autour de toi, invitations et messages</li><li><b>Coach IA</b> personnalisé dans le chat</li></ul>
       ${on ? `${S.premium.via === "sub" ? `<a class="btn block night" href="${C.PAYPAL_MANAGE_URL}" target="_blank" rel="noopener">Gérer mon abonnement PayPal</a>` : S.premium.until && S.premium.until - Date.now() < 7*864e5 ? `<p class="small">Pour continuer après cette date, reprends 31 jours : ils s'ajoutent à ceux qui restent.</p>${payBlock("payMain")}` : ""}` : payBlock("payMain")}
@@ -2495,8 +2508,12 @@ function phoneStep(){
     <div class="field"><label for="phIn">Numéro de mobile</label><input class="input" id="phIn" type="tel" inputmode="tel" autocomplete="tel" placeholder="06 12 34 56 78" maxlength="20"></div>
     <div class="field" id="phCodeF" hidden><label for="phCode">Code reçu par SMS</label><input class="input code6" id="phCode" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="••••••"></div>
     <p class="small" id="phErr" style="color:var(--warn)"></p>
-    <button class="btn hero block" id="phGo">Recevoir mon code</button>`);
-  let sent = false;
+    <button class="btn hero block" id="phGo">Recevoir mon code</button>
+    <div id="phLate" hidden><p class="small" style="text-align:center;margin:12px 0 4px">Pas de code reçu ?</p><button class="btn night block" id="phPay">Payer tout de suite</button></div>
+    <p class="small pay-safe">🔒 Paiement 100 % sécurisé par PayPal · reçu de confirmation envoyé après paiement</p>`);
+  let sent = false, lateT = null;
+  const late = () => { clearInterval(lateT); let n = 30; lateT = setInterval(() => { n--; const g = $("#phGo"); if(!g){ clearInterval(lateT); return; } if(n > 0) $("#phErr").style.color = "", $("#phErr").textContent = `Code envoyé : il arrive en général en quelques secondes (${n} s).`; else { clearInterval(lateT); $("#phErr").textContent = ""; $("#phLate").hidden = false; } }, 1000); };
+  $("#phPay").onclick = () => { clearInterval(lateT); track("telephone_passe", {raison:"30s"}); closeModal(); payNow(); };
   const err = t => { $("#phErr").textContent = t; $("#phGo").disabled = false; };
   $("#phGo").onclick = async () => {
     $("#phGo").disabled = true; $("#phErr").textContent = "";
@@ -2505,10 +2522,10 @@ function phoneStep(){
         const j = await ensCall("phone/start", {phone:$("#phIn").value});
         if(j.skip || j.verified){ closeModal(); return payNow(); }
         sent = true; $("#phCodeF").hidden = false; $("#phGo").textContent = "Valider le code"; $("#phGo").disabled = false; $("#phCode").focus();
-        toast(`Code envoyé au ${j.phone}.`); return;
+        toast(`Code envoyé au ${j.phone}.`); late(); return;
       }
       await ensCall("phone/check", {code:$("#phCode").value});
-      ENS.me.phone_ok = true; store.set("ensMe", ENS.me); closeModal(); track("telephone_verifie"); payNow();
+      clearInterval(lateT); ENS.me.phone_ok = true; store.set("ensMe", ENS.me); closeModal(); track("telephone_verifie"); payNow();
     }catch(e){ err(e.message === "bad_phone" ? "Numéro invalide : écris-le comme 06 12 34 56 78." : e.message === "bad_code" ? "Code incorrect, vérifie le SMS." : e.message === "rate_limited" ? "Trop d'essais, réessaie dans un moment." : "Envoi impossible pour l'instant, réessaie."); }
   };
 }
@@ -2522,6 +2539,21 @@ function payNow(){
   const url = "https://www.paypal.com/cgi-bin/webscr?" + q.toString();
   if(NATIVE) openExt(url); else location.href = url;
 }
+document.addEventListener("click", e => { if(e.target.closest?.("[data-receipt]")){ const r = store.get("lastReceipt", null); if(r) showReceipt(r.rc, r.until); } });
+// Reçu de paiement, avec le mot du fondateur (PayPal envoie aussi son propre reçu par e-mail)
+function showReceipt(rc, until){
+  const d = rc?.date ? new Date(rc.date) : new Date(), fin = new Date(rc?.until || until);
+  const name = typeof ENS !== "undefined" && ENS.me ? `${ENS.me.first} ${ENS.me.last || ""}`.trim() : "";
+  store.set("lastReceipt", {rc, until:fin.getTime()});
+  openModal(`<button class="iconbtn x" data-close aria-label="Fermer">${I.x}</button><div class="receipt">
+    <div class="rc-top"><span class="rc-ok">${I.check}</span><p class="eyebrow" style="margin:0">Paiement confirmé</p><p class="title" style="font-size:24px;margin:2px 0 0">Merci${name ? " " + esc(ENS.me.first) : ""} !</p></div>
+    <div class="rc-lines"><div><span>Offre</span><b>Traceo Premium · 31 jours</b></div><div><span>Montant</span><b>${esc(String(rc?.amount || C.PRICE_VALUE || "4.99").replace(".", ","))} € TTC</b></div>
+      <div><span>Date</span><b>${d.toLocaleString("fr-FR", {day:"numeric", month:"long", year:"numeric", hour:"2-digit", minute:"2-digit"})}</b></div><div><span>Premium jusqu'au</span><b>${fin.toLocaleDateString("fr-FR", {day:"numeric", month:"long", year:"numeric"})}</b></div>
+      ${rc?.txn ? `<div><span>Référence</span><b class="rc-ref">${esc(rc.txn)}</b></div>` : ""}${name ? `<div><span>Client</span><b>${esc(name)}</b></div>` : ""}<div><span>Paiement</span><b>🔒 PayPal, sécurisé</b></div></div>
+    <p class="rc-word">« Merci pour ta confiance et ta fidélité. Chaque boucle que tu cours fait grandir Traceo. Bonne course ! »<br><b>Pierre Renard</b>, fondateur de Traceo</p>
+    <p class="small" style="text-align:center">Un reçu PayPal t'est aussi envoyé par e-mail${ENS?.me?.phone_ok ? ", et une confirmation par SMS" : ""}. Sans renouvellement automatique.</p>
+    <button class="btn hero block" data-close>C'est parti !</button></div>`);
+}
 // Retour de PayPal : on attend la confirmation du serveur (quelques secondes) et Premium s'active tout seul
 async function waitActivation(){
   openModal(`<div class="center"><div class="medal">${I.star}</div><p class="title">Paiement reçu, merci !</p><p class="muted" id="waMsg">Activation de ton Premium en cours…</p><div class="spin2"></div></div>`);
@@ -2529,7 +2561,7 @@ async function waitActivation(){
   while(Date.now() - t0 < 120000){
     try{
       const j = await (await fetch(apiBase() + "/social/activate", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({dev:devId()})})).json();
-      if(j.code){ const v = await verifyAct(j.code); if(v){ store.set("actPending", null); unlock({via:"code", until:v.until, code:j.code, kind:"paiement"}); track("activation_auto"); return; } }
+      if(j.code){ const v = await verifyAct(j.code); if(v){ store.set("actPending", null); unlock({via:"code", until:v.until, code:j.code, kind:"paiement"}); track("activation_auto"); setTimeout(() => showReceipt(j.receipt, v.until), 900); return; } }
     }catch(e){}
     if(paid()) return;
     if(Date.now() - t0 > 25000 && $("#waMsg")) $("#waMsg").textContent = "PayPal finalise ton paiement, encore quelques secondes…";
@@ -2816,6 +2848,7 @@ document.addEventListener("visibilitychange", async () => {
 });
 document.addEventListener("visibilitychange", () => { if(!document.hidden && S.tab === "premium" && modal.hidden && store.get("payPending", 0) > Date.now() - 2*3600e3) render(); });
 rebuildMemory(); render(); payOnLaunch(); checkBetaLock(); syncClock();
+setTimeout(() => { if(!PV) brProfile().catch(() => {}); }, 1200);   // profil piéton sécurité prêt avant le premier calcul
 if("serviceWorker" in navigator && location.protocol === "https:" && !PV && !NATIVE) navigator.serviceWorker.register("sw.js").catch(() => {});
 // À l'ouverture : un écran d'accueil motivant. Pas de localisation automatique : l'utilisateur choisit son départ.
 if(new URLSearchParams(location.search).has("test")) setTimeout(checkApp, 300); else if(!fromPay) splash(!store.get("onboarded", false)); else setTimeout(autoStart, 800);

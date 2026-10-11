@@ -385,13 +385,28 @@ export class Hub {
       this.sql.exec("INSERT INTO payments(txn, email, amount, currency, t, name) VALUES(?,?,?,?,?,?)", txn, email, amount, cur, NOW(), name);
       if(this.env.ALERTS_TOPIC) this.state.waitUntil(fetch("https://ntfy.sh/" + this.env.ALERTS_TOPIC, {method:"POST", headers:{Title:"Paiement PayPal recu", Tags:"moneybag", Priority:"high"}, body:`${amount} € reçus de ${name || email} (${email}). Activation automatique dès sa demande dans l'app.`}).catch(() => {}));
       // paiement lancé depuis l'app : le code du téléphone voyage avec le paiement (champ « custom ») → activation immédiate
-      const cdev = (f.get("custom") || "").split(".")[0].toLowerCase();
-      if(/^[a-f0-9]{16}$/.test(cdev)){ await this.grant(txn, cdev, 0); return new Response("ok", {status:200}); }
+      const [cdev0, cuid] = (f.get("custom") || "").split("."), cdev = (cdev0 || "").toLowerCase();
+      if(/^[a-f0-9]{16}$/.test(cdev)){
+        await this.grant(txn, cdev, 0);
+        // reçu par SMS au numéro vérifié du client, avec le mot du fondateur
+        const u = cuid && this.one("SELECT * FROM users WHERE id = ?", clean(cuid, 32)), pay = this.one("SELECT * FROM payments WHERE txn = ?", txn);
+        if(u && pay) this.state.waitUntil(this.smsReceipt(u, pay));
+        return new Response("ok", {status:200});
+      }
       // demande déjà faite par le client ? on active tout de suite
       const req = this.one("SELECT * FROM act_requests WHERE (email = ? OR email = ?) AND done = 0 AND t > ? ORDER BY id DESC", email, name.toLowerCase(), NOW() - 7*864e5);
       if(req) await this.grant(txn, req.dev, req.id);
     }catch(e){}
     return new Response("ok", {status:200});
+  }
+  receipt(p){ return p ? {txn:p.txn, amount:p.amount, currency:p.currency || "EUR", date:p.t, until:p.until} : null; }
+  async smsReceipt(u, p){
+    if(!u.phone || !u.phone_ok || !this.env.TWILIO_ACCOUNT_SID || !this.env.TWILIO_AUTH_TOKEN) return;
+    const fin = new Date(p.until).toLocaleDateString("fr-FR", {day:"numeric", month:"long", year:"numeric", timeZone:"Europe/Paris"});
+    const body = `Traceo : paiement de ${String(p.amount).replace(".", ",")} € confirmé (réf. ${p.txn}). Premium actif jusqu'au ${fin}. Merci pour ta confiance et ta fidélité, bonne course ! Pierre Renard, fondateur de Traceo`;
+    try{
+      await fetch(`https://api.twilio.com/2010-04-01/Accounts/${this.env.TWILIO_ACCOUNT_SID}/Messages.json`, {method:"POST", headers:{Authorization:"Basic " + btoa(this.env.TWILIO_ACCOUNT_SID + ":" + this.env.TWILIO_AUTH_TOKEN), "Content-Type":"application/x-www-form-urlencoded"}, body:new URLSearchParams({To:u.phone, From:this.env.TWILIO_SMS_FROM || "Traceo", Body:body}).toString()});
+    }catch(e){}
   }
   async grant(txn, dev, reqId){
     const until = NOW() + 31*864e5, code = await this.signAct(dev, until, "paiement");
@@ -407,7 +422,7 @@ export class Hub {
     if(!this.env.ACT_KEY) return json({status:"pending"}, 200, {});
     // paiement déjà reçu pour ce téléphone (bouton de paiement de l'app) : on renvoie l'activation
     const mine = this.one("SELECT * FROM payments WHERE dev = ? AND until > ? ORDER BY t DESC", dev, NOW());
-    if(mine) return json({status:"active", code:await this.signAct(dev, mine.until, "paiement")}, 200, {});
+    if(mine) return json({status:"active", code:await this.signAct(dev, mine.until, mine.txn.startsWith("TEST-") ? "test" : "paiement"), receipt:this.receipt(mine)}, 200, {});
     if(email.length < 3) return json({status:"pending"}, 200, {});
     // paiement déjà reçu avec cet e-mail (ou ce nom) et jamais utilisé : activation immédiate
     const pay = this.one("SELECT * FROM payments WHERE (email = ? OR lower(name) = ?) AND dev IS NULL AND t > ? ORDER BY t DESC", email, email, NOW() - 30*864e5);
@@ -494,7 +509,7 @@ export class Hub {
       const dev = clean(b.dev, 16).toLowerCase(); if(!/^[a-f0-9]{16}$/.test(dev)) return json({error:"bad_device"}, 400, {});
       const until = NOW() + 30*MIN, txn = "TEST-" + hex(crypto.getRandomValues(new Uint8Array(4)));
       this.sql.exec("INSERT INTO payments(txn, email, amount, currency, t, dev, until, name) VALUES(?,?,?,?,?,?,?,?)", txn, "simulation", "0.00", "EUR", NOW(), dev, until, "Paiement simulé (test)");
-      return json({code:await this.signAct(dev, until, "test"), until}, 200, {});
+      return json({code:await this.signAct(dev, until, "test"), until, receipt:this.receipt(this.one("SELECT * FROM payments WHERE txn = ?", txn))}, 200, {});
     }
     if(path === "payments") return json({payments:this.rows("SELECT * FROM payments ORDER BY t DESC LIMIT 500"), pending:this.rows("SELECT * FROM act_requests WHERE done = 0 ORDER BY id DESC LIMIT 200")}, 200, {});
     if(path === "rewards") return json({rewards:this.rows(`SELECT r.*, u.pseudo, u.first, u.last, u.email, (SELECT COUNT(*) FROM runs WHERE uid = r.uid AND ok = 1) AS runs,

@@ -941,3 +941,14 @@ body:has(#betaLock) #modal{z-index:120}
 .pay-steps{margin:8px 2px 0;color:var(--muted)}
 .code6{letter-spacing:.5em;font-size:22px;text-align:center;font-family:ui-monospace,Menlo,monospace}
 .spin2{width:30px;height:30px;margin:14px auto 4px;border-radius:50%;border:3px solid var(--accent);border-right-color:transparent;animation:spin .8s linear infinite}
+.pay-safe{text-align:center;margin-top:12px;color:var(--muted)}
+.receipt .rc-top{text-align:center;margin-bottom:12px}
+.rc-ok{display:inline-grid;place-items:center;width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#2BE39B,#1EA6D0);color:#03140D;margin-bottom:8px}
+.rc-ok svg{width:26px;height:26px;stroke:currentColor;fill:none;stroke-width:2.6}
+.rc-lines{border-radius:16px;background:var(--surface-2);padding:6px 14px;border:1px dashed var(--line)}
+.rc-lines div{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:14px}
+.rc-lines div:last-child{border-bottom:0}
+.rc-lines span{color:var(--muted)}.rc-lines b{text-align:right}
+.rc-ref{font-family:ui-monospace,Menlo,monospace;font-size:12.5px}
+.rc-word{margin:14px 2px 8px;padding:12px 14px;border-left:3px solid var(--accent);background:rgba(37,201,143,.08);border-radius:0 12px 12px 0;font-style:italic;font-size:14.5px}
+.rc-word b{font-style:normal}

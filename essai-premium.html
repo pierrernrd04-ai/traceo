@@ -54,6 +54,9 @@ ul.checks li::before{content:"✓";position:absolute;left:0;top:1px;width:20px;h
 .ck a{color:var(--accent)}
 .spin{width:28px;height:28px;margin:12px auto;border-radius:50%;border:3px solid var(--accent);border-right-color:transparent;animation:spin .8s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
+.rc{text-align:left;border-radius:16px;background:var(--surface-2);border:1px dashed var(--line);padding:4px 14px;margin:14px 0 4px}
+.rc div{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:14px}.rc div:last-child{border-bottom:0}.rc span{color:var(--muted)}
+.word{text-align:left;margin:14px 0 4px;padding:12px 14px;border-left:3px solid var(--accent);background:rgba(37,201,143,.08);border-radius:0 12px 12px 0;font-style:italic;font-size:14.5px}.word b{font-style:normal}
 footer{text-align:center;font-size:12.5px;color:var(--muted);margin-top:22px}
 footer a{color:var(--muted)}
 </style>
@@ -157,8 +160,13 @@ function phoneView(v){
     ${S.sent ? `<label for="cd">Code reçu</label><input class="input code6" id="cd" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="••••••">
       ${S.channel === "test" ? `<p class="note">🧪 Mode test : l'envoi de vrais SMS n'est pas encore branché. Ton code vient d'arriver en <b>notification ntfy</b> sur ton téléphone (« Code Traceo »).</p>` : `<p class="small muted">SMS envoyé au ${esc(S.phone)}.</p>`}` : ""}
     <p class="err" id="err"></p><button class="btn hero" id="go">${S.sent ? "Valider le code" : "Recevoir mon code"}</button>
-    ${S.sent ? `<button class="link" id="again" style="margin-top:12px">Renvoyer un code / changer de numéro</button>` : ""}</div>`;
+    ${S.sent ? `<p class="small muted" id="wait" style="text-align:center;margin:10px 0 0"></p><div id="late" hidden><p class="small" style="text-align:center;margin:12px 0 0">Pas de code reçu ?</p><button class="btn" id="payNow">Payer tout de suite</button></div>
+      <button class="link" id="again" style="margin-top:12px">Renvoyer un code / changer de numéro</button>` : ""}
+    <p class="small muted" style="text-align:center;margin:12px 0 0">🔒 Paiement 100 % sécurisé par PayPal · reçu de confirmation envoyé</p></div>`;
   const err = $("#err");
+  clearInterval(phoneView.t);
+  if(S.sent){ let n = 30; const tick = () => { const w = $("#wait"); if(!w){ clearInterval(phoneView.t); return; } if(--n > 0) w.textContent = `Le code arrive en général en quelques secondes (${n} s).`; else { clearInterval(phoneView.t); w.textContent = ""; $("#late").hidden = false; } }; tick(); phoneView.t = setInterval(tick, 1000);
+    $("#payNow").onclick = () => { clearInterval(phoneView.t); S.step = 3; render(); }; }
   $("#again") && ($("#again").onclick = () => { S.sent = false; render(); });
   $("#go").onclick = async () => {
     err.textContent = ""; $("#go").disabled = true;
@@ -202,7 +210,7 @@ function payView(v){
     try{
       const j = await call("admin/testpay", {dev:devId()}, {"X-Admin-Key":k});
       const vv = await verifyAct(j.code); if(!vv) throw new Error("signature");
-      st.set("premium", {via:"code", until:vv.until, code:j.code, kind:"test"}); st.set("actPending", null); S.step = 4; render();
+      st.set("premium", {via:"code", until:vv.until, code:j.code, kind:"test"}); st.set("actPending", null); S.receipt = j.receipt; S.step = 4; render();
     }catch(e){ $("#sim").disabled = false; err.textContent = e.message === "auth" ? (sessionStorage.removeItem("traceoAdmin"), "Clé d'administration incorrecte.") : "Simulation impossible : " + e.message; }
   };
 }
@@ -210,6 +218,8 @@ function doneView(v){
   const p = paidNow();
   v.innerHTML = `<div class="card done"><div class="medal">★</div><p class="eyebrow">Bienvenue dans Premium</p><h1>C'est parti, ${esc(S.me?.first || "")} !</h1>
     <p class="muted">${p ? `Premium actif jusqu'au <b style="color:var(--ink)">${new Date(p.until).toLocaleString("fr-FR", {day:"numeric", month:"long", hour:"2-digit", minute:"2-digit"})}</b>${p.kind === "test" ? " (simulation de 30 minutes)" : ""}.` : ""}</p>
+    ${S.receipt ? `<div class="rc"><div><span>Offre</span><b>Traceo Premium · 31 jours</b></div><div><span>Montant</span><b>${esc(String(S.receipt.amount).replace(".", ","))} € ${p?.kind === "test" ? "(simulation)" : "TTC"}</b></div><div><span>Date</span><b>${new Date(S.receipt.date).toLocaleString("fr-FR", {day:"numeric", month:"long", hour:"2-digit", minute:"2-digit"})}</b></div><div><span>Référence</span><b style="font-family:ui-monospace,Menlo,monospace;font-size:12.5px">${esc(S.receipt.txn)}</b></div><div><span>Paiement</span><b>🔒 PayPal, sécurisé</b></div></div>` : ""}
+    <p class="word">« Merci pour ta confiance et ta fidélité. Chaque boucle que tu cours fait grandir Traceo. Bonne course ! »<br><b>Pierre Renard</b>, fondateur de Traceo</p>
     <a class="btn hero" href="app.html" style="text-decoration:none">Ouvrir Traceo</a>
     ${p?.kind === "test" ? `<button class="btn ghost" id="redo">Recommencer le test depuis le début</button>` : ""}</div>`;
   $("#redo") && ($("#redo").onclick = () => { st.set("premium", null); S.sent = false; S.step = 1; render(); });
@@ -221,7 +231,7 @@ async function afterPayPal(){
   const t0 = Date.now();
   while(Date.now() - t0 < 120000){
     try{ const r = await fetch(API + "/social/activate", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({dev:devId()})}); const j = await r.json();
-      if(j.code){ const vv = await verifyAct(j.code); if(vv){ st.set("premium", {via:"code", until:vv.until, code:j.code, kind:"paiement"}); st.set("actPending", null); S.step = 4; return render(); } } }catch(e){}
+      if(j.code){ const vv = await verifyAct(j.code); if(vv){ st.set("premium", {via:"code", until:vv.until, code:j.code, kind:"paiement"}); st.set("actPending", null); S.receipt = j.receipt; st.set("lastReceipt", {rc:j.receipt, until:vv.until}); S.step = 4; return render(); } } }catch(e){}
     if(Date.now() - t0 > 25000) $("#wm").textContent = "PayPal finalise ton paiement, encore quelques secondes…";
     await new Promise(r => setTimeout(r, 3000));
   }
