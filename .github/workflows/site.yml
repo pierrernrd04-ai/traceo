@@ -19,20 +19,29 @@ jobs:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
     steps:
+      - name: Vérifier les secrets
+        id: check
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::warning::Secrets CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID manquants : ajoute-les dans Settings > Secrets and variables > Actions, puis relance ce workflow."
+            echo "ok=false" >> $GITHUB_OUTPUT
+          else echo "ok=true" >> $GITHUB_OUTPUT; fi
       - uses: actions/checkout@v4
+        if: steps.check.outputs.ok == 'true'
       - name: Préparer les fichiers du site
+        if: steps.check.outputs.ok == 'true'
         run: |
           mkdir -p _site
           rsync -a --exclude '.git' --exclude '.github' --exclude 'node_modules' --exclude 'android' --exclude 'ios' --exclude 'server' --exclude 'resources' --exclude 'scripts' --exclude 'www' --exclude '*.md' --exclude 'package*.json' --exclude 'capacitor.config.json' ./ _site/
           du -sh _site; ls _site
       - uses: actions/setup-node@v4
+        if: steps.check.outputs.ok == 'true'
         with:
           node-version: 20
       - name: Déployer sur Cloudflare Pages
+        if: steps.check.outputs.ok == 'true'
         run: |
           set +e
-          npx --yes wrangler@3 pages project list > projects.txt 2>&1
-          while IFS= read -r l; do echo "::notice::projets: $l"; done < <(tail -n 25 projects.txt | sed 's/\x1b\[[0-9;]*m//g')
           npx --yes wrangler@3 pages deploy _site --project-name=traceorun --branch=main --commit-dirty=true > out.txt 2>&1
           code=$?
           while IFS= read -r l; do echo "::notice::deploy: $l"; done < <(tail -n 25 out.txt | sed 's/\x1b\[[0-9;]*m//g')

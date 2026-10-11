@@ -91,10 +91,10 @@
 
   // CSS
   const st = document.createElement("style");
-  st.textContent = `.shop-card{margin:14px 0 4px;padding:12px;border-radius:18px;background:var(--surface-2,#14222a);border:1px solid var(--line,#24343c)}
+  st.textContent = `.shop-card{flex-shrink:0;margin:14px 0 4px;padding:12px;border-radius:18px;background:var(--surface-2,#14222a);border:1px solid var(--line,#24343c)}
 .shop-hd{display:flex;align-items:center;justify-content:space-between;margin:2px 4px 8px}.shop-hd b{font-size:15px}
 .shop-all{background:none;border:0;color:var(--accent,#2be3a0);font-weight:800;font-size:14px;padding:6px 4px;cursor:pointer}
-.shop-it{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:10px;margin:6px 0;border-radius:14px;border:1px solid var(--line,#24343c);background:var(--surface,#0f1b21);color:var(--ink,#fff);cursor:pointer;font:inherit}
+.shop-it{flex-shrink:0;display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:10px;margin:6px 0;border-radius:14px;border:1px solid var(--line,#24343c);background:var(--surface,#0f1b21);color:var(--ink,#fff);cursor:pointer;font:inherit}
 .shop-it:active{transform:scale(.98)}.shop-ic{font-size:24px;width:40px;height:40px;display:grid;place-items:center;border-radius:12px;background:var(--surface-2,#14222a);flex:none}
 .shop-tx{flex:1;min-width:0;display:flex;flex-direction:column}.shop-tx b{font-size:14.5px;line-height:1.25}.shop-tx small{font-size:12.5px;color:var(--muted,#8aa)}
 .shop-go{font-weight:800;font-size:13px;color:var(--accent,#2be3a0);flex:none}
