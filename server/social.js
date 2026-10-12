@@ -35,7 +35,7 @@ const ACT_PUB = {"kty":"EC","crv":"P-256","x":"__6AWyNjAcpIy9E2jeaF-pVNzipouEcuY
 const FREE_LOOPS = 3;   // boucles offertes à chaque nouveau compte (version gratuite)
 const REWARD_EVERY = 100, REWARD_EUR = 5;   // un diamant (bon d'achat de 5 €) toutes les 100 courses vérifiées
 const DASH_URL = "https://traceorun.pages.dev/tableau";   // ouvert en touchant une alerte
-const SRC_LABEL = {story:"ta story Instagram", bio:"ta bio Instagram", insta:"Instagram", instagram:"Instagram", linkedin:"LinkedIn", whatsapp:"WhatsApp", facebook:"Facebook", tiktok:"TikTok", strava:"Strava", email:"ton e-mail", qr:"ton QR code"};
+const SRC_LABEL = {story:"ta story Instagram", bio:"ta bio Instagram", insta:"Instagram", instagram:"Instagram", linkedin:"LinkedIn", whatsapp:"WhatsApp", facebook:"Facebook", tiktok:"TikTok", strava:"Strava", email:"ton e-mail", qr:"ton QR code", reddit:"Reddit", forum:"un forum running", club:"un club contacté", createur:"un créateur partenaire"};
 const SOCIAL_REF = /^(instagram|facebook|linkedin|lnkd\.in|tiktok|t\.co|x|twitter|snapchat|whatsapp|wa\.me|youtube|threads|reddit|strava)(\.com|\.net)?$/;
 
 export class Hub {
