@@ -130,7 +130,8 @@ export class Hub {
   }
   async hashPw(key, salt){ salt = salt || hex(crypto.getRandomValues(new Uint8Array(16))); return salt + ":" + await sha(salt + ":" + key); }
   async signup(b, ip, req){
-    if(this.limit("su:" + ip, 8, HOUR)) return json({error:"rate_limited"}, 429, {});
+    // 30 par heure et par adresse IP : un club ou une salle sur le même Wi-Fi peut s'inscrire en même temps (le test de charge bloquait dès la 9e personne)
+    if(this.limit("su:" + ip, 30, HOUR)) return json({error:"rate_limited"}, 429, {});
     const first = clean(b.first, 30), last = clean(b.last, 40), email = clean(b.email, 120).toLowerCase(), pseudo = clean(b.pseudo, 20).toLowerCase(), birth = clean(b.birth, 10);
     if(!first || !last) return json({error:"name_required"}, 400, {});
     if(!/^[a-z0-9][a-z0-9_.]{2,19}$/.test(pseudo)) return json({error:"bad_pseudo"}, 400, {});
