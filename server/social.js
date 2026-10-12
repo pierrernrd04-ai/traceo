@@ -13,7 +13,7 @@ import { json } from "./worker.js";
 export async function social(req, env, cors){
   if(!env.HUB) return json({error:"social_not_configured"}, 503, cors);
   const stub = env.HUB.get(env.HUB.idFromName("france"));
-  const headers = new Headers(req.headers); headers.set("X-IP", req.headers.get("CF-Connecting-IP") || "?"); headers.set("X-Country", (req.cf && req.cf.country) || ""); headers.set("X-Region", encodeURIComponent((req.cf && req.cf.region) || ""));
+  const headers = new Headers(req.headers); headers.delete("X-Traceo-Internal"); headers.set("X-IP", req.headers.get("CF-Connecting-IP") || "?"); headers.set("X-Country", (req.cf && req.cf.country) || ""); headers.set("X-Region", encodeURIComponent((req.cf && req.cf.region) || ""));
   const res = await stub.fetch(new Request(req.url, {method:req.method, headers, body:req.method === "GET" ? undefined : await req.text()}));
   const out = new Response(res.body, res); for(const [k, v] of Object.entries(cors)) out.headers.set(k, v);
   return out;
@@ -69,6 +69,9 @@ export class Hub {
     this.sql.exec(`CREATE INDEX IF NOT EXISTS hits_vid ON hits(day, vid)`);
     try{ this.sql.exec("ALTER TABLE hits ADD COLUMN region TEXT"); }catch(e){}
     this.sql.exec(`CREATE TABLE IF NOT EXISTS rewards(id INTEGER PRIMARY KEY AUTOINCREMENT, uid TEXT, milestone INT, amount REAL, status TEXT, paypal TEXT, created INT, done_at INT, note TEXT)`);
+    // Alertes du fondateur : historique (~300 dernières, lues par le téléphone) et téléphones activés depuis le tableau de bord (notifications natives)
+    this.sql.exec(`CREATE TABLE IF NOT EXISTS alerts(id INTEGER PRIMARY KEY AUTOINCREMENT, t INT, title TEXT, body TEXT, url TEXT)`);
+    this.sql.exec(`CREATE TABLE IF NOT EXISTS admin_push(id INTEGER PRIMARY KEY AUTOINCREMENT, endpoint TEXT UNIQUE, sub TEXT, tok TEXT, created INT, label TEXT)`);
   }
   rows(q, ...a){ return [...this.sql.exec(q, ...a)]; }
   one(q, ...a){ return this.rows(q, ...a)[0] || null; }
@@ -76,6 +79,10 @@ export class Hub {
 
   async fetch(req){
     const url = new URL(req.url), path = url.pathname.replace(/^\/social\//, ""), ip = req.headers.get("X-IP") || "?";
+    // route interne du référencement automatique (worker.js > seo) : le routeur public n'envoie ici que des chemins /social/…, jamais /internal/…
+    if(url.pathname === "/internal/seo-state") return req.headers.get("X-Traceo-Internal") === "seo" ? this.seoState(req) : json({error:"not_found"}, 404, {});
+    // alerte envoyée par worker.js (tâches planifiées) : même circuit que les autres (ntfy + notification native du tableau de bord)
+    if(url.pathname === "/internal/alert"){ if(req.headers.get("X-Traceo-Internal") !== "alert" || req.method !== "POST") return json({error:"not_found"}, 404, {}); const a = await req.json().catch(() => ({})); return json(await this.alert(clean(a.title, 120) || "Alerte Traceo", String(a.body || "").slice(0, 1000), {tags:clean(a.tags, 40), priority:clean(a.priority, 10), click:/^https:\/\//.test(a.click || "") ? String(a.click).slice(0, 300) : ""}), 200, {}); }
     if(path === "ipn") return this.ipn(await req.text());
     let body = {}; if(req.method === "POST"){ const raw = await req.text(); if(raw.trim()){ try{ body = JSON.parse(raw); }catch(e){ return json({error:"bad_json"}, 400, {}); } } }
     try{
@@ -88,6 +95,7 @@ export class Hub {
       if(path.startsWith("admin/")) return this.admin(req, path.slice(6), body, url, ip);
       if(path === "sms-status") return json({sms:this.smsReady()}, 200, {});
       if(path === "hit") return await this.hit(body, req, ip);
+      if(path === "alerts") return await this.alertsFeed(req, url, ip);
       const me = await this.auth(req);
       if(!me) return json({error:"auth"}, 401, {});
       this.sql.exec("UPDATE users SET seen = ? WHERE id = ?", NOW(), me.id);
@@ -147,13 +155,12 @@ export class Hub {
     this.sql.exec("INSERT INTO users(id, pseudo, pw, first, last, email, birth, level, pace, bio, created, seen, visible, premium) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
       id, pseudo, await this.hashPw(b.key), first, last, email, birth, LEVELS.includes(b.level) ? b.level : "regulier", Math.max(150, Math.min(900, +b.pace || 345)), clean(b.bio, 140), NOW(), NOW(), b.visible === false ? 0 : 1, b.premium ? 1 : 0);
     const u = this.one("SELECT * FROM users WHERE id = ?", id), token = await this.newSession(u, req);
-    if(this.env.ALERTS_TOPIC){
+    {
       // chiffres agrégés du jour seulement : l'inscription n'est jamais reliée à une visite précise
       const day = new Date().toLocaleDateString("sv-SE", {timeZone:"Europe/Paris"});
       const vis = this.one("SELECT COUNT(DISTINCT vid) AS n, COUNT(DISTINCT CASE WHEN src != '' THEN vid END) AS l FROM hits WHERE day = ? AND ev = 'pv'", day);
       const su = this.one("SELECT COUNT(*) AS n FROM users WHERE created >= ?", NOW() - 864e5).n, tot = this.one("SELECT COUNT(*) AS n FROM users").n;
-      this.state.waitUntil(fetch("https://ntfy.sh/" + this.env.ALERTS_TOPIC, {method:"POST", headers:{Title:"Nouvel inscrit Traceo", Tags:"tada", Priority:"high", Click:DASH_URL},
-        body:`${first} ${last} (@${pseudo}) vient de créer son compte.\nAujourd'hui : ${vis.n} visiteur${vis.n > 1 ? "s" : ""} (dont ${vis.l} via tes liens) · ${su} inscription${su > 1 ? "s" : ""} en 24 h · ${tot} membres au total.`}).catch(() => {}));
+      this.alert("Nouvel inscrit Traceo", `${first} ${last} (@${pseudo}) vient de créer son compte.\nAujourd'hui : ${vis.n} visiteur${vis.n > 1 ? "s" : ""} (dont ${vis.l} via tes liens) · ${su} inscription${su > 1 ? "s" : ""} en 24 h · ${tot} membres au total.`, {tags:"tada", priority:"high", click:DASH_URL});
     }
     return json({token, me:this.mine(u)}, 200, {});
   }
@@ -261,7 +268,7 @@ export class Hub {
     this.sql.exec("INSERT INTO reports(t, who, whom, why) VALUES(?,?,?,?)", NOW(), me.id, who, clean(b.why, 300));
     this.sql.exec("INSERT OR IGNORE INTO blocks(who, whom) VALUES(?, ?)", me.id, who);
     // alerte instantanée au responsable de l'app (même canal ntfy que les alertes de l'app)
-    if(this.env.ALERTS_TOPIC) this.state.waitUntil(fetch("https://ntfy.sh/" + this.env.ALERTS_TOPIC, {method:"POST", headers:{Title:"Signalement Traceo Ensemble", Priority:"high"}, body:`${me.id} signale ${who} : ${clean(b.why, 300)}`}).catch(() => {}));
+    this.alert("Signalement Traceo Ensemble", `${me.id} signale ${who} : ${clean(b.why, 300)}`, {priority:"high"});
     return json({ok:true}, 200, {});
   }
 
@@ -308,7 +315,7 @@ export class Hub {
     if(ok && count % REWARD_EVERY === 0){
       this.sql.exec("INSERT INTO rewards(uid, milestone, amount, status, created) VALUES(?,?,?,?,?)", me.id, count, REWARD_EUR, "a_reclamer", now);
       reward = {milestone:count, amount:REWARD_EUR};
-      if(this.env.ALERTS_TOPIC) this.state.waitUntil(fetch("https://ntfy.sh/" + this.env.ALERTS_TOPIC, {method:"POST", headers:{Title:"Diamant gagne", Tags:"gem"}, body:`${me.first} ${me.last} (@${me.pseudo}) a validé sa ${count}e course et gagne un diamant de ${REWARD_EUR} €.`}).catch(() => {}));
+      this.alert("Diamant gagné", `${me.first} ${me.last} (@${me.pseudo}) a validé sa ${count}e course et gagne un diamant de ${REWARD_EUR} €.`, {tags:"gem"});
     }
     return json({ok:!!ok, reason, count, every:REWARD_EVERY, reward}, 200, {});
   }
@@ -319,7 +326,7 @@ export class Hub {
     if(!r) return json({error:"unknown_reward"}, 404, {});
     this.sql.exec("UPDATE rewards SET status = 'demandee', paypal = ? WHERE id = ?", dev, r.id);
     const url = `${this.env.PUSH_SUBJECT || "https://pierrernrd04-ai.github.io/traceo/"}admin.html#act=${dev}&e=${encodeURIComponent("diamant @" + me.pseudo)}`;
-    if(this.env.ALERTS_TOPIC) this.state.waitUntil(fetch("https://ntfy.sh/" + this.env.ALERTS_TOPIC, {method:"POST", headers:{Title:"Diamant a activer", Tags:"gem", Priority:"high", Click:url, Actions:"view, Activer, " + url}, body:`@${me.pseudo} utilise son diamant (${r.milestone}e course) : 31 jours de Premium à activer.`}).catch(() => {}));
+    this.alert("Diamant à activer", `@${me.pseudo} utilise son diamant (${r.milestone}e course) : 31 jours de Premium à activer.`, {tags:"gem", priority:"high", click:url, actions:"view, Activer, " + url});
     return json({ok:true}, 200, {});
   }
 
@@ -367,7 +374,7 @@ export class Hub {
     // mode test (admin) : code à 6 chiffres envoyé dans les notifications ntfy de Pierre
     const code = String(100000 + (crypto.getRandomValues(new Uint32Array(1))[0] % 900000));
     this.sql.exec("UPDATE users SET phone = ?, phone_code = ?, phone_code_exp = ? WHERE id = ?", ph, await sha("pc:" + code), NOW() + 10*MIN, me.id);
-    if(this.env.ALERTS_TOPIC) await fetch("https://ntfy.sh/" + this.env.ALERTS_TOPIC, {method:"POST", headers:{Title:"Code Traceo (SMS de test)", Tags:"iphone", Priority:"high"}, body:`Ton code de vérification Traceo : ${code}\n(numéro ${ph}, valable 10 minutes)`}).catch(() => {});
+    await this.alert("Code Traceo (SMS de test)", `Ton code de vérification Traceo : ${code}\n(numéro ${ph}, valable 10 minutes)`, {tags:"iphone", priority:"high"});
     return json({ok:true, sent:true, phone:ph, channel:"test"}, 200, {});
   }
   async phoneCheck(me, b){
@@ -400,7 +407,7 @@ export class Hub {
       if(this.one("SELECT 1 AS x FROM payments WHERE txn = ?", txn)) return new Response("dup", {status:200});
       const name = clean([f.get("first_name"), f.get("last_name")].filter(Boolean).join(" "), 80);
       this.sql.exec("INSERT INTO payments(txn, email, amount, currency, t, name) VALUES(?,?,?,?,?,?)", txn, email, amount, cur, NOW(), name);
-      if(this.env.ALERTS_TOPIC) this.state.waitUntil(fetch("https://ntfy.sh/" + this.env.ALERTS_TOPIC, {method:"POST", headers:{Title:"Paiement PayPal recu", Tags:"moneybag", Priority:"high"}, body:`${amount} € reçus de ${name || email} (${email}). Activation automatique dès sa demande dans l'app.`}).catch(() => {}));
+      this.alert("Paiement PayPal reçu", `${amount} € reçus de ${name || email} (${email}). Activation automatique dès sa demande dans l'app.`, {tags:"moneybag", priority:"high"});
       // paiement lancé depuis l'app : le code du téléphone voyage avec le paiement (champ « custom ») → activation immédiate
       const [cdev0, cuid] = (f.get("custom") || "").split("."), cdev = (cdev0 || "").toLowerCase();
       if(/^[a-f0-9]{16}$/.test(cdev)){
@@ -472,7 +479,7 @@ export class Hub {
     if(pu.custom_id !== dev) return json({error:"other_device"}, 403, {});
     const from = Math.max(NOW(), Math.min(+b.from || 0, NOW() + 62*864e5)), until = from + 31*864e5;
     this.sql.exec("INSERT INTO orders(id, dev, t, amount, payer, until) VALUES(?,?,?,?,?,?)", order, dev, NOW(), price, clean(o.payer?.email_address, 120), until);
-    if(this.env.ALERTS_TOPIC) this.state.waitUntil(fetch("https://ntfy.sh/" + this.env.ALERTS_TOPIC, {method:"POST", headers:{Title:"Nouvel abonne Premium (automatique)", Tags:"moneybag", Priority:"high"}, body:`${price} € reçus de ${o.payer?.email_address || "?"} : Premium activé automatiquement (31 jours).`}).catch(() => {}));
+    this.alert("Nouvel abonné Premium (automatique)", `${price} € reçus de ${o.payer?.email_address || "?"} : Premium activé automatiquement (31 jours).`, {tags:"moneybag", priority:"high"});
     return json({code:await this.signAct(dev, until, "paiement")}, 200, {});
   }
   async signAct(dev, until, kind){
@@ -537,7 +544,6 @@ export class Hub {
   }
   // alerte « nouveau visiteur arrivé par ton lien » : une par personne jusqu'à 20 par jour, puis des paliers groupés
   linkAlert(day, src, ref, dev, region, path){
-    if(!this.env.ALERTS_TOPIC) return;
     const n = (+this.one("SELECT v FROM kv WHERE k = ?", "la:" + day)?.v || 0) + 1;
     this.sql.exec("INSERT OR REPLACE INTO kv(k, v) VALUES(?, ?)", "la:" + day, String(n));
     const via = src ? (SRC_LABEL[src.replace(/[-_.].*$/, "")] || `ton lien « ${src} »`) : ref.replace(/\.com$/, "").replace(/^./, c => c.toUpperCase());
@@ -549,7 +555,7 @@ export class Hub {
       title = "Tes liens cartonnent";
       body = `${n} visiteurs sont arrivés par tes liens aujourd'hui (dernier : ${via}).`;
     } else return;
-    this.state.waitUntil(fetch("https://ntfy.sh/" + this.env.ALERTS_TOPIC, {method:"POST", headers:{Title:title, Tags:"eyes", Click:DASH_URL}, body}).catch(() => {}));
+    this.alert(title, body, {tags:"eyes", click:DASH_URL});
   }
   traffic(days){
     days = Math.max(1, Math.min(395, Math.round(days) || 30));
@@ -660,7 +666,7 @@ export class Hub {
       }, 200, {});
     }
     if(path === "traffic") return json(this.traffic(+url.searchParams.get("days") || 30), 200, {});
-    if(path === "dash") return json(this.dashboard(+url.searchParams.get("days") || 30), 200, {});
+    if(path === "dash") return json({...this.dashboard(+url.searchParams.get("days") || 30), seo:this.kvJson("seo:last")}, 200, {});
     if(path === "members"){
       const rows = this.rows(`SELECT u.*, (SELECT COUNT(*) FROM msgs WHERE a = u.id) AS sent, (SELECT COUNT(*) FROM reports WHERE whom = u.id) AS reported, (SELECT COUNT(*) FROM runs WHERE uid = u.id AND ok = 1) AS runs, u.free_used AS free_used FROM users u ORDER BY created DESC LIMIT 5000`);
       return json({members:rows.map(u => ({id:u.id, pseudo:u.pseudo, first:u.first, last:u.last, email:u.email, birth:u.birth, level:u.level, pace:u.pace, created:u.created, last_login:u.last_login, seen:u.seen,
@@ -688,12 +694,25 @@ export class Hub {
       return json({ok:true}, 200, {});
     }
     if(path === "delete"){ const u = this.one("SELECT * FROM users WHERE id = ?", clean(b.id, 32)); if(!u) return json({error:"unknown_user"}, 404, {}); return this.remove(u); }
+    // Alertes en notification native sur le téléphone du fondateur (bouton « Activer » du tableau de bord)
+    if(path === "push-sub") return req.method === "POST" ? this.pushSub(b) : json({error:"method"}, 405, {});
+    if(path === "push-unsub"){ this.sql.exec("DELETE FROM admin_push WHERE endpoint = ?", String(b.endpoint || "").slice(0, 1000)); return json({ok:true}, 200, {}); }
+    if(path === "push-test") return req.method === "POST" ? json({ok:true, ...await this.alert("Notifications activées ✅", "Les alertes Traceo arriveront maintenant ici, même app fermée : inscriptions, visiteurs de tes liens, paiements, signalements.", {tags:"bell", click:DASH_URL})}, 200, {}) : json({error:"method"}, 405, {});
     if(path === "reset"){
       const u = this.one("SELECT * FROM users WHERE id = ?", clean(b.id, 32)); if(!u || !/^[a-f0-9]{64}$/.test(String(b.key || ""))) return json({error:"bad_request"}, 400, {});
       this.sql.exec("UPDATE users SET pw = ? WHERE id = ?", await this.hashPw(b.key), u.id); this.sql.exec("DELETE FROM sessions WHERE uid = ?", u.id);
       return json({ok:true}, 200, {});
     }
     return json({error:"not_found"}, 404, {});
+  }
+
+  /* ---------- Référencement automatique : état gardé pour la tâche planifiée de worker.js ---------- */
+  kvJson(k){ try{ return JSON.parse(this.one("SELECT v FROM kv WHERE k = ?", k)?.v || "null"); }catch(e){ return null; } }
+  async seoState(req){
+    // GET : empreintes des pages + dernier passage ; POST {hashes?, last} : enregistre (appelé seulement par le worker)
+    if(req.method === "POST"){ let b; try{ b = await req.json(); }catch(e){ return json({error:"bad_json"}, 400, {}); }
+      for(const k of ["hashes", "last"]){ const v = b && b[k] && typeof b[k] === "object" ? JSON.stringify(b[k]) : ""; if(v && v.length < 200000) this.sql.exec("INSERT OR REPLACE INTO kv(k, v) VALUES(?, ?)", "seo:" + k, v); } }
+    return json({hashes:this.kvJson("seo:hashes") || {}, last:this.kvJson("seo:last")}, 200, {});
   }
 
   /* ---------- Notifications (Web Push, sans contenu : le téléphone vient lire le message) ---------- */
@@ -713,12 +732,63 @@ export class Hub {
     // le titre et le texte sont gardés pour la lecture par le téléphone (GET /social/inbox) ; la notification elle-même est vide
     if(!u.push || !u.notif) return;
     try{
-      const {endpoint} = JSON.parse(u.push), v = await this.vapid(), aud = new URL(endpoint).origin;
-      const enc = o => b64u(new TextEncoder().encode(JSON.stringify(o)));
-      const unsigned = enc({typ:"JWT", alg:"ES256"}) + "." + enc({aud, exp:Math.floor(NOW()/1000) + 12*3600, sub:this.env.PUSH_SUBJECT || "https://pierrernrd04-ai.github.io/traceo/"});
-      const sig = await crypto.subtle.sign({name:"ECDSA", hash:"SHA-256"}, v.key, new TextEncoder().encode(unsigned));
-      const r = await fetch(endpoint, {method:"POST", headers:{Authorization:`vapid t=${unsigned}.${b64u(sig)}, k=${v.pub}`, TTL:"21600", Urgency:"high", "Content-Length":"0"}});
-      if(r.status === 404 || r.status === 410) this.sql.exec("UPDATE users SET push = NULL WHERE id = ?", u.id);
+      const s = await this.webPush(JSON.parse(u.push).endpoint);
+      if(s === 404 || s === 410) this.sql.exec("UPDATE users SET push = NULL WHERE id = ?", u.id);
     }catch(e){}
+  }
+  // signal Web Push vide (VAPID : jeton ES256 signé ici, valable 12 h) ; renvoie le code HTTP du service de notification
+  async webPush(endpoint){
+    const v = await this.vapid(), aud = new URL(endpoint).origin;
+    const enc = o => b64u(new TextEncoder().encode(JSON.stringify(o)));
+    const unsigned = enc({typ:"JWT", alg:"ES256"}) + "." + enc({aud, exp:Math.floor(NOW()/1000) + 12*3600, sub:this.env.PUSH_SUBJECT || "https://pierrernrd04-ai.github.io/traceo/"});
+    const sig = await crypto.subtle.sign({name:"ECDSA", hash:"SHA-256"}, v.key, new TextEncoder().encode(unsigned));
+    return (await fetch(endpoint, {method:"POST", headers:{Authorization:`vapid t=${unsigned}.${b64u(sig)}, k=${v.pub}`, TTL:"21600", Urgency:"high", "Content-Length":"0"}})).status;
+  }
+
+  /* ---------- Alertes du fondateur : ntfy (comme avant) + historique + notification native sur ses téléphones ----------
+     Le téléphone activé depuis le tableau de bord reçoit un signal vide, puis son service worker lit GET /social/alerts
+     avec le jeton de lecture donné à l'activation (seule son empreinte est gardée ici). Aucune appli à installer. */
+  alert(title, body, o = {}){
+    const h = {Title:String(title).normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^\x20-\x7e]/g, "").replace(/\s+/g, " ").trim()};   // en-têtes HTTP : ASCII seulement
+    if(o.tags) h.Tags = o.tags; if(o.priority) h.Priority = o.priority; if(o.click) h.Click = o.click; if(o.actions) h.Actions = o.actions;
+    const ntfy = this.env.ALERTS_TOPIC ? fetch("https://ntfy.sh/" + this.env.ALERTS_TOPIC, {method:"POST", headers:h, body}).then(r => r.ok, () => false) : Promise.resolve(false);
+    const id = this.one("INSERT INTO alerts(t, title, body, url) VALUES(?,?,?,?) RETURNING id", NOW(), clean(title, 120), String(body ?? "").slice(0, 1000), o.click || DASH_URL).id;
+    this.sql.exec("DELETE FROM alerts WHERE id <= ?", id - 300);
+    const p = Promise.all([ntfy, this.adminPushAll()]).then(([n, s]) => ({id, ntfy:n, ...s}));
+    this.state.waitUntil(p);
+    return p;
+  }
+  async adminPushAll(){
+    let sent = 0, gone = 0;
+    await Promise.all(this.rows("SELECT id, endpoint FROM admin_push").filter(s => this.pushOk(s.endpoint)).map(async s => {
+      try{ const st = await this.webPush(s.endpoint); if(st === 404 || st === 410){ this.sql.exec("DELETE FROM admin_push WHERE id = ?", s.id); gone++; } else if(st < 300) sent++; }catch(e){}
+    }));
+    return {sent, gone};
+  }
+  // seuls les vrais services de notification des navigateurs sont acceptés (jamais une adresse quelconque : pas de requête forgée vers l'intérieur)
+  pushOk(ep){
+    try{
+      const u = new URL(ep);
+      if(this.env.PUSH_TEST_HOST && u.host === this.env.PUSH_TEST_HOST && /^https?:$/.test(u.protocol)) return true;   // essais locaux seulement (jamais dans wrangler.toml)
+      return u.protocol === "https:" && !u.port && !u.username && !u.password && /^(fcm\.googleapis\.com|updates\.push\.services\.mozilla\.com|web\.push\.apple\.com|([a-z0-9-]+\.)+push\.services\.mozilla\.com|([a-z0-9-]+\.)+push\.apple\.com|([a-z0-9-]+\.)+notify\.windows\.com)$/.test(u.hostname);
+    }catch(e){ return false; }
+  }
+  async pushSub(b){
+    const s = b.sub || {}, ep = String(s.endpoint || ""), k = s.keys || {};
+    if(ep.length > 1000 || !this.pushOk(ep) || !/^[\w-]{40,200}=*$/.test(k.p256dh || "") || !/^[\w-]{10,80}=*$/.test(k.auth || "")) return json({error:"bad_subscription"}, 400, {});
+    if(this.one("SELECT COUNT(*) AS n FROM admin_push").n >= 20 && !this.one("SELECT 1 AS x FROM admin_push WHERE endpoint = ?", ep)) return json({error:"too_many_devices"}, 409, {});
+    const tok = hex(crypto.getRandomValues(new Uint8Array(24)));
+    this.sql.exec("INSERT INTO admin_push(endpoint, sub, tok, created, label) VALUES(?,?,?,?,?) ON CONFLICT(endpoint) DO UPDATE SET sub = excluded.sub, tok = excluded.tok, created = excluded.created, label = excluded.label",
+      ep, JSON.stringify({endpoint:ep, keys:{p256dh:k.p256dh, auth:k.auth}}), await sha(tok), NOW(), clean(b.label, 60));
+    return json({tok, last:this.one("SELECT MAX(id) AS m FROM alerts").m || 0, devices:this.one("SELECT COUNT(*) AS n FROM admin_push").n}, 200, {});
+  }
+  // lecture par le service worker du téléphone : alertes plus récentes que ?since (10 au plus, la plus récente en dernier)
+  async alertsFeed(req, url, ip){
+    if(this.limit("al:" + ip, 120, 15*MIN)) return json({error:"rate_limited"}, 429, {});
+    const t = this.tok(req), dev = t && this.one("SELECT id FROM admin_push WHERE tok = ?", await sha(t));
+    if(!dev) return json({error:"auth"}, 401, {});
+    const since = Math.max(0, Math.floor(+url.searchParams.get("since") || 0)), cols = "id, t, title, body, url";
+    return json({alerts:this.rows(`SELECT ${cols} FROM alerts WHERE id > ? ORDER BY id DESC LIMIT 10`, since).reverse(), n:this.one("SELECT COUNT(*) AS n FROM alerts WHERE id > ?", since).n,
+      last:this.one(`SELECT ${cols} FROM alerts ORDER BY id DESC LIMIT 1`)}, 200, {});
   }
 }

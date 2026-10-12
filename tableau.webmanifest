@@ -1,0 +1,31 @@
+{
+  "name": "Traceo Admin",
+  "short_name": "Traceo Admin",
+  "description": "Tableau de bord de Traceo et alertes en notification (inscriptions, visiteurs, paiements, signalements).",
+  "lang": "fr",
+  "id": "/tableau",
+  "start_url": "/tableau",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#07131A",
+  "theme_color": "#07131A",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

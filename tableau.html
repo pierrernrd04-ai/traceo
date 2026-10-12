@@ -8,6 +8,12 @@
 <meta name="theme-color" content="#07131A">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<!-- « Traceo Admin » sur l'écran d'accueil : sur iPhone, les notifications ne marchent que depuis l'icône -->
+<link rel="manifest" href="tableau.webmanifest">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Traceo Admin">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700..800&family=Figtree:wght@500;600;700;800;900&display=swap">
 <script src="config.js"></script>
@@ -90,9 +96,129 @@ h2{font:800 17px "Bricolage Grotesque",sans-serif;letter-spacing:-.01em;margin-b
 @media (max-width:900px){ .kpis{grid-template-columns:1fr 1fr} .tiles{grid-template-columns:1fr 1fr} }
 @media (max-width:720px){ .grid2{grid-template-columns:1fr} .kpi .val{font-size:30px} }
 </style>
+<style>
+/* 🔔 Alertes sur ce téléphone */
+.wrap{padding-top:max(16px, env(safe-area-inset-top))}
+.push{display:grid;grid-template-columns:1fr auto;gap:12px 16px;align-items:center}
+.push h2{margin-bottom:4px;flex-wrap:wrap}
+.push .ptxt p{color:var(--muted);font-size:14px}
+.push .ptxt p b{color:var(--ink)}
+.push.hot{background:linear-gradient(135deg,rgba(37,201,143,.12),rgba(30,166,208,.08));border-color:rgba(37,201,143,.35)}
+.push .acts{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.push .btn{padding:12px 22px;font-size:15.5px}
+.push button[disabled]{opacity:.55;cursor:default}
+.pill{display:inline-flex;align-items:center;font:800 12.5px Figtree,system-ui,sans-serif;letter-spacing:0;padding:3px 9px;border-radius:999px;background:var(--surface-2);color:var(--muted)}
+.pill.on{background:var(--good-bg);color:var(--good)}
+.pill.no{background:var(--bad-bg);color:var(--bad)}
+.steps{grid-column:1 / -1;list-style:none;counter-reset:s;display:grid;gap:8px}
+.steps li{counter-increment:s;display:flex;gap:10px;align-items:center;background:var(--surface-2);border-radius:12px;padding:10px 12px;font-size:14.5px}
+.steps li::before{content:counter(s);flex:0 0 24px;height:24px;border-radius:50%;background:var(--data);color:#03140D;font-weight:900;font-size:13px;display:grid;place-items:center}
+.steps svg{width:17px;height:17px;vertical-align:-3px;color:#4DA3FF}
+.push .msg{grid-column:1 / -1;font-size:13.5px;font-weight:700;color:var(--ink)}
+@media (max-width:560px){ .push{grid-template-columns:1fr} .push .acts{justify-content:stretch} .push .acts > *{flex:1} }
+</style>
 </head>
 <body>
 <div class="wrap" id="app"></div>
+<script>
+// 🔔 Alertes sur ce téléphone : notifications natives (Web Push), sans appli à installer.
+// Le téléphone s'abonne avec la clé VAPID du serveur et reçoit un jeton de lecture ; à chaque alerte, le serveur envoie un signal vide
+// et le service worker (sw.js) vient lire les nouvelles alertes (GET /social/alerts). Fonctions appelées après le script principal (API, KEY, $, esc).
+const PIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+const PSTAND = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+let PS = {st:"", msg:"", busy:false, last:null}, VKEY = null;
+const pushCan = () => "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+const pushReg = () => navigator.serviceWorker.register("sw.js", {scope:"./"});
+const pcfg = async v => { const c = await caches.open("traceo-admin"); if(v === undefined){ const r = await c.match("cfg"); return r ? r.json() : null; } return v ? c.put("cfg", new Response(JSON.stringify(v))) : c.delete("cfg"); };
+const vapidKey = async () => VKEY || (VKEY = await fetch(API + "/social/vapid").then(r => r.json()).then(j => Uint8Array.from(atob(j.key.replace(/-/g, "+").replace(/_/g, "/")), c => c.charCodeAt(0))));
+const pushLabel = () => { const u = navigator.userAgent; return (/iPhone/.test(u) ? "iPhone" : /iPad/.test(u) ? "iPad" : /Android/.test(u) ? "Android" : /Mac/.test(u) ? "Mac" : /Windows/.test(u) ? "PC" : "Ordinateur") + (/Edg\//.test(u) ? " · Edge" : /Firefox\//.test(u) ? " · Firefox" : /Chrome\//.test(u) ? " · Chrome" : /Safari\//.test(u) ? " · Safari" : ""); };
+const pAgo = t => { const m = Math.max(1, Math.round((Date.now() - t)/6e4)); return m < 60 ? m + " min" : m < 2880 ? Math.round(m/60) + " h" : Math.round(m/1440) + " jours"; };
+async function apost(path, body){
+  const r = await fetch(API + "/social/admin/" + path, {method:"POST", headers:{"X-Admin-Key":KEY, "Content-Type":"application/json"}, body:JSON.stringify(body || {})});
+  const j = await r.json().catch(() => ({})); if(!r.ok) throw new Error(j.error || "http " + r.status); return j;
+}
+const pushErr = e => ({auth:"Clé d'administration refusée : reconnecte-toi.", rate_limited:"Trop d'essais : attends quelques minutes.", bad_subscription:"Ce navigateur n'est pas pris en charge pour les notifications.", too_many_devices:"20 appareils déjà activés : désactive-en un d'abord.", sw:"Le service de notifications ne démarre pas : recharge la page et réessaie."})[e.message]
+  || (e.name === "NotAllowedError" ? "Notifications refusées par le navigateur." : "Activation impossible pour l'instant (" + (e.message || "erreur") + ").");
+async function pushState(){
+  try{
+    if(!pushCan()) return PS.st = PIOS && !PSTAND ? "ios" : "unsupported";
+    if(Notification.permission === "denied") return PS.st = "denied";
+    const cfg = await pcfg(), reg = await navigator.serviceWorker.getRegistration("./"), sub = reg && await reg.pushManager.getSubscription();
+    if(!cfg || Notification.permission !== "granted" || !sub) return PS.st = "off";
+    // abonnement renouvelé par le navigateur : on le redonne au serveur, sans rien demander
+    if(sub.endpoint !== cfg.endpoint){ const j = await apost("push-sub", {sub:sub.toJSON(), label:pushLabel()}); await pcfg({...cfg, tok:j.tok, endpoint:sub.endpoint}); return PS.st = "on"; }
+    const r = await fetch(API + "/social/alerts?since=" + (cfg.since || 0), {headers:{Authorization:"Bearer " + cfg.tok}});
+    if(r.status === 401){ await pcfg(null); return PS.st = "off"; }   // désactivé depuis un autre appareil
+    if(r.ok) PS.last = (await r.json()).last;
+    return PS.st = "on";
+  }catch(e){ return PS.st = PS.st || "off"; }
+}
+async function pushOn(){
+  if(PS.busy) return;
+  PS.busy = true; PS.msg = ""; pushPaint();
+  try{
+    const regP = pushReg();   // lancé dans le même geste que la demande d'autorisation (exigé sur iPhone)
+    const perm = await Notification.requestPermission();
+    if(perm !== "granted"){ PS.st = perm === "denied" ? "denied" : "off"; PS.msg = perm === "denied" ? "" : "Autorisation non donnée : touche « Activer » puis « Autoriser »."; return; }
+    await regP;
+    const reg = await Promise.race([navigator.serviceWorker.ready, new Promise((ok, no) => setTimeout(() => no(new Error("sw")), 15000))]), key = await vapidKey();
+    let sub = await reg.pushManager.getSubscription();
+    const k = sub?.options?.applicationServerKey; if(k && new Uint8Array(k).join() !== key.join()){ await sub.unsubscribe(); sub = null; }   // ancien abonnement d'une autre clé
+    sub = sub || await reg.pushManager.subscribe({userVisibleOnly:true, applicationServerKey:key});
+    const j = await apost("push-sub", {sub:sub.toJSON(), label:pushLabel()});
+    await pcfg({api:API, tok:j.tok, since:j.last || 0, endpoint:sub.endpoint});
+    const t = await apost("push-test");
+    PS.st = "on"; PS.last = null; PS.msg = t.sent ? "C'est prêt ✓ Une notification d'essai arrive dans quelques secondes." : "Activé, mais l'essai n'est pas parti : touche « Tester » dans un instant.";
+  }catch(e){ PS.msg = pushErr(e); }
+  finally{ PS.busy = false; pushPaint(); }
+}
+async function pushTest(){
+  PS.busy = true; pushPaint();
+  try{ const t = await apost("push-test"); PS.msg = t.sent ? `Notification d'essai envoyée${t.sent > 1 ? ` à tes ${t.sent} appareils` : ""} ✓` : "Aucun appareil n'a reçu l'essai : touche « Désactiver » puis « Activer »."; }
+  catch(e){ PS.msg = pushErr(e); }
+  PS.busy = false; pushPaint();
+}
+async function pushOff(){
+  PS.busy = true; pushPaint();
+  try{
+    const cfg = await pcfg(), reg = await navigator.serviceWorker.getRegistration("./"), sub = reg && await reg.pushManager.getSubscription();
+    for(const ep of new Set([sub?.endpoint, cfg?.endpoint].filter(Boolean))) await apost("push-unsub", {endpoint:ep});
+    await pcfg(null);
+    // le même abonnement sert aux messages « Ensemble » de l'app : on ne le supprime que s'il ne sert à rien d'autre
+    if(sub && !(await caches.match("auth", {cacheName:"traceo-social"}))) await sub.unsubscribe();
+    PS.st = "off"; PS.last = null; PS.msg = "Alertes désactivées sur cet appareil.";
+  }catch(e){ PS.msg = pushErr(e); }
+  PS.busy = false; pushPaint();
+}
+const SHARE_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-label="Partager"><path d="M12 3v12M8 7l4-4 4 4"/><path d="M8 11H6a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-2"/></svg>`;
+function pushCard(){
+  const s = PS.st, b = PS.busy ? "disabled" : "";
+  if(!s) return `<div class="card push" id="pushCard"><div class="ptxt"><h2>🔔 Alertes sur ce téléphone</h2><p>Vérification…</p></div></div>`;
+  const [pc, pl] = {on:["on", "Activées"], off:["", "Pas encore"], denied:["no", "Refusées"], unsupported:["no", "Non supporté"], ios:["", "1 minute"]}[s];
+  const txt = {
+    on:`Inscriptions, visiteurs de tes liens, paiements, signalements : tout arrive ici en notification, même l'app fermée.${PS.last ? `<br>Dernière alerte : <b>${esc(PS.last.title)}</b>, il y a ${pAgo(PS.last.t)}.` : ""}`,
+    off:"Reçois chaque inscription, visiteur de tes liens, paiement et signalement en notification sur ce téléphone. Aucune appli à installer.",
+    denied:PIOS ? "Les notifications sont bloquées. Ouvre <b>Réglages › Notifications › Traceo Admin</b>, active « Autoriser les notifications », puis touche « Réessayer »." : "Les notifications sont bloquées pour ce site. Touche le cadenas 🔒 à gauche de l'adresse › <b>Notifications › Autoriser</b>, puis « Réessayer ».",
+    unsupported:"Ce navigateur ne sait pas afficher de notifications. Utilise Chrome, Edge, Firefox ou Safari récent (sur iPhone : iOS 16.4 minimum, depuis l'icône de l'écran d'accueil).",
+    ios:"Sur iPhone, Apple n'autorise les notifications que depuis l'écran d'accueil. À faire une seule fois :"
+  }[s];
+  const acts = s === "on" ? `<button class="icon-btn" id="pTest" ${b}>Tester</button><button class="icon-btn" id="pOff" ${b}>Désactiver</button>`
+    : s === "off" || s === "denied" ? `<button class="btn" id="pOn" ${b}>${PS.busy ? "Activation…" : s === "denied" ? "Réessayer" : "Activer"}</button>` : "";
+  const steps = s === "ios" ? `<ol class="steps"><li><span>Touche <b>Partager</b> ${SHARE_SVG} en bas de Safari</span></li><li><span>Choisis <b>« Sur l'écran d'accueil »</b>, puis « Ajouter »</span></li><li><span>Ouvre <b>« Traceo Admin »</b> depuis la nouvelle icône (entre ta clé une fois)</span></li><li><span>Touche <b>« Activer »</b>, puis « Autoriser »</span></li></ol>` : "";
+  return `<div class="card push ${s === "on" ? "" : "hot"}" id="pushCard"><div class="ptxt"><h2>🔔 Alertes sur ce téléphone <span class="pill ${pc}">${pl}</span></h2><p>${txt}</p></div>${acts ? `<div class="acts">${acts}</div>` : ""}${steps}${PS.msg ? `<p class="msg" role="status">${esc(PS.msg)}</p>` : ""}</div>`;
+}
+function wirePush(){ const on = (id, f) => { const el = document.getElementById(id); if(el) el.onclick = f; }; on("pOn", pushOn); on("pTest", pushTest); on("pOff", pushOff); }
+function pushPaint(){
+  const el = document.getElementById("pushCard"); if(el){ el.outerHTML = pushCard(); wirePush(); }
+  clearTimeout(PS.tm); if(PS.msg && !PS.busy) PS.tm = setTimeout(() => { PS.msg = ""; pushPaint(); }, 20000);   // message effacé au bout de 20 s
+}
+document.addEventListener("DOMContentLoaded", async () => {
+  if(!API) return;
+  navigator.serviceWorker?.addEventListener?.("message", e => { if(e.data === "alertes" && D) load().catch(() => {}); });   // alerte touchée : chiffres à jour
+  await pushState(); pushPaint();
+  if(PS.st === "off" && KEY){ pushReg().catch(() => {}); vapidKey().catch(() => {}); }   // préparé d'avance : le bouton « Activer » répond tout de suite
+});
+</script>
 <script>
 const $ = s => document.querySelector(s);
 const API = (window.TRACEO_CONFIG?.SOCIAL_API || window.TRACEO_CONFIG?.CHAT_API || "").replace(/\/$/, "");
@@ -144,6 +270,7 @@ function bars(items, opt = {}){
 }
 const dlab = d => d.slice(8) + "/" + d.slice(5, 7);
 const dlong = d => new Date(d + "T12:00").toLocaleDateString("fr-FR", {weekday:"long", day:"numeric", month:"long"});
+const ago = t => { const m = Math.max(0, Math.round((Date.now() - t)/6e4)); return m < 120 ? m + " min" : m < 2880 ? Math.round(m/60) + " h" : Math.round(m/1440) + " jours"; };
 
 function insights(){
   const c = D.cur, p = D.prev, [now, before] = PER[DAYS] || PER[7], out = [];
@@ -196,6 +323,8 @@ function view(){
     <div class="bar-tools"><div class="seg">${[[1, "Aujourd'hui"], [7, "7 jours"], [30, "30 jours"], [90, "90 jours"]].map(([n, l]) => `<button data-d="${n}" aria-pressed="${DAYS === n}">${l}</button>`).join("")}</div>
       <button class="icon-btn" id="rf">↻ Actualiser</button><a class="icon-btn" href="admin.html">Membres et paiements →</a></div>
 
+    ${pushCard()}
+
     <div class="card brief"><h2>✨ En bref, ${now}</h2><ul>${insights().map(([e, t]) => `<li><span class="e">${e}</span><span>${t}</span></li>`).join("")}</ul></div>
 
     <div class="kpis">
@@ -240,10 +369,12 @@ function view(){
     <div class="card links"><h2>🔗 Tes liens suivis</h2><p class="cap" style="margin:-4px 0 6px">Utilise ces liens : les visites qu'ils apportent apparaissent à part dans « D'où viennent tes visiteurs ».</p>
       ${[["📲 Story Instagram", "https://traceorun.pages.dev/nouveau?src=story"], ["📸 Bio Instagram", "https://traceorun.pages.dev/?src=bio"], ["💼 LinkedIn", "https://traceorun.pages.dev/?src=linkedin"], ["💬 WhatsApp", "https://traceorun.pages.dev/?src=whatsapp"]].map(([l, u]) => `<div class="lk"><span style="min-width:150px;font-weight:700">${l}</span><code>${u}</code><button class="icon-btn" data-copy="${u}">Copier</button></div>`).join("")}</div>
 
-    <p class="note">Mis à jour à ${D.at.toLocaleTimeString("fr-FR", {hour:"2-digit", minute:"2-digit"})}. Une visite = une personne sur le site un jour donné. Mesure sans cookie : rien n'est stocké chez les visiteurs.</p>`;
+    <p class="note">Mis à jour à ${D.at.toLocaleTimeString("fr-FR", {hour:"2-digit", minute:"2-digit"})}. Une visite = une personne sur le site un jour donné. Mesure sans cookie : rien n'est stocké chez les visiteurs.</p>
+    ${D.seo?.t ? `<p class="note" style="margin-top:6px" title="Toutes les heures, le serveur signale les pages nouvelles ou modifiées à Bing, DuckDuckGo, Ecosia, Qwant, Yahoo et Yandex (IndexNow)">🔎 Référencement automatique : ${nf(D.seo.pages)} page${D.seo.pages > 1 ? "s" : ""} signalée${D.seo.pages > 1 ? "s" : ""} à Bing &amp; co, dernière vérification il y a ${ago(D.seo.t)}${D.seo.error ? ` · <span style="color:var(--bad)">⚠️ ${esc(D.seo.error)}</span>` : ""}</p>` : ""}`;
   document.querySelectorAll("[data-d]").forEach(b => b.onclick = async () => { DAYS = +b.dataset.d; localStorage.setItem("traceoDashDays", DAYS); $("#app").classList.add("skel"); try{ await load(); }catch(e){ alert("Erreur : " + e.message); } $("#app").classList.remove("skel"); });
   $("#rf").onclick = () => load().catch(e => alert("Erreur : " + e.message));
   document.querySelectorAll("[data-copy]").forEach(b => b.onclick = () => navigator.clipboard?.writeText(b.dataset.copy).then(() => { b.textContent = "Copié ✓"; setTimeout(() => b.textContent = "Copier", 1500); }));
+  wirePush();
   let tip = null;
   const showTip = (col, e) => { tip?.remove(); document.querySelectorAll(".col.sel").forEach(x => x.classList.remove("sel")); col.classList.add("sel"); const [a, b] = col.dataset.tip.split("|"); tip = document.createElement("div"); tip.className = "tip"; tip.innerHTML = `<b>${esc(a)}</b>${esc(b)}`; document.body.appendChild(tip);
     const r = col.getBoundingClientRect(); tip.style.left = Math.max(8, Math.min(innerWidth - tip.offsetWidth - 8, r.left + r.width/2 - tip.offsetWidth/2)) + "px"; tip.style.top = Math.max(8, r.top + r.height - (col.firstElementChild.offsetHeight) - tip.offsetHeight - 10) + "px"; };
