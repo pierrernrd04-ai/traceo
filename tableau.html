@@ -198,13 +198,13 @@ function pushCard(){
   const txt = {
     on:`Inscriptions, visiteurs de tes liens, paiements, signalements : tout arrive ici en notification, même l'app fermée.${PS.last ? `<br>Dernière alerte : <b>${esc(PS.last.title)}</b>, il y a ${pAgo(PS.last.t)}.` : ""}`,
     off:"Reçois chaque inscription, visiteur de tes liens, paiement et signalement en notification sur ce téléphone. Aucune appli à installer.",
-    denied:PIOS ? "Les notifications sont bloquées. Ouvre <b>Réglages › Notifications › Traceo Admin</b>, active « Autoriser les notifications », puis touche « Réessayer »." : "Les notifications sont bloquées pour ce site. Touche le cadenas 🔒 à gauche de l'adresse › <b>Notifications › Autoriser</b>, puis « Réessayer ».",
+    denied:PIOS ? "Les notifications sont bloquées. Ouvre <b>Réglages › Notifications › Traceo Admin</b>, active « Autoriser les notifications », puis touche « Réessayer »." : "Les notifications sont bloquées pour ce site. Touche l'icône à gauche de l'adresse (cadenas ou réglages) › <b>Notifications › Autoriser</b>, puis « Réessayer ».",
     unsupported:"Ce navigateur ne sait pas afficher de notifications. Utilise Chrome, Edge, Firefox ou Safari récent (sur iPhone : iOS 16.4 minimum, depuis l'icône de l'écran d'accueil).",
     ios:"Sur iPhone, Apple n'autorise les notifications que depuis l'écran d'accueil. À faire une seule fois :"
   }[s];
   const acts = s === "on" ? `<button class="icon-btn" id="pTest" ${b}>Tester</button><button class="icon-btn" id="pOff" ${b}>Désactiver</button>`
     : s === "off" || s === "denied" ? `<button class="btn" id="pOn" ${b}>${PS.busy ? "Activation…" : s === "denied" ? "Réessayer" : "Activer"}</button>` : "";
-  const steps = s === "ios" ? `<ol class="steps"><li><span>Touche <b>Partager</b> ${SHARE_SVG} en bas de Safari</span></li><li><span>Choisis <b>« Sur l'écran d'accueil »</b>, puis « Ajouter »</span></li><li><span>Ouvre <b>« Traceo Admin »</b> depuis la nouvelle icône (entre ta clé une fois)</span></li><li><span>Touche <b>« Activer »</b>, puis « Autoriser »</span></li></ol>` : "";
+  const steps = s === "ios" ? `<ol class="steps"><li><span>Dans Safari, touche <b>Partager</b> ${SHARE_SVG} (ou <b>•••</b> à côté de l'adresse, puis Partager)</span></li><li><span>Choisis <b>« Sur l'écran d'accueil »</b> (plus bas dans la liste), puis « Ajouter »</span></li><li><span>Ouvre <b>« Traceo Admin »</b> depuis la nouvelle icône (entre ta clé une fois)</span></li><li><span>Touche <b>« Activer »</b>, puis « Autoriser »</span></li></ol>` : "";
   return `<div class="card push ${s === "on" ? "" : "hot"}" id="pushCard"><div class="ptxt"><h2>🔔 Alertes sur ce téléphone <span class="pill ${pc}">${pl}</span></h2><p>${txt}</p></div>${acts ? `<div class="acts">${acts}</div>` : ""}${steps}${PS.msg ? `<p class="msg" role="status">${esc(PS.msg)}</p>` : ""}</div>`;
 }
 function wirePush(){ const on = (id, f) => { const el = document.getElementById(id); if(el) el.onclick = f; }; on("pOn", pushOn); on("pTest", pushTest); on("pOff", pushOff); }

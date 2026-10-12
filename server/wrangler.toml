@@ -22,11 +22,12 @@ class_name = "Hub"
 tag = "v1"
 new_sqlite_classes = ["Hub"]
 
-# IA gratuite de Cloudflare pour le chat quand il n'y a pas de clé Anthropic
-[ai]
-binding = "AI"
-
 # Référencement automatique : toutes les heures (à la 7e minute), le serveur signale à IndexNow (Bing, DuckDuckGo, Ecosia,
 # Qwant, Yahoo, Yandex…) les pages nouvelles ou modifiées du sitemap. Aucune action manuelle (voir seo() dans worker.js).
+# Placé avant [ai] : le second essai de .github/workflows/server.yml efface tout à partir de [ai].
 [triggers]
 crons = ["7 * * * *"]
+
+# IA gratuite de Cloudflare pour le chat quand il n'y a pas de clé Anthropic (laisser en dernier, voir ci-dessus)
+[ai]
+binding = "AI"

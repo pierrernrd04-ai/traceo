@@ -27,12 +27,14 @@ const DASH = "tableau", isDash = u => /\/tableau(\.html)?([?#]|$)/.test(u || "")
 self.addEventListener("push", e => {
   e.waitUntil((async () => {
     const show = (t, o) => self.registration.showNotification(t, {icon:"icons/icon-192.png", badge:"icons/icon-192.png", ...o});
+    // lecture limitée à 8 s : réseau bloqué = notification générique quand même (Safari coupe les notifications après 3 signaux restés sans affichage)
+    const wait = () => typeof AbortSignal === "function" && AbortSignal.timeout ? {signal:AbortSignal.timeout(8000)} : {};
     let shown = 0, admin = false, last = null;
     try{
       const ac = await caches.open("traceo-admin"), hit = await ac.match("cfg"), cfg = hit && await hit.json();
       if(cfg && cfg.tok){
         admin = true;
-        const r = await fetch(cfg.api + "/social/alerts?since=" + (cfg.since || 0), {headers:{Authorization:"Bearer " + cfg.tok}});
+        const r = await fetch(cfg.api + "/social/alerts?since=" + (cfg.since || 0), {headers:{Authorization:"Bearer " + cfg.tok}, ...wait()});
         if(r.status === 401) await ac.delete("cfg");   // alertes désactivées depuis un autre appareil
         else if(r.ok){
           const j = await r.json(), list = j.alerts || [], n = Math.max(j.n || 0, list.length), go = a => /^https:\/\//.test(a.url || "") ? a.url : DASH;
@@ -51,7 +53,7 @@ self.addEventListener("push", e => {
       if(hit){
         ens = true;
         const {api, auth, since} = await hit.json();
-        const j = await (await fetch(api + "/social/inbox?since=" + (since || 0), {headers:{Authorization:"Bearer " + auth}})).json();
+        const j = await (await fetch(api + "/social/inbox?since=" + (since || 0), {headers:{Authorization:"Bearer " + auth}, ...wait()})).json();
         const m = (j.msgs || []).filter(x => x.to === j.me.id).pop();
         if(m){
           const n = (j.users[m.from] || {}).name || "Un coureur";
