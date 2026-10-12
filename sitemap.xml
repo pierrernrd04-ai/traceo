@@ -2,21 +2,17 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
   <url>
     <loc>https://traceorun.pages.dev/</loc>
-    <lastmod>2026-10-12</lastmod>
     <image:image><image:loc>https://traceorun.pages.dev/site/og.jpg</image:loc></image:image>
     <image:image><image:loc>https://traceorun.pages.dev/site/carte.webp</image:loc></image:image>
     <image:image><image:loc>https://traceorun.pages.dev/site/boucle.webp</image:loc></image:image>
   </url>
   <url>
     <loc>https://traceorun.pages.dev/nouveau</loc>
-    <lastmod>2026-10-12</lastmod>
   </url>
   <url>
     <loc>https://traceorun.pages.dev/app</loc>
-    <lastmod>2026-10-12</lastmod>
   </url>
   <url>
     <loc>https://traceorun.pages.dev/legal</loc>
-    <lastmod>2026-10-12</lastmod>
   </url>
 </urlset>

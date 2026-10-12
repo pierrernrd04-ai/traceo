@@ -35,7 +35,7 @@ const ACT_PUB = {"kty":"EC","crv":"P-256","x":"__6AWyNjAcpIy9E2jeaF-pVNzipouEcuY
 const FREE_LOOPS = 3;   // boucles offertes à chaque nouveau compte (version gratuite)
 const REWARD_EVERY = 100, REWARD_EUR = 5;   // un diamant (bon d'achat de 5 €) toutes les 100 courses vérifiées
 const DASH_URL = "https://traceorun.pages.dev/tableau";   // ouvert en touchant une alerte
-const SRC_LABEL = {story:"ta story Instagram", bio:"ta bio Instagram", insta:"Instagram", instagram:"Instagram", linkedin:"LinkedIn", whatsapp:"WhatsApp", facebook:"Facebook", tiktok:"TikTok", strava:"Strava", email:"ton e-mail", qr:"ton QR code", reddit:"Reddit", forum:"un forum running", club:"un club contacté", createur:"un créateur partenaire"};
+const SRC_LABEL = {story:"ta story Instagram", bio:"ta bio Instagram", ig:"Instagram", insta:"Instagram", instagram:"Instagram", linkedin:"LinkedIn", whatsapp:"WhatsApp", facebook:"Facebook", tiktok:"TikTok", strava:"Strava", email:"ton e-mail", qr:"ton QR code", reddit:"Reddit", forum:"un forum running", club:"un club contacté", createur:"un créateur partenaire"};
 const SOCIAL_REF = /^(instagram|facebook|linkedin|lnkd\.in|tiktok|t\.co|x|twitter|snapchat|whatsapp|wa\.me|youtube|threads|reddit|strava)(\.com|\.net)?$/;
 
 export class Hub {
@@ -96,6 +96,7 @@ export class Hub {
       if(path === "sms-status") return json({sms:this.smsReady()}, 200, {});
       if(path === "hit") return await this.hit(body, req, ip);
       if(path === "alerts") return await this.alertsFeed(req, url, ip);
+      if(path === "evt") return this.evtAlert(body, ip);
       const me = await this.auth(req);
       if(!me) return json({error:"auth"}, 401, {});
       this.sql.exec("UPDATE users SET seen = ? WHERE id = ?", NOW(), me.id);
@@ -718,6 +719,9 @@ export class Hub {
   /* ---------- Notifications (Web Push, sans contenu : le téléphone vient lire le message) ---------- */
   async vapid(){
     if(this._v) return this._v;
+    return this._vp || (this._vp = this.vapidLoad().finally(() => { this._vp = null; }));   // appels simultanés (envois en parallèle) : une seule création de clé
+  }
+  async vapidLoad(){
     let row = this.one("SELECT v FROM kv WHERE k = 'vapid'");
     if(!row){
       const kp = await crypto.subtle.generateKey({name:"ECDSA", namedCurve:"P-256"}, true, ["sign", "verify"]);
@@ -748,10 +752,26 @@ export class Hub {
   /* ---------- Alertes du fondateur : ntfy (comme avant) + historique + notification native sur ses téléphones ----------
      Le téléphone activé depuis le tableau de bord reçoit un signal vide, puis son service worker lit GET /social/alerts
      avec le jeton de lecture donné à l'activation (seule son empreinte est gardée ici). Aucune appli à installer. */
+  // événements vus dans l'app (le téléphone du visiteur prévient le serveur) : liste fermée, aucun texte libre, plafonds par IP et par jour
+  evtAlert(b, ip){
+    const E = {paiement_clic:["Quelqu'un ouvre le paiement PayPal", "eyes", "default", 40], course_terminee:["Une course terminée avec Traceo", "runner", "low", 60], ensemble_depart:["Un coureur lance « Je pars courir »", "loudspeaker", "low", 30]};
+    const name = String(b && b.e || ""), e = E[name];
+    if(!e) return json({error:"bad_event"}, 400, {});
+    const day = new Date().toLocaleDateString("sv-SE", {timeZone:"Europe/Paris"}), k = "evt:" + day + ":" + name;
+    if(this.limit("evt:" + ip + ":" + name, 3, 24*HOUR)) return json({ok:false}, 200, {});
+    const n = (+this.one("SELECT v FROM kv WHERE k = ?", k)?.v || 0) + 1;
+    if(n > e[3]) return json({ok:false}, 200, {});
+    this.sql.exec("DELETE FROM kv WHERE k LIKE 'evt:%' AND k NOT LIKE ?", "evt:" + day + ":%");
+    this.sql.exec("INSERT OR REPLACE INTO kv(k, v) VALUES(?, ?)", k, String(n));
+    const km = +(b.km || 0), via = {fin_beta:"fin de l'essai gratuit", onglet_premium:"onglet Premium", bouton_paypal:"bouton PayPal", premium_auto:"parcours Premium"}[String(b.depuis || "")];
+    const extra = name === "course_terminee" && km > 0 && km < 200 ? ` (${String(Math.round(km*10)/10).replace(".", ",")} km)` : name === "paiement_clic" && via ? ` (depuis : ${via})` : name === "ensemble_depart" && +b.n > 0 ? ` (${Math.min(999, Math.round(+b.n))} coureurs prévenus)` : "";
+    this.alert(e[0], e[0] + extra + ".", {tags:e[1], priority:e[2], click:DASH_URL});
+    return json({ok:true}, 200, {});
+  }
   alert(title, body, o = {}){
-    const h = {Title:String(title).normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^\x20-\x7e]/g, "").replace(/\s+/g, " ").trim()};   // en-têtes HTTP : ASCII seulement
+    const h = {Title:String(title).normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^\x20-\x7e]/g, "").replace(/\s+/g, " ").trim()};   // en-têtes HTTP : ASCII seulement
     if(o.tags) h.Tags = o.tags; if(o.priority) h.Priority = o.priority; if(o.click) h.Click = o.click; if(o.actions) h.Actions = o.actions;
-    const ntfy = this.env.ALERTS_TOPIC ? fetch("https://ntfy.sh/" + this.env.ALERTS_TOPIC, {method:"POST", headers:h, body}).then(r => r.ok, () => false) : Promise.resolve(false);
+    const ntfy = this.env.ALERTS_TOPIC ? fetch("https://ntfy.sh/" + this.env.ALERTS_TOPIC, {method:"POST", headers:h, body}).then(r => r.ok || "HTTP " + r.status, e => "erreur " + (e && e.message || e)) : Promise.resolve(false);
     const id = this.one("INSERT INTO alerts(t, title, body, url) VALUES(?,?,?,?) RETURNING id", NOW(), clean(title, 120), String(body ?? "").slice(0, 1000), o.click || DASH_URL).id;
     this.sql.exec("DELETE FROM alerts WHERE id <= ?", id - 300);
     const p = Promise.all([ntfy, this.adminPushAll()]).then(([n, s]) => ({id, ntfy:n, ...s}));

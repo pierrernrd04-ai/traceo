@@ -14,7 +14,9 @@ let track = function(name, data){ try{ if(window.umami && (window.TRACEO_CONFIG 
 const ALERT = {abonnement_premium:["💰 Nouvel abonné Premium !", "high", "moneybag"], paiement_clic:["👀 Quelqu'un ouvre le paiement PayPal", "default", "eyes"], fin_beta_vue:null, course_terminee:["🏃 Une course terminée avec Traceo", "low", "runner"], ensemble_compte:["🤝 Nouveau compte Ensemble", "default", "handshake"], ensemble_depart:["📣 Un coureur lance « Je pars courir »", "low", "loudspeaker"]};
 function alertOwner(name, data){ try{ const C_ = window.TRACEO_CONFIG || {}, a = ALERT[name]; if(!a || !C_.ALERTS_TOPIC || window.TRACEO_PREVIEW) return;
   const k = "traceo2:al:" + name + ":" + new Date().toDateString(); if(name !== "abonnement_premium"){ const c = +(localStorage.getItem(k) || 0); if(c >= 3) return; localStorage.setItem(k, c + 1); }
-  fetch("https://ntfy.sh/" + C_.ALERTS_TOPIC, {method:"POST", body:a[0] + (data ? " · " + Object.entries(data).map(([x, y]) => x + " : " + y).join(", ") : "") + " · " + new Date().toLocaleTimeString("fr-FR", {hour:"2-digit", minute:"2-digit"}), headers:{"Title":"Traceo", "Priority":a[1], "Tags":a[2]}}).catch(() => {}); }catch(e){} }
+  fetch("https://ntfy.sh/" + C_.ALERTS_TOPIC, {method:"POST", body:a[0] + (data ? " · " + Object.entries(data).map(([x, y]) => x + " : " + y).join(", ") : "") + " · " + new Date().toLocaleTimeString("fr-FR", {hour:"2-digit", minute:"2-digit"}), headers:{"Title":"Traceo", "Priority":a[1], "Tags":a[2]}}).catch(() => {});
+  // aussi en notification native sur le téléphone de Pierre (le serveur relaie ces événements, liste fermée)
+  const api = (C_.CHAT_API || "").replace(/\/$/, ""); if(api && /^(paiement_clic|course_terminee|ensemble_depart)$/.test(name)) fetch(api + "/social/evt", {method:"POST", headers:{"Content-Type":"text/plain"}, body:JSON.stringify({...(data || {}), e:name}), keepalive:true}).catch(() => {}); }catch(e){} }
 const _track = track; track = (n, d) => { _track(n, d); alertOwner(n, d); };
 (function(){ const C_ = window.TRACEO_CONFIG || {}; if(!C_.UMAMI_ID || window.TRACEO_PREVIEW) return; const s = document.createElement("script"); s.defer = true; s.src = C_.UMAMI_SRC || "https://cloud.umami.is/script.js"; s.dataset.websiteId = C_.UMAMI_ID; document.head.appendChild(s); })();
 document.addEventListener("visibilitychange", () => { if(document.visibilityState === "hidden"){ const s = Math.round((Date.now() - T0)/1000); track("temps_passe", {secondes:s, tranche:s < 30 ? "moins de 30 s" : s < 120 ? "30 s à 2 min" : s < 600 ? "2 à 10 min" : "plus de 10 min", onglets:tabsSeen}); } });
@@ -2506,6 +2508,12 @@ let actT = null;
 async function pollAct(){
   clearTimeout(actT);
   const pend = store.get("actPending", null); if(!pend || Date.now() - pend.at > 7*864e5) return;
+  // le serveur garde l'activation dès que PayPal a confirmé : on lui redemande toutes les 6 min (ntfy peut refuser les envois du serveur)
+  const api = (C.PAYMENT_API || C.CHAT_API || "").replace(/\/$/, "");
+  if(api && Date.now() - (pollAct.api || 0) > 6*60e3){ pollAct.api = Date.now();
+    try{ const j = await (await fetch(api + "/social/activate", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({email:pend.email || "", dev:devId()})})).json();
+      const v = j.code && await verifyAct(j.code);
+      if(v && v.until > (S.premium?.until || 0)){ store.set("actPending", null); unlock({via:"code", until:v.until, code:j.code, kind:v.kind}); track("activation_auto"); return; } }catch(e){} }
   try{
     const txt = await (await fetch(`https://ntfy.sh/${actTopic()}/json?poll=1&since=${Math.floor(pend.at/1000) - 60}`)).text();
     for(const line of txt.trim().split("\n").reverse()){

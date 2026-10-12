@@ -1,6 +1,6 @@
 // Traceo — fonctionnement hors ligne de l'app (la carte et le calcul des boucles demandent Internet).
 // Version volontairement simple : on ne touche ni aux cartes ni aux services externes, pour éviter tout blocage (Safari).
-const VERSION = "traceo-v61";
+const VERSION = "traceo-v62";
 const SHELL = ["./", "index.html", "app.html", "styles.css", "app.js", "native.js", "chat-brain.js", "ensemble.js", "recettes.js", "config.js", "manifest.webmanifest", "icons/icon-192.png", "icons/icon-512.png"];
 
 self.addEventListener("install", e => {
@@ -33,7 +33,7 @@ self.addEventListener("push", e => {
       if(cfg && cfg.tok){
         admin = true;
         const r = await fetch(cfg.api + "/social/alerts?since=" + (cfg.since || 0), {headers:{Authorization:"Bearer " + cfg.tok}});
-        if(r.status === 401){ admin = false; await ac.delete("cfg"); }   // alertes désactivées depuis un autre appareil
+        if(r.status === 401) await ac.delete("cfg");   // alertes désactivées depuis un autre appareil
         else if(r.ok){
           const j = await r.json(), list = j.alerts || [], n = Math.max(j.n || 0, list.length), go = a => /^https:\/\//.test(a.url || "") ? a.url : DASH;
           last = j.last || null;
