@@ -1,0 +1,8 @@
+# Traceo · https://traceorun.pages.dev
+User-agent: *
+Allow: /
+# Espaces privés (Cloudflare Pages sert aussi /admin et /tableau sans .html)
+Disallow: /admin
+Disallow: /tableau
+
+Sitemap: https://traceorun.pages.dev/sitemap.xml

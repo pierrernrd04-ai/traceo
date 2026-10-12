@@ -7,7 +7,16 @@
 <meta name="description" content="Mentions légales, conditions générales de vente et politique de confidentialité de Traceo.">
 <meta name="theme-color" content="#07131A">
 <meta name="robots" content="index,follow">
+<link rel="canonical" href="https://traceorun.pages.dev/legal">
 <link rel="icon" href="icons/icon-192.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Traceo">
+<meta property="og:locale" content="fr_FR">
+<meta property="og:title" content="Informations légales · Traceo">
+<meta property="og:description" content="Mentions légales, conditions générales de vente et politique de confidentialité de Traceo.">
+<meta property="og:image" content="https://traceorun.pages.dev/site/og.jpg">
+<meta property="og:url" content="https://traceorun.pages.dev/legal">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600..800&family=Figtree:wght@400;500;600;700;800&display=swap">
@@ -46,6 +55,60 @@ th{color:var(--ink)}
 footer{padding:30px 0 calc(30px + env(safe-area-inset-bottom,0px));color:var(--muted);font-size:14px}
 @media (max-width:560px){dl{grid-template-columns:1fr}dt{margin-top:6px}table{font-size:13.5px}}
 </style>
+<script type="application/ld+json" id="ld-traceo">
+{
+ "@context": "https://schema.org",
+ "@graph": [
+  {
+   "@type": "Organization",
+   "@id": "https://traceorun.pages.dev/#organization",
+   "name": "Traceo",
+   "legalName": "Pierre Renard EI",
+   "url": "https://traceorun.pages.dev/",
+   "logo": {
+    "@type": "ImageObject",
+    "url": "https://traceorun.pages.dev/icons/icon-512.png",
+    "width": 512,
+    "height": 512
+   },
+   "image": "https://traceorun.pages.dev/site/og.jpg",
+   "founder": {
+    "@type": "Person",
+    "name": "Pierre Renard",
+    "jobTitle": "Fondateur de Traceo"
+   },
+   "areaServed": {
+    "@type": "Country",
+    "name": "France"
+   }
+  },
+  {
+   "@type": "WebSite",
+   "@id": "https://traceorun.pages.dev/#website",
+   "url": "https://traceorun.pages.dev/",
+   "name": "Traceo",
+   "description": "Une boucle de course neuve à chaque sortie, dans les vraies rues de ta ville.",
+   "inLanguage": "fr",
+   "publisher": {
+    "@id": "https://traceorun.pages.dev/#organization"
+   }
+  },
+  {
+   "@type": "WebPage",
+   "@id": "https://traceorun.pages.dev/legal#webpage",
+   "url": "https://traceorun.pages.dev/legal",
+   "name": "Informations légales · Traceo",
+   "inLanguage": "fr",
+   "isPartOf": {
+    "@id": "https://traceorun.pages.dev/#website"
+   },
+   "about": {
+    "@id": "https://traceorun.pages.dev/#organization"
+   }
+  }
+ ]
+}
+</script>
 </head>
 <body>
 <header class="nav">

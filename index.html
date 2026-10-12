@@ -9,13 +9,23 @@
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="manifest" href="manifest.webmanifest">
+<link rel="canonical" href="https://traceorun.pages.dev/">
+<meta name="robots" content="index,follow,max-image-preview:large">
+<meta name="author" content="Pierre Renard">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Traceo">
+<meta property="og:locale" content="fr_FR">
 <meta property="og:title" content="Traceo · Une boucle de course neuve à chaque sortie">
 <meta property="og:description" content="Ta ville, de nouvelles rues à chaque run. Boucle sur mesure, guidage vocal, Strava et Garmin.">
-<meta property="og:image" content="https://pierrernrd04-ai.github.io/traceo/site/og.jpg">
-<meta property="og:url" content="https://pierrernrd04-ai.github.io/traceo/">
+<meta property="og:image" content="https://traceorun.pages.dev/site/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Traceo, une boucle de course neuve à chaque sortie">
+<meta property="og:url" content="https://traceorun.pages.dev/">
 <meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Traceo · Une boucle de course neuve à chaque sortie">
+<meta name="twitter:description" content="Ta ville, de nouvelles rues à chaque run. Boucle sur mesure, guidage vocal, Strava et Garmin.">
+<meta name="twitter:image" content="https://traceorun.pages.dev/site/og.jpg">
 <script>
   // Anciens liens : l'app installée, le retour de PayPal et le diagnostic ouvrent directement l'app
   (function(){ var q = location.search, sa = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
@@ -183,6 +193,171 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:12px 24px;justify-content:space-bet
 .duo-c .mini li::before{content:"✓ ";color:#2BE39B;font-weight:900}
 @media (max-width:760px){.duo{grid-template-columns:1fr}}
 </style>
+<script type="application/ld+json" id="ld-traceo">
+{
+ "@context": "https://schema.org",
+ "@graph": [
+  {
+   "@type": "Organization",
+   "@id": "https://traceorun.pages.dev/#organization",
+   "name": "Traceo",
+   "legalName": "Pierre Renard EI",
+   "url": "https://traceorun.pages.dev/",
+   "logo": {
+    "@type": "ImageObject",
+    "url": "https://traceorun.pages.dev/icons/icon-512.png",
+    "width": 512,
+    "height": 512
+   },
+   "image": "https://traceorun.pages.dev/site/og.jpg",
+   "founder": {
+    "@type": "Person",
+    "name": "Pierre Renard",
+    "jobTitle": "Fondateur de Traceo"
+   },
+   "areaServed": {
+    "@type": "Country",
+    "name": "France"
+   }
+  },
+  {
+   "@type": "WebSite",
+   "@id": "https://traceorun.pages.dev/#website",
+   "url": "https://traceorun.pages.dev/",
+   "name": "Traceo",
+   "description": "Une boucle de course neuve à chaque sortie, dans les vraies rues de ta ville.",
+   "inLanguage": "fr",
+   "publisher": {
+    "@id": "https://traceorun.pages.dev/#organization"
+   }
+  },
+  {
+   "@type": "WebApplication",
+   "@id": "https://traceorun.pages.dev/#app",
+   "name": "Traceo",
+   "url": "https://traceorun.pages.dev/app",
+   "description": "Traceo dessine en quelques secondes une boucle de course dans les vraies rues de ta ville, depuis là où tu es. Jamais deux fois la même. Guidage vocal rue par rue, partout en France.",
+   "applicationCategory": "SportsApplication",
+   "applicationSubCategory": "Course à pied",
+   "operatingSystem": "iOS, Android, Web",
+   "browserRequirements": "Navigateur récent avec JavaScript et géolocalisation",
+   "inLanguage": "fr",
+   "countriesSupported": "FR",
+   "image": "https://traceorun.pages.dev/site/og.jpg",
+   "screenshot": [
+    "https://traceorun.pages.dev/site/carte.webp",
+    "https://traceorun.pages.dev/site/boucle.webp",
+    "https://traceorun.pages.dev/site/feuille.webp",
+    "https://traceorun.pages.dev/site/course.webp",
+    "https://traceorun.pages.dev/site/accueil.webp"
+   ],
+   "featureList": [
+    "Boucle de course générée depuis ta position, dans les vraies rues",
+    "Distance de 2 à 42 km ou durée de 10 min à 4 h",
+    "Rues inédites à chaque sortie",
+    "Guidage vocal rue par rue avec le nom des rues",
+    "Boucles sûres : petites rues et chemins, à l'écart des départementales et nationales",
+    "Envoi sur Strava et sur les montres Garmin, export GPX",
+    "Coach IA : séance du jour, bilan, plans 10 km et marathon, nutrition",
+    "Ensemble : coureurs autour de toi, invitations et messages",
+    "Image de la boucle au format story à partager",
+    "Partout en France, outre-mer compris"
+   ],
+   "author": {
+    "@id": "https://traceorun.pages.dev/#organization"
+   },
+   "publisher": {
+    "@id": "https://traceorun.pages.dev/#organization"
+   },
+   "offers": [
+    {
+     "@type": "Offer",
+     "name": "Découverte",
+     "description": "3 boucles offertes pour découvrir, sans carte bancaire.",
+     "price": "0",
+     "priceCurrency": "EUR",
+     "availability": "https://schema.org/InStock",
+     "url": "https://traceorun.pages.dev/app"
+    },
+    {
+     "@type": "Offer",
+     "name": "Traceo Premium",
+     "description": "31 jours de Premium : boucles illimitées, guidage vocal, Strava, Garmin, GPX, Coach IA et Ensemble. Sans abonnement, sans engagement.",
+     "price": "4.99",
+     "priceCurrency": "EUR",
+     "priceSpecification": {
+      "@type": "UnitPriceSpecification",
+      "price": "4.99",
+      "priceCurrency": "EUR",
+      "referenceQuantity": {
+       "@type": "QuantitativeValue",
+       "value": 31,
+       "unitCode": "DAY"
+      }
+     },
+     "availability": "https://schema.org/InStock",
+     "url": "https://traceorun.pages.dev/essai-premium"
+    }
+   ]
+  },
+  {
+   "@type": "FAQPage",
+   "@id": "https://traceorun.pages.dev/#faq",
+   "inLanguage": "fr",
+   "mainEntity": [
+    {
+     "@type": "Question",
+     "name": "Faut-il télécharger une application ?",
+     "acceptedAnswer": {
+      "@type": "Answer",
+      "text": "Non. Traceo fonctionne directement dans le navigateur de ton téléphone. Tu peux l'ajouter à ton écran d'accueil pour l'ouvrir en un geste, en plein écran."
+     }
+    },
+    {
+     "@type": "Question",
+     "name": "Ça marche dans ma ville ?",
+     "acceptedAnswer": {
+      "@type": "Answer",
+      "text": "Partout en France, dans les grandes villes comme dans les villages, Corse, îles et outre-mer compris. Traceo s'appuie sur la Base Adresse Nationale et OpenStreetMap."
+     }
+    },
+    {
+     "@type": "Question",
+     "name": "Comment Traceo évite-t-il les mêmes rues ?",
+     "acceptedAnswer": {
+      "@type": "Answer",
+      "text": "Traceo garde en mémoire, sur ton téléphone, les rues qu'il t'a déjà proposées. Il compare plusieurs itinéraires et choisit celui qui passe par le plus de rues nouvelles."
+     }
+    },
+    {
+     "@type": "Question",
+     "name": "Comment se passe le paiement ?",
+     "acceptedAnswer": {
+      "@type": "Answer",
+      "text": "Par PayPal, avec ton compte PayPal ou une simple carte bancaire. 4,99 € débloquent 31 jours de Premium. Rien ne se renouvelle tout seul."
+     }
+    },
+    {
+     "@type": "Question",
+     "name": "Et mes données ?",
+     "acceptedAnswer": {
+      "@type": "Answer",
+      "text": "Pas de compte à créer. Ta position sert uniquement à dessiner ta boucle et à te guider. Tes boucles restent enregistrées sur ton téléphone."
+     }
+    },
+    {
+     "@type": "Question",
+     "name": "Il faut du réseau pendant la course ?",
+     "acceptedAnswer": {
+      "@type": "Answer",
+      "text": "Oui, une connexion mobile est conseillée : Traceo calcule la boucle et affiche la carte en ligne. Le suivi de ta course, lui, utilise le GPS du téléphone."
+     }
+    }
+   ]
+  }
+ ]
+}
+</script>
 </head>
 <body>
 
