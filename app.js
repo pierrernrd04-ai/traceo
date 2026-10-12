@@ -7,7 +7,9 @@ const C = window.TRACEO_CONFIG;
 const PV = window.TRACEO_PREVIEW || null;
 // ---------- Statistiques (Umami : sans cookie, conforme RGPD) ----------
 const T0 = Date.now(); let tabsSeen = 0;
-let track = function(name, data){ try{ if(window.umami && (window.TRACEO_CONFIG || {}).UMAMI_ID) umami.track(name, data); }catch(e){} }
+// Événements clés : vers Umami et vers le tableau de bord Traceo (compteur sans cookie, stats.js)
+const TRACEO_EV = {boucle_generee:"boucle", course_lancee:"course", course_terminee:"course_finie", paiement_clic:"payer", abonnement_premium:"premium", ensemble_compte:"inscription", chat_message:"coach", fin_gratuit_vue:"mur_gratuit", entree_compte_vue:"ecran_compte", diamant_utilise:"diamant", ensemble_depart:"je_pars_courir"};
+let track = function(name, data){ try{ if(window.umami && (window.TRACEO_CONFIG || {}).UMAMI_ID) umami.track(name, data); }catch(e){} try{ if(TRACEO_EV[name] && window.traceoTrack) window.traceoTrack(TRACEO_EV[name]); }catch(e){} }
 // Alertes en temps réel sur le téléphone du propriétaire (appli ntfy, canal privé ALERTS_TOPIC)
 const ALERT = {abonnement_premium:["💰 Nouvel abonné Premium !", "high", "moneybag"], paiement_clic:["👀 Quelqu'un ouvre le paiement PayPal", "default", "eyes"], fin_beta_vue:null, course_terminee:["🏃 Une course terminée avec Traceo", "low", "runner"], ensemble_compte:["🤝 Nouveau compte Ensemble", "default", "handshake"], ensemble_depart:["📣 Un coureur lance « Je pars courir »", "low", "loudspeaker"]};
 function alertOwner(name, data){ try{ const C_ = window.TRACEO_CONFIG || {}, a = ALERT[name]; if(!a || !C_.ALERTS_TOPIC || window.TRACEO_PREVIEW) return;

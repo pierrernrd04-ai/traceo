@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>Traceo · Tableau de bord</title>
+<meta name="theme-color" content="#07131A">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700..800&family=Figtree:wght@500;600;700;800;900&display=swap">
+<script src="config.js"></script>
+<style>
+:root{--bg:#07131A;--surface:#0E1E25;--surface-2:#14282F;--line:#1D3640;--ink:#E6F2F0;--muted:#8AA4A3;--faint:#5E7978;--data:#25C98F;--data-soft:rgba(37,201,143,.45);--good:#4ADE80;--good-bg:rgba(74,222,128,.13);--bad:#FF8A7A;--bad-bg:rgba(255,138,122,.13);color-scheme:dark}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font:15px/1.45 Figtree,system-ui,sans-serif;-webkit-font-smoothing:antialiased;padding-bottom:40px}
+button,input{font:inherit;color:inherit}
+.wrap{max-width:1100px;margin:0 auto;padding:16px 16px 0}
+h1{font:800 22px "Bricolage Grotesque",sans-serif;letter-spacing:-.02em;display:flex;align-items:center;gap:10px}
+h1 img{width:32px;height:32px;border-radius:9px}
+h2{font:800 17px "Bricolage Grotesque",sans-serif;letter-spacing:-.01em;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.live{display:inline-flex;align-items:center;gap:7px;font-weight:800;font-size:13px;color:var(--ink);background:var(--surface);border:1px solid var(--line);padding:6px 11px;border-radius:999px}
+.live i{width:8px;height:8px;border-radius:50%;background:var(--good);box-shadow:0 0 0 4px rgba(74,222,128,.18)}
+.bar-tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:14px 0 16px}
+.seg{display:inline-flex;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:3px}
+.seg button{border:0;background:none;padding:8px 13px;border-radius:999px;font-weight:800;color:var(--muted);cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--surface-2);color:var(--ink)}
+.icon-btn{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:8px 12px;font-weight:800;cursor:pointer;color:var(--ink);text-decoration:none;font-size:14px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:18px;margin-bottom:14px}
+.brief{background:linear-gradient(135deg,rgba(37,201,143,.12),rgba(30,166,208,.08));border-color:rgba(37,201,143,.3)}
+.brief ul{list-style:none;display:grid;gap:10px}
+.brief li{display:flex;gap:10px;align-items:flex-start;font-size:15.5px;line-height:1.45}
+.brief li span.e{flex:0 0 26px;font-size:18px;line-height:1.3}
+.brief li b{color:#fff}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:16px 16px 12px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.kpi .lab{font-weight:700;color:var(--muted);font-size:13.5px}
+.kpi .val{font:800 34px/1 "Bricolage Grotesque",sans-serif;letter-spacing:-.02em}
+.kpi .val small{font-size:16px;color:var(--muted);font-weight:700;margin-left:3px}
+.kpi .sub{font-size:12.5px;color:var(--muted)}
+.delta{align-self:flex-start;display:inline-flex;align-items:center;gap:4px;font-weight:800;font-size:12.5px;padding:3px 8px;border-radius:999px;background:var(--surface-2);color:var(--muted)}
+.delta.up{background:var(--good-bg);color:var(--good)}
+.delta.down{background:var(--bad-bg);color:var(--bad)}
+.spark{width:100%;height:34px;display:block;margin-top:2px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.funnel .step{display:grid;grid-template-columns:1fr auto;gap:4px 10px;align-items:center;margin-bottom:12px}
+.funnel .name{font-weight:700;font-size:14.5px}
+.funnel .num{font:800 18px "Bricolage Grotesque",sans-serif;text-align:right}
+.funnel .track{grid-column:1 / -1;height:16px;background:var(--surface-2);border-radius:8px;overflow:hidden}
+.funnel .fill{height:100%;border-radius:8px;background:var(--data)}
+.funnel .conv{grid-column:1 / -1;font-size:12.5px;color:var(--muted);margin-top:-2px}
+.chart{position:relative;height:170px;padding-left:30px;margin-top:6px}
+.chart .gl{position:absolute;left:30px;right:0;border-top:1px dashed rgba(138,164,163,.16)}
+.chart .gl span{position:absolute;left:-30px;top:-8px;width:24px;text-align:right;font-size:11px;color:var(--faint)}
+.chart .bars{position:absolute;left:30px;right:0;top:0;bottom:0;display:flex;align-items:flex-end;gap:2px}
+.chart .col{flex:1;height:100%;display:flex;align-items:flex-end;cursor:pointer;min-width:0}
+.chart .b{width:100%;min-height:2px;border-radius:4px 4px 0 0;background:var(--data-soft)}
+.chart .col.hi .b{background:var(--data)}
+.chart .col:hover .b,.chart .col.sel .b{background:#6BEBC0}
+.xl{display:flex;gap:2px;padding-left:30px;font-size:11px;color:var(--faint);margin-top:4px}
+.xl span{flex:1;text-align:center;white-space:nowrap;min-width:0}
+.cap{font-size:13px;color:var(--muted);margin-top:8px}
+.cap b{color:var(--ink)}
+.list .row{display:grid;grid-template-columns:28px 1fr auto;gap:4px 10px;align-items:center;padding:9px 0;border-bottom:1px solid rgba(29,54,64,.6)}
+.list .row:last-child{border-bottom:0}
+.list .ic{font-size:18px;text-align:center}
+.list .nm{font-weight:700;font-size:14.5px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.list .vv{font:800 16px "Bricolage Grotesque",sans-serif;text-align:right}
+.list .tr{grid-column:2 / -1;height:6px;background:var(--surface-2);border-radius:3px;overflow:hidden}
+.list .tr i{display:block;height:100%;background:var(--data);border-radius:3px}
+.list .ex{grid-column:2 / -1;font-size:12.5px;color:var(--muted)}
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.tile{background:var(--surface-2);border-radius:16px;padding:13px}
+.tile b{display:block;font:800 24px "Bricolage Grotesque",sans-serif}
+.tile span{font-size:12.5px;color:var(--muted);font-weight:600}
+.links .lk{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid rgba(29,54,64,.6)}
+.links .lk:last-child{border-bottom:0}
+.links code{flex:1 1 220px;background:var(--surface-2);padding:8px 10px;border-radius:10px;font-size:12.5px;word-break:break-all}
+.empty{color:var(--muted);font-size:14px;padding:6px 0}
+.tip{position:fixed;pointer-events:none;background:#1A3039;border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:13px;box-shadow:0 10px 30px rgba(0,0,0,.45);z-index:20;max-width:240px}
+.tip b{display:block}
+.login{max-width:400px;margin:14vh auto 0;display:flex;flex-direction:column;gap:12px}
+.input{width:100%;padding:13px 14px;border-radius:12px;border:1px solid var(--line);background:var(--surface);outline:none}
+.input:focus{border-color:var(--data)}
+.btn{border:0;border-radius:12px;padding:13px 16px;font-weight:900;background:linear-gradient(105deg,#2BE39B,#1EA6D0);color:#03140D;cursor:pointer}
+.note{font-size:12.5px;color:var(--faint);margin-top:6px}
+.skel{opacity:.5}
+@media (max-width:900px){ .kpis{grid-template-columns:1fr 1fr} .tiles{grid-template-columns:1fr 1fr} }
+@media (max-width:720px){ .grid2{grid-template-columns:1fr} .kpi .val{font-size:30px} }
+</style>
+</head>
+<body>
+<div class="wrap" id="app"></div>
+<script>
+const $ = s => document.querySelector(s);
+const API = (window.TRACEO_CONFIG?.SOCIAL_API || window.TRACEO_CONFIG?.CHAT_API || "").replace(/\/$/, "");
+let KEY = sessionStorage.getItem("traceoAdmin") || localStorage.getItem("traceoAdmin") || "", DAYS = +(localStorage.getItem("traceoDashDays") || 7), D = null;
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;"})[c]);
+const nf = n => Number(n || 0).toLocaleString("fr-FR");
+const eur = n => { n = Number(n || 0); const f = n % 1 ? 2 : 0; return n.toLocaleString("fr-FR", {style:"currency", currency:"EUR", minimumFractionDigits:f, maximumFractionDigits:f}); };
+const pc = (a, b) => b ? Math.round(100*a/b) : 0;
+const PER = {1:["aujourd'hui", "hier"], 7:["ces 7 derniers jours", "les 7 jours d'avant"], 30:["ces 30 derniers jours", "les 30 jours d'avant"], 90:["ces 90 derniers jours", "les 90 jours d'avant"]};
+const WD = ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"];
+const SRC = s => s === "direct" ? ["🔗", "Accès direct"] : s === "lien:story" ? ["📲", "Ta story Instagram"] : s === "lien:bio" ? ["📸", "Ta bio Instagram"] : s === "lien:linkedin" ? ["💼", "Ton post LinkedIn"] : s.startsWith("lien:") ? ["🏷️", "Lien « " + s.slice(5) + " »"] : s === "instagram.com" ? ["📸", "Instagram"] : s === "facebook.com" ? ["👍", "Facebook"] : /(^|\.)google\./.test(s) ? ["🔎", "Google"] : /linkedin/.test(s) ? ["💼", "LinkedIn"] : /bing|qwant|duckduckgo|ecosia|yahoo/.test(s) ? ["🔎", s] : ["🌐", s];
+const PAGE = p => ({"/": "Accueil du site", "/app": "Application", "/nouveau": "Annonce « Nouveau départ »", "/essai-premium": "Page Premium", "/legal": "Mentions légales"})[p] || p;
+const DEV = d => d === "mobile" ? ["📱", "Téléphone"] : d === "tablette" ? ["📟", "Tablette"] : ["💻", "Ordinateur"];
+const country = c => { if(!c) return "Inconnu"; try{ return new Intl.DisplayNames(["fr"], {type:"region"}).of(c); }catch(e){ return c; } };
+const flag = c => c && c.length === 2 ? String.fromCodePoint(...[...c.toUpperCase()].map(x => 127397 + x.charCodeAt(0))) : "🌍";
+
+async function call(path){
+  const r = await fetch(API + "/social/admin/" + path, {headers:{"X-Admin-Key":KEY}});
+  const j = await r.json().catch(() => ({}));
+  if(!r.ok) throw new Error(j.error || "http " + r.status);
+  return j;
+}
+function loginView(err){
+  $("#app").innerHTML = `<div class="login card"><h1><img src="icons/icon-192.png" alt="">Tableau de bord</h1><p style="color:var(--muted)">Entre ta clé d'administration Traceo.</p>
+    <input class="input" id="k" type="password" placeholder="Clé d'administration" autocomplete="current-password"><button class="btn" id="go">Voir mes chiffres</button><p style="color:var(--bad);font-size:13px">${esc(err || "")}</p></div>`;
+  const go = async () => { KEY = $("#k").value.trim(); if(!KEY) return; try{ await load(); localStorage.setItem("traceoAdmin", KEY); }catch(e){ KEY = ""; loginView(e.message === "auth" ? "Clé incorrecte." : e.message === "rate_limited" ? "Trop d'essais, attends 15 minutes." : "Serveur injoignable."); } };
+  $("#go").onclick = go; $("#k").onkeydown = e => { if(e.key === "Enter") go(); }; $("#k").focus();
+}
+async function load(){ D = await call("dash?days=" + DAYS); D.at = new Date(); view(); }
+
+function delta(c, p, money){
+  if(!p && !c) return `<span class="delta">— stable</span>`;
+  if(!p) return `<span class="delta up">▲ nouveau</span>`;
+  const v = Math.round(100*(c - p)/p);
+  return v === 0 ? `<span class="delta">= comme avant</span>` : `<span class="delta ${v > 0 ? "up" : "down"}">${v > 0 ? "▲ +" : "▼ "}${v} %</span>`;
+}
+function spark(vals){
+  if(vals.length < 3) return "";
+  const W = 200, H = 34, mx = Math.max(1, ...vals), step = W/(vals.length - 1);
+  const pts = vals.map((v, i) => `${(i*step).toFixed(1)},${(H - 3 - (H - 6)*v/mx).toFixed(1)}`).join(" ");
+  return `<svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true"><polyline points="${pts}" fill="none" stroke="#25C98F" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
+}
+function bars(items, opt = {}){
+  // items : [{v, lab, tip, hi}]
+  const mx = Math.max(1, ...items.map(i => i.v)), top = mx <= 4 ? 4 : Math.ceil(mx/4)*4, every = Math.ceil(items.length/(opt.labels || 8));
+  return `<div class="chart" style="height:${opt.h || 170}px">${[1, .5, 0].map(f => `<div class="gl" style="top:${(1 - f)*100}%"><span>${nf(Math.round(top*f))}</span></div>`).join("")}
+    <div class="bars">${items.map(i => `<div class="col ${i.hi ? "hi" : ""}" data-tip="${esc(i.tip)}"><div class="b" style="height:${100*i.v/top}%"></div></div>`).join("")}</div></div>
+    <div class="xl">${items.map((i, k) => `<span>${(k % every === 0 && k <= items.length - 1 - Math.ceil(every/2)) || k === items.length - 1 ? esc(i.lab) : ""}</span>`).join("")}</div>`;
+}
+const dlab = d => d.slice(8) + "/" + d.slice(5, 7);
+const dlong = d => new Date(d + "T12:00").toLocaleDateString("fr-FR", {weekday:"long", day:"numeric", month:"long"});
+
+function insights(){
+  const c = D.cur, p = D.prev, [now, before] = PER[DAYS] || PER[7], out = [];
+  const v = c.visits;
+  if(!v) out.push(["🌱", `Pas encore de visite mesurée ${now}. Partage ton <b>lien suivi</b> (en bas de la page) dans ta story ou ta bio : les chiffres arriveront ici en direct.`]);
+  else{
+    const ev = p.visits ? Math.round(100*(v - p.visits)/p.visits) : null;
+    out.push(["👀", `<b>${nf(v)} visite${v > 1 ? "s" : ""}</b> ${now}` + (ev === null ? ", première période mesurée." : ev > 0 ? `, <b>${ev} % de plus</b> que ${before}.` : ev < 0 ? `, ${-ev} % de moins que ${before}.` : `, autant que ${before}.`)]);
+    const best = D.sources.find(s => s.source !== "direct") || D.sources[0];
+    if(best){ const [ic, nm] = SRC(best.source); out.push([ic, `Ta meilleure source : <b>${esc(nm)}</b>, avec ${nf(best.visits)} visite${best.visits > 1 ? "s" : ""}${best.tried ? ` (${pc(best.tried, best.visits)} % ont cliqué sur « Essayer »)` : ""}.`]); }
+    out.push(["🎯", `<b>${pc(c.tried, v)} %</b> des visiteurs cliquent sur « Essayer gratuitement »` + (c.app ? `, et ${nf(c.app)} ont ouvert l'application.` : ".")]);
+  }
+  if(c.signups || c.payments) out.push(["🙌", `<b>${nf(c.signups)} compte${c.signups > 1 ? "s" : ""} créé${c.signups > 1 ? "s" : ""}</b>` + (c.payments ? ` et <b>${nf(c.payments)} paiement${c.payments > 1 ? "s" : ""}</b>, soit ${eur(c.revenue)}.` : ", aucun paiement pour l'instant.")]);
+  const tot = D.hours.reduce((a, b) => a + b, 0);
+  if(tot >= 8){
+    const h = D.hours.indexOf(Math.max(...D.hours));
+    let wd = "";
+    if(DAYS >= 7){ const w = Array(7).fill(0); D.daily.forEach(x => { w[new Date(x.day + "T12:00").getDay()] += x.visits; }); const m = Math.max(...w); if(m) wd = ` et surtout le <b>${WD[w.indexOf(m)]}</b>`; }
+    out.push(["⏰", `Tes visiteurs viennent surtout vers <b>${h} h</b>${wd}. Publie tes stories une heure avant.`]);
+  }
+  if(v >= 5) out.push(["📱", `<b>${pc(c.mobile, v)} %</b> des visites se font sur téléphone.`]);
+  if(c.loops || c.runsStarted) out.push(["🏃", `Dans l'app : <b>${nf(c.loops)} boucle${c.loops > 1 ? "s" : ""} générée${c.loops > 1 ? "s" : ""}</b> et ${nf(c.runsStarted)} course${c.runsStarted > 1 ? "s" : ""} lancée${c.runsStarted > 1 ? "s" : ""}.`]);
+  // conseil
+  if(v >= 20 && pc(c.tried, v) < 8) out.push(["💡", `Conseil : peu de visiteurs cliquent sur « Essayer ». Mets le bouton plus haut et parle des 3 boucles offertes dès la première ligne.`]);
+  else if(c.tried >= 10 && c.signups < c.tried*0.15) out.push(["💡", `Conseil : beaucoup essaient, peu créent un compte. Montre dès l'écran de compte ce qu'on gagne (3 boucles offertes, sans carte).`]);
+  else if(c.payClicks > c.payments*2 && c.payClicks >= 3) out.push(["💡", `Conseil : ${nf(c.payClicks)} personnes ont ouvert le paiement, ${nf(c.payments)} ont payé. Relance-les avec une offre ou rassure sur le paiement sécurisé.`]);
+  return out;
+}
+
+function view(){
+  document.querySelectorAll(".tip").forEach(e => e.remove());
+  const c = D.cur, p = D.prev, [now] = PER[DAYS] || PER[7];
+  const series = k => D.daily.map(x => x[k]);
+  const kpi = (lab, val, cv, pv, key, sub) => `<div class="kpi"><span class="lab">${lab}</span><span class="val">${val}</span>${delta(cv, pv)}${DAYS > 1 ? spark(series(key)) : ""}${sub ? `<span class="sub">${sub}</span>` : ""}</div>`;
+  const F = [["Visiteurs", c.visits], ["Ont cliqué « Essayer »", c.tried], ["Ont ouvert l'app", c.app], ["Ont créé un compte", c.signups], ["Ont payé", c.payments]];
+  const fmax = Math.max(1, ...F.map(f => f[1]));
+  // graphique principal
+  const main = DAYS === 1
+    ? bars(D.hours.map((v, h) => ({v, lab:h + "h", tip:`${h} h – ${h + 1} h|${nf(v)} visite${v > 1 ? "s" : ""}`})), {labels:8})
+    : bars(D.daily.map(x => ({v:x.visits, lab:dlab(x.day), tip:`${dlong(x.day)}|${nf(x.visits)} visite${x.visits > 1 ? "s" : ""} · ${nf(x.signups)} compte${x.signups > 1 ? "s" : ""}${x.revenue ? " · " + eur(x.revenue) : ""}`})), {labels:DAYS > 31 ? 6 : 8});
+  const bestDay = D.daily.reduce((a, x) => x.visits > a.visits ? x : a, {visits:0});
+  const hmax = Math.max(...D.hours), peak = D.hours.indexOf(hmax);
+  const w = Array(7).fill(0); D.daily.forEach(x => { w[new Date(x.day + "T12:00").getDay()] += x.visits; });
+  const order = [1, 2, 3, 4, 5, 6, 0], wmax = Math.max(...w);
+  const devTot = D.devices.reduce((a, d) => a + d.n, 0);
+  const srcMax = Math.max(1, ...D.sources.map(s => s.visits));
+  const list = (rows, icon, name, val, extra, max, w = r => r.n ?? r.visits) => rows.length ? `<div class="list">${rows.map(r => `<div class="row"><span class="ic">${icon(r)}</span><span class="nm">${esc(name(r))}</span><span class="vv">${val(r)}</span><span class="tr"><i style="width:${Math.max(2, 100*w(r)/max)}%"></i></span>${extra ? `<span class="ex">${extra(r)}</span>` : ""}</div>`).join("")}</div>` : `<p class="empty">Pas encore de données.</p>`;
+  $("#app").innerHTML = `
+    <div class="top"><h1><img src="icons/icon-192.png" alt="">Tableau de bord</h1><span class="live" title="Visiteurs depuis le début de l'heure"><i></i>${nf(D.live.hour)} visiteur${D.live.hour > 1 ? "s" : ""} cette heure-ci · ${nf(D.live.today)} aujourd'hui</span></div>
+    <div class="bar-tools"><div class="seg">${[[1, "Aujourd'hui"], [7, "7 jours"], [30, "30 jours"], [90, "90 jours"]].map(([n, l]) => `<button data-d="${n}" aria-pressed="${DAYS === n}">${l}</button>`).join("")}</div>
+      <button class="icon-btn" id="rf">↻ Actualiser</button><a class="icon-btn" href="admin.html">Membres et paiements →</a></div>
+
+    <div class="card brief"><h2>✨ En bref, ${now}</h2><ul>${insights().map(([e, t]) => `<li><span class="e">${e}</span><span>${t}</span></li>`).join("")}</ul></div>
+
+    <div class="kpis">
+      ${kpi("Visites", nf(c.visits), c.visits, p.visits, "visits", `${nf(c.views)} pages vues`)}
+      ${kpi("Comptes créés", nf(c.signups), c.signups, p.signups, "signups", c.visits ? `${pc(c.signups, c.visits)} % des visiteurs` : "")}
+      ${kpi("Chiffre d'affaires", eur(c.revenue), c.revenue, p.revenue, "revenue", `${nf(c.payments)} paiement${c.payments > 1 ? "s" : ""}`)}
+      ${kpi("Boucles générées", nf(c.loops), c.loops, p.loops, "loops", `${nf(c.runsStarted)} course${c.runsStarted > 1 ? "s" : ""} lancée${c.runsStarted > 1 ? "s" : ""}`)}
+    </div>
+
+    <div class="card"><h2>📈 ${DAYS === 1 ? "Visites heure par heure aujourd'hui" : "Visites jour par jour"}</h2>${main}
+      <p class="cap">${DAYS === 1 ? (hmax ? `Heure la plus fréquentée : <b>${peak} h</b>.` : "Les visites d'aujourd'hui apparaîtront ici.") : bestDay.visits ? `Meilleur jour : <b>${dlong(bestDay.day)}</b> avec ${nf(bestDay.visits)} visites.` : "Les premières visites apparaîtront ici."} Touche une barre pour le détail.</p></div>
+
+    <div class="grid2">
+      <div class="card funnel"><h2>🧭 Du visiteur au client</h2>
+        ${F.map(([l, n], i) => `<div class="step"><span class="name">${l}</span><span class="num">${nf(n)}</span><div class="track"><div class="fill" style="width:${Math.min(100, Math.max(n ? 2 : 0, 100*n/fmax))}%"></div></div>${i && F[i - 1][1] && n <= F[i - 1][1] ? `<span class="conv">${pc(n, F[i - 1][1])} % de l'étape précédente</span>` : ""}</div>`).join("")}
+        <p class="note">Comptes et paiements : tous ceux de la période, même arrivés directement par l'app.</p></div>
+      <div class="card"><h2>🚪 D'où viennent tes visiteurs</h2>
+        ${list(D.sources, r => SRC(r.source)[0], r => SRC(r.source)[1], r => nf(r.visits), r => `${pc(r.visits, c.visits)} % des visites${r.tried ? ` · ${pc(r.tried, r.visits)} % cliquent « Essayer »` : ""}${r.signed ? ` · ${nf(r.signed)} inscription${r.signed > 1 ? "s" : ""}` : ""}`, srcMax)}</div>
+    </div>
+
+    <div class="grid2">
+      <div class="card"><h2>⏰ À quelle heure</h2>${bars(D.hours.map((v, h) => ({v, lab:h + "h", hi:v && v === hmax, tip:`${h} h – ${h + 1} h|${nf(v)} visite${v > 1 ? "s" : ""}`})), {labels:6, h:130})}
+        <p class="cap">${hmax ? `Pic de visites vers <b>${peak} h</b> : publie un peu avant.` : "Pas encore assez de données."}</p></div>
+      <div class="card"><h2>📅 Quel jour</h2>${DAYS >= 7 ? bars(order.map(d => ({v:w[d], lab:WD[d].slice(0, 3), hi:w[d] && w[d] === wmax, tip:`${WD[d]}|${nf(w[d])} visite${w[d] > 1 ? "s" : ""}`})), {labels:7, h:130})
+        + `<p class="cap">${wmax ? `Jour le plus fort : <b>${WD[w.indexOf(wmax)]}</b>.` : "Pas encore assez de données."}</p>` : `<p class="empty">Choisis 7, 30 ou 90 jours pour comparer les jours de la semaine.</p>`}</div>
+    </div>
+
+    <div class="grid2">
+      <div class="card"><h2>📱 Sur quel appareil</h2>${list(D.devices, r => DEV(r.k)[0], r => DEV(r.k)[1], r => `${pc(r.n, devTot)} %`, r => `${nf(r.n)} visite${r.n > 1 ? "s" : ""}`, Math.max(1, devTot))}</div>
+      <div class="card"><h2>📄 Pages les plus vues</h2>${list(D.pages, () => "•", r => PAGE(r.k), r => nf(r.views), r => `${nf(r.n)} visiteur${r.n > 1 ? "s" : ""}`, Math.max(1, ...D.pages.map(r => r.views)), r => r.views)}</div>
+    </div>
+
+    <div class="grid2">
+      <div class="card"><h2>🌍 Pays</h2>${list(D.countries, r => flag(r.k), r => country(r.k), r => nf(r.n), null, Math.max(1, ...D.countries.map(r => r.n)))}</div>
+      <div class="card"><h2>🇫🇷 Régions françaises</h2>${list(D.regions, () => "📍", r => r.k, r => nf(r.n), null, Math.max(1, ...D.regions.map(r => r.n)))}</div>
+    </div>
+
+    <div class="card"><h2>🏃 Dans l'application</h2><div class="tiles">
+      ${[["Boucles générées", c.loops], ["Courses lancées", c.runsStarted], ["Courses validées", c.runs], ["Messages au coach", c.coach], ["Ont ouvert le paiement", c.payClicks], ["Membres au total", D.members.total], ["Membres actifs (7 j)", D.members.active7], ["Premium", D.members.premium]].map(([l, v]) => `<div class="tile"><b>${nf(v)}</b><span>${l}</span></div>`).join("")}
+    </div><p class="note">Chiffre d'affaires total depuis le début : <b style="color:var(--ink)">${eur(D.members.revenueAll)}</b>.</p></div>
+
+    <div class="card links"><h2>🔗 Tes liens suivis</h2><p class="cap" style="margin:-4px 0 6px">Utilise ces liens : les visites qu'ils apportent apparaissent à part dans « D'où viennent tes visiteurs ».</p>
+      ${[["📲 Story Instagram", "https://traceorun.pages.dev/nouveau?src=story"], ["📸 Bio Instagram", "https://traceorun.pages.dev/?src=bio"], ["💼 LinkedIn", "https://traceorun.pages.dev/?src=linkedin"], ["💬 WhatsApp", "https://traceorun.pages.dev/?src=whatsapp"]].map(([l, u]) => `<div class="lk"><span style="min-width:150px;font-weight:700">${l}</span><code>${u}</code><button class="icon-btn" data-copy="${u}">Copier</button></div>`).join("")}</div>
+
+    <p class="note">Mis à jour à ${D.at.toLocaleTimeString("fr-FR", {hour:"2-digit", minute:"2-digit"})}. Une visite = une personne sur le site un jour donné. Mesure sans cookie : rien n'est stocké chez les visiteurs.</p>`;
+  document.querySelectorAll("[data-d]").forEach(b => b.onclick = async () => { DAYS = +b.dataset.d; localStorage.setItem("traceoDashDays", DAYS); $("#app").classList.add("skel"); try{ await load(); }catch(e){ alert("Erreur : " + e.message); } $("#app").classList.remove("skel"); });
+  $("#rf").onclick = () => load().catch(e => alert("Erreur : " + e.message));
+  document.querySelectorAll("[data-copy]").forEach(b => b.onclick = () => navigator.clipboard?.writeText(b.dataset.copy).then(() => { b.textContent = "Copié ✓"; setTimeout(() => b.textContent = "Copier", 1500); }));
+  let tip = null;
+  const showTip = (col, e) => { tip?.remove(); document.querySelectorAll(".col.sel").forEach(x => x.classList.remove("sel")); col.classList.add("sel"); const [a, b] = col.dataset.tip.split("|"); tip = document.createElement("div"); tip.className = "tip"; tip.innerHTML = `<b>${esc(a)}</b>${esc(b)}`; document.body.appendChild(tip);
+    const r = col.getBoundingClientRect(); tip.style.left = Math.max(8, Math.min(innerWidth - tip.offsetWidth - 8, r.left + r.width/2 - tip.offsetWidth/2)) + "px"; tip.style.top = Math.max(8, r.top + r.height - (col.firstElementChild.offsetHeight) - tip.offsetHeight - 10) + "px"; };
+  document.querySelectorAll("[data-tip]").forEach(col => { col.onmouseenter = e => showTip(col, e); col.onclick = e => showTip(col, e); col.onmouseleave = () => { tip?.remove(); tip = null; col.classList.remove("sel"); }; });
+}
+if(!API) $("#app").innerHTML = `<p class="empty">Serveur non configuré.</p>`;
+else if(KEY) load().catch(e => loginView(e.message === "auth" ? "Clé expirée ou incorrecte." : "Serveur injoignable."));
+else loginView();
+setInterval(() => { if(D && document.visibilityState === "visible") load().catch(() => {}); }, 120000);
+</script>
+</body>
+</html>

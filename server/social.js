@@ -13,7 +13,7 @@ import { json } from "./worker.js";
 export async function social(req, env, cors){
   if(!env.HUB) return json({error:"social_not_configured"}, 503, cors);
   const stub = env.HUB.get(env.HUB.idFromName("france"));
-  const headers = new Headers(req.headers); headers.set("X-IP", req.headers.get("CF-Connecting-IP") || "?"); headers.set("X-Country", (req.cf && req.cf.country) || "");
+  const headers = new Headers(req.headers); headers.set("X-IP", req.headers.get("CF-Connecting-IP") || "?"); headers.set("X-Country", (req.cf && req.cf.country) || ""); headers.set("X-Region", encodeURIComponent((req.cf && req.cf.region) || ""));
   const res = await stub.fetch(new Request(req.url, {method:req.method, headers, body:req.method === "GET" ? undefined : await req.text()}));
   const out = new Response(res.body, res); for(const [k, v] of Object.entries(cors)) out.headers.set(k, v);
   return out;
@@ -63,6 +63,8 @@ export class Hub {
     // Mesure d'audience sans cookie : un identifiant de visite anonyme qui change chaque jour (empreinte salée, sel aléatoire jeté le lendemain)
     this.sql.exec(`CREATE TABLE IF NOT EXISTS hits(id INTEGER PRIMARY KEY AUTOINCREMENT, t INT, day TEXT, vid TEXT, ev TEXT, path TEXT, src TEXT, ref TEXT, country TEXT, dev TEXT)`);
     this.sql.exec(`CREATE INDEX IF NOT EXISTS hits_day ON hits(day, ev)`);
+    this.sql.exec(`CREATE INDEX IF NOT EXISTS hits_vid ON hits(day, vid)`);
+    try{ this.sql.exec("ALTER TABLE hits ADD COLUMN region TEXT"); }catch(e){}
     this.sql.exec(`CREATE TABLE IF NOT EXISTS rewards(id INTEGER PRIMARY KEY AUTOINCREMENT, uid TEXT, milestone INT, amount REAL, status TEXT, paypal TEXT, created INT, done_at INT, note TEXT)`);
   }
   rows(q, ...a){ return [...this.sql.exec(q, ...a)]; }
@@ -515,7 +517,8 @@ export class Hub {
     const src = clean(b.s, 40).toLowerCase().replace(/[^a-z0-9_.-]/g, "");
     const dev = /iPad|Tablet/i.test(ua) ? "tablette" : /Mobi|Android|iPhone/i.test(ua) ? "mobile" : "ordinateur";
     // heure arrondie : impossible de rapprocher une visite d'une inscription précise
-    this.sql.exec("INSERT INTO hits(t, day, vid, ev, path, src, ref, country, dev) VALUES(?,?,?,?,?,?,?,?,?)", Math.floor(NOW()/HOUR)*HOUR, day, vid, ev, path, src, ref, clean(req.headers.get("X-Country"), 2), dev);
+    let region = ""; try{ region = clean(decodeURIComponent(req.headers.get("X-Region") || ""), 40); }catch(e){}
+    this.sql.exec("INSERT INTO hits(t, day, vid, ev, path, src, ref, country, dev, region) VALUES(?,?,?,?,?,?,?,?,?,?)", Math.floor(NOW()/HOUR)*HOUR, day, vid, ev, path, src, ref, clean(req.headers.get("X-Country"), 2), dev, region);
     this.hitDay.n++;
     return none;
   }
@@ -550,6 +553,64 @@ export class Hub {
     };
   }
 
+  // Tableau de bord : période + période précédente, séries par jour, heures, sources et leur efficacité
+  dashboard(days){
+    days = Math.max(1, Math.min(180, Math.round(days) || 30));
+    const now = NOW(), [Y, M, D] = new Date(now).toLocaleDateString("sv-SE", {timeZone:"Europe/Paris"}).split("-").map(Number);
+    const dayBack = i => new Date(Date.UTC(Y, M - 1, D - i)).toISOString().slice(0, 10);
+    const parisMs = d => { const [y, m, dd] = d.split("-").map(Number); const guess = Date.UTC(y, m - 1, dd); const off = new Date(guess).toLocaleString("en-US", {timeZone:"Europe/Paris", hour:"2-digit", hour12:false}); return guess - (+off % 24)*HOUR; };   // minuit à Paris
+    const from = dayBack(days - 1), to = dayBack(0), pFrom = dayBack(2*days - 1), pTo = dayBack(days);
+    const msFrom = parisMs(from), msPFrom = parisMs(pFrom);
+    const one = (q, ...a) => this.one(q, ...a) || {};
+    const period = (a, b, ma, mb) => ({
+      visits:one("SELECT COUNT(DISTINCT day || vid) AS n FROM hits WHERE day BETWEEN ? AND ? AND ev = 'pv'", a, b).n || 0,
+      views:one("SELECT COUNT(*) AS n FROM hits WHERE day BETWEEN ? AND ? AND ev = 'pv'", a, b).n || 0,
+      tried:one("SELECT COUNT(DISTINCT day || vid) AS n FROM hits WHERE day BETWEEN ? AND ? AND ev = 'clic:essayer'", a, b).n || 0,
+      app:one("SELECT COUNT(DISTINCT day || vid) AS n FROM hits WHERE day BETWEEN ? AND ? AND ev = 'pv' AND path = '/app'", a, b).n || 0,
+      mobile:one("SELECT COUNT(DISTINCT day || vid) AS n FROM hits WHERE day BETWEEN ? AND ? AND ev = 'pv' AND dev = 'mobile'", a, b).n || 0,
+      loops:one("SELECT COUNT(*) AS n FROM hits WHERE day BETWEEN ? AND ? AND ev = 'clic:boucle'", a, b).n || 0,
+      runsStarted:one("SELECT COUNT(*) AS n FROM hits WHERE day BETWEEN ? AND ? AND ev = 'clic:course'", a, b).n || 0,
+      payClicks:one("SELECT COUNT(DISTINCT day || vid) AS n FROM hits WHERE day BETWEEN ? AND ? AND ev = 'clic:payer'", a, b).n || 0,
+      coach:one("SELECT COUNT(*) AS n FROM hits WHERE day BETWEEN ? AND ? AND ev = 'clic:coach'", a, b).n || 0,
+      signups:one("SELECT COUNT(*) AS n FROM users WHERE created >= ? AND created < ?", ma, mb).n || 0,
+      payments:one("SELECT COUNT(*) AS n FROM payments WHERE t >= ? AND t < ? AND txn NOT LIKE 'TEST-%'", ma, mb).n || 0,
+      revenue:Math.round(100*(one("SELECT SUM(CAST(amount AS REAL)) AS s FROM payments WHERE t >= ? AND t < ? AND txn NOT LIKE 'TEST-%'", ma, mb).s || 0))/100,
+      runs:one("SELECT COUNT(*) AS n FROM runs WHERE ok = 1 AND t >= ? AND t < ?", ma, mb).n || 0
+    });
+    const cur = period(from, to, msFrom, now + 1), prev = period(pFrom, pTo, msPFrom, msFrom);
+    // séries par jour
+    const byDay = (q, ...a) => Object.fromEntries(this.rows(q, ...a).map(r => [r.d, r.n]));
+    const dv = byDay("SELECT day AS d, COUNT(DISTINCT vid) AS n FROM hits WHERE day >= ? AND ev = 'pv' GROUP BY day", from);
+    const dl = byDay("SELECT day AS d, COUNT(*) AS n FROM hits WHERE day >= ? AND ev = 'clic:boucle' GROUP BY day", from);
+    const dayKey = ms => new Date(ms).toLocaleDateString("sv-SE", {timeZone:"Europe/Paris"});
+    const ds = {}, dp = {};
+    for(const r of this.rows("SELECT created AS t FROM users WHERE created >= ?", msFrom)){ const k = dayKey(r.t); ds[k] = (ds[k] || 0) + 1; }
+    for(const r of this.rows("SELECT t, amount FROM payments WHERE t >= ? AND txn NOT LIKE 'TEST-%'", msFrom)){ const k = dayKey(r.t); dp[k] = (dp[k] || 0) + (+r.amount || 0); }
+    const daily = []; for(let i = days - 1; i >= 0; i--){ const d = dayBack(i); daily.push({day:d, visits:dv[d] || 0, signups:ds[d] || 0, revenue:Math.round(100*(dp[d] || 0))/100, loops:dl[d] || 0}); }
+    // heures de visite (heure de Paris)
+    const hours = Array(24).fill(0);
+    for(const r of this.rows("SELECT t, COUNT(DISTINCT vid) AS n FROM hits WHERE day >= ? AND ev = 'pv' GROUP BY t", from)){ const h = +new Date(r.t).toLocaleString("en-US", {timeZone:"Europe/Paris", hour:"2-digit", hour12:false}) % 24; hours[h] += r.n; }
+    // sources : page d'arrivée de chaque visite + ce que la visite a donné le même jour
+    const sources = this.rows(`SELECT CASE WHEN h.src != '' THEN 'lien:' || h.src WHEN h.ref != '' THEN h.ref ELSE 'direct' END AS source, COUNT(*) AS visits,
+        SUM(EXISTS(SELECT 1 FROM hits e WHERE e.day = h.day AND e.vid = h.vid AND e.ev = 'clic:essayer')) AS tried,
+        SUM(EXISTS(SELECT 1 FROM hits e WHERE e.day = h.day AND e.vid = h.vid AND e.ev = 'clic:inscription')) AS signed
+      FROM (SELECT MIN(id) AS fid FROM hits WHERE day >= ? AND ev = 'pv' GROUP BY day, vid) x JOIN hits h ON h.id = x.fid GROUP BY source ORDER BY visits DESC LIMIT 12`, from);
+    const vis = (col, extra = "") => this.rows(`SELECT ${col} AS k, COUNT(DISTINCT day || vid) AS n FROM hits WHERE day >= ? AND ev = 'pv' ${extra} GROUP BY k ORDER BY n DESC LIMIT 10`, from);
+    const hourNow = Math.floor(now/HOUR)*HOUR;
+    return {
+      days, from, to, cur, prev, daily, hours, sources,
+      pages:this.rows("SELECT path AS k, COUNT(*) AS views, COUNT(DISTINCT day || vid) AS n FROM hits WHERE day >= ? AND ev = 'pv' GROUP BY path ORDER BY views DESC LIMIT 10", from),
+      devices:vis("dev"), countries:vis("country"), regions:vis("region", "AND region != '' AND country = 'FR'"),
+      live:{hour:one("SELECT COUNT(DISTINCT vid) AS n FROM hits WHERE t = ? AND ev = 'pv'", hourNow).n || 0, today:dv[to] || 0},
+      members:{
+        total:one("SELECT COUNT(*) AS n FROM users").n || 0,
+        active7:one("SELECT COUNT(*) AS n FROM users WHERE seen > ?", now - 7*864e5).n || 0,
+        premium:one("SELECT COUNT(*) AS n FROM users WHERE premium = 1").n || 0,
+        revenueAll:Math.round(100*(one("SELECT SUM(CAST(amount AS REAL)) AS s FROM payments WHERE txn NOT LIKE 'TEST-%'").s || 0))/100
+      }
+    };
+  }
+
   async admin(req, path, b, url, ip){
     const key = req.headers.get("X-Admin-Key") || "";
     if(!this.env.ADMIN_KEY) return json({error:"admin_not_configured"}, 503, {});
@@ -570,6 +631,7 @@ export class Hub {
       }, 200, {});
     }
     if(path === "traffic") return json(this.traffic(+url.searchParams.get("days") || 30), 200, {});
+    if(path === "dash") return json(this.dashboard(+url.searchParams.get("days") || 30), 200, {});
     if(path === "members"){
       const rows = this.rows(`SELECT u.*, (SELECT COUNT(*) FROM msgs WHERE a = u.id) AS sent, (SELECT COUNT(*) FROM reports WHERE whom = u.id) AS reported, (SELECT COUNT(*) FROM runs WHERE uid = u.id AND ok = 1) AS runs, u.free_used AS free_used FROM users u ORDER BY created DESC LIMIT 5000`);
       return json({members:rows.map(u => ({id:u.id, pseudo:u.pseudo, first:u.first, last:u.last, email:u.email, birth:u.birth, level:u.level, pace:u.pace, created:u.created, last_login:u.last_login, seen:u.seen,
