@@ -572,6 +572,9 @@ div.hero .me2{fill:var(--blue);stroke:#fff;stroke-width:3}
 .cksum.ko{background:rgba(224,86,107,.12);color:#F2A3AE}
 .wk .d svg{width:20px;height:20px;stroke:var(--accent);fill:none;stroke-width:2}
 /* Menus et fiches recettes */
+.mday{display:flex;align-items:center;gap:10px;background:var(--surface-2);border-radius:18px;padding:8px}
+.mday span{flex:1;display:flex;flex-direction:column;align-items:center;gap:1px}.mday small{color:var(--muted);font-size:12px}.mday b{font-size:15px;text-transform:capitalize}
+.mday button{width:42px;height:42px;border-radius:14px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-size:22px;line-height:1;cursor:pointer}.mday button:disabled{opacity:.35}
 .budget{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;background:var(--surface-2);border-radius:18px;padding:14px 16px}
 .budget span{display:flex;flex-direction:column;gap:2px}.budget small{color:var(--muted);font-size:12px}.budget b{font-size:16px;text-transform:capitalize}
 .budget .bb{text-align:right}.budget .bb b{color:var(--accent);font-size:22px;font-family:"Bricolage Grotesque",sans-serif}

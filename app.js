@@ -1757,23 +1757,48 @@ function scaleRecipe(r, kcal){
 }
 const BUDGETS = [["eco","Petit budget","moins de 8 €",0,8],["moyen","Moyen","8 à 12 €",8,12],["confort","Confort","12 à 18 €",12,18],["libre","Sans limite","",0,999]];
 const hashS = s => { let x = 7; for(const c of s) x = (x*31 + c.charCodeAt(0)) >>> 0; return x; };
-// Choisit 3 recettes par repas qui tiennent dans la part du budget journalier, en tournant chaque jour
-function optionsFor(slot, goal, seed, kcal, lo, hi){
-  const pool = RECIPES.filter(r => (r[2] === slot || (slot === "recup" && r[2] === "pdj")) && r[3].includes(goal)).map(r => ({r, c:scaleRecipe(r, kcal).cost}));
-  const gap = o => o.c > hi ? o.c - hi : o.c < lo ? lo - o.c : 0;
-  const inRange = pool.filter(o => gap(o) === 0);
-  const base = inRange.length >= 2 ? inRange : pool.slice().sort((a, b) => gap(a) - gap(b)).slice(0, Math.max(2, inRange.length));
-  return base.sort((a, b) => hashS(seed + a.r[0]) - hashS(seed + b.r[0])).slice(0, 3).map(o => o.r);
+// Menus du jour : chaque jour, 3 nouvelles idées par repas, en parcourant toute la bibliothèque (recettes.js)
+// avant de revenir au début. Le budget filtre d'abord les recettes, puis on avance de 3 (ou 6 pour les plats) chaque jour.
+const MENU_DAY0 = Date.UTC(2026, 9, 12);
+const menuDay = (off = 0) => { const d = new Date(); return Math.floor((Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) - MENU_DAY0)/864e5) + off; };
+const MROT = {};
+function rotPool(slot, goal){
+  const k = slot + "|" + goal + "|" + RECIPES.length;
+  // avant la course : les collations riches en glucides et pauvres en gras/fibres conviennent aussi
+  const preOk = r => { const t = Object.entries(r[5]).reduce((a, [k, g]) => { const m = macroOf(k, g); return [a[0] + m[2], a[1] + m[3]]; }, [0, 0]); return t[0] >= 25 && t[1] <= 6; };
+  if(!MROT[k]) MROT[k] = RECIPES.filter(r => (r[2] === slot || (slot === "recup" && r[2] === "pdj") || (slot === "pre" && r[2] === "snack" && preOk(r))) && r[3].includes(goal)).sort((a, b) => hashS("traceo:" + a[0]) - hashS("traceo:" + b[0]));
+  return MROT[k];
+}
+// Bornes de budget ramenées à une portion de référence de 600 kcal, communes à tous les repas d'un même type
+// (le déjeuner et le dîner partagent la même liste : aucune recette ne revient d'un jour sur l'autre)
+const MENU_REF = 600;
+function slotBounds(meals, B, kTot){
+  const out = {};
+  meals.forEach(m => { const sl = SLOT(m.name), share = m.tot[0]/kTot, k = MENU_REF/Math.max(1, m.tot[0]), lo = sl === "plat" ? B[3]*share*.6*k : 0, hi = B[4]*share*1.2*k;
+    const o = out[sl]; out[sl] = o ? [Math.max(o[0], lo), Math.min(o[1], hi)] : [lo, hi]; });
+  Object.values(out).forEach(b => { if(b[0] > b[1]) b[0] = b[1]*.5; });
+  return out;
+}
+function optionsFor(slot, goal, day, bounds, nth = 0, used = new Set()){
+  const pool = rotPool(slot, goal); if(!pool.length) return [];
+  const [lo, hi] = bounds, cost = r => scaleRecipe(r, MENU_REF).cost, gap = r => { const c = cost(r); return c > hi ? c - hi : c < lo ? lo - c : 0; };
+  const fit = pool.filter(r => gap(r) === 0);
+  let res = [];
+  if(fit.length >= 6){ const per = slot === "plat" ? 6 : 3, N = fit.length, st = (((day*per + nth*3) % N) + N) % N; for(let j = 0; j < N && res.length < 3; j++){ const r = fit[(st + j) % N]; if(!used.has(r[0])) res.push(r); } }
+  else { const free = pool.filter(r => !used.has(r[0])); res = free.filter(r => gap(r) === 0).concat(free.filter(r => gap(r) > 0).sort((a, b) => gap(a) - gap(b) || hashS(day + a[0]) - hashS(day + b[0]))).slice(0, 3); }
+  res.forEach(r => used.add(r[0]));
+  return res;
 }
 const eur = v => v.toLocaleString("fr-FR", {style:"currency", currency:"EUR"});
 function menusView(n, p, plan){
-  const today = new Date().toDateString(), sel = store.get("menuSel", {}), daySel = sel.d === today ? sel.v : {};
+  const off = S.menuOff || 0, dayDate = new Date(Date.now() + off*864e5), today = dayDate.toDateString(), sel = store.get("menuSel", {}), daySel = sel.d === today ? sel.v : {};
+  const used = new Set(), nthOf = {}, bnd = slotBounds(plan.meals, BUDGETS.find(b => b[0] === store.get("budget", "libre")) || BUDGETS[3], plan.meals.reduce((a, m) => a + m.tot[0], 0));
   const bk = store.get("budget", "libre"), B = BUDGETS.find(b => b[0] === bk) || BUDGETS[3];
   const kTot = plan.meals.reduce((a, m) => a + m.tot[0], 0);
   let budget = 0;
   const cards = plan.meals.map((m, i) => {
-    const slot = SLOT(m.name), share = m.tot[0]/kTot, lo = B[3]*share*.6, hi = B[4]*share*1.2;
-    const opts = optionsFor(slot, n.goal, today + i + (S.nday || "run") + bk, m.tot[0], lo, hi);
+    const slot = SLOT(m.name), nth = nthOf[slot] = (nthOf[slot] ?? -1) + 1;
+    const opts = optionsFor(slot, n.goal, menuDay(off), bnd[slot], nth, used);
     if(!opts.length) return "";
     const cheapest = opts.slice().sort((x, y) => scaleRecipe(x, m.tot[0]).cost - scaleRecipe(y, m.tot[0]).cost)[0];
     const pick = opts.find(o => o[0] === daySel[i]) || (bk === "eco" ? cheapest : opts[0]), kcal = m.tot[0], sc = scaleRecipe(pick, kcal);
@@ -1785,10 +1810,11 @@ function menusView(n, p, plan){
   const over = B[4] < 999 && budget > B[4], under = budget < B[3];
   return `<p class="eyebrow">Ton budget repas par jour</p>
     <div class="bchips">${BUDGETS.map(b => `<button data-budget="${b[0]}" aria-pressed="${b[0] === bk}"><b>${b[1]}</b>${b[2] ? `<small>${b[2]}</small>` : ""}</button>`).join("")}</div>
-    <div class="budget"><span><small>Menu du jour</small><b>${new Date().toLocaleDateString("fr-FR", {weekday:"long", day:"numeric", month:"long"})}</b></span><span class="bb"><small>Coût estimé</small><b>${eur(budget)}</b></span></div>
+    <div class="mday"><button data-moff="${off - 1}" ${off <= 0 ? "disabled" : ""} aria-label="Jour précédent">‹</button><span><small>${off === 0 ? "Aujourd'hui" : off === 1 ? "Demain" : "Dans " + off + " jours"}</small><b>${dayDate.toLocaleDateString("fr-FR", {weekday:"long", day:"numeric", month:"long"})}</b></span><button data-moff="${off + 1}" ${off >= 6 ? "disabled" : ""} aria-label="Jour suivant">›</button></div>
+    <div class="budget"><span><small>Menu du jour</small><b style="text-transform:none">${(RECIPES.length > 100 ? RECIPES.length + " recettes · " : "") + "3 idées par repas"}</b></span><span class="bb"><small>Coût estimé</small><b>${eur(budget)}</b></span></div>
     <div class="bdet"><div><small>Par jour</small><b>${eur(budget)}</b></div><div><small>Par semaine</small><b>${eur(budget*7)}</b></div><div><small>Par mois</small><b>${eur(budget*30)}</b></div></div>
     ${over ? `<p class="small warn">Pour couvrir tes besoins, ce menu dépasse un peu ton budget. Choisis les idées les moins chères (prix sous chaque bouton) pour t'en rapprocher.</p>` : under ? `<p class="small">Ce menu coûte moins que ton budget : tu peux te faire plaisir avec d'autres idées.</p>` : ""}
-    <p class="small">Les menus changent chaque jour et respectent ton budget. Choisis l'idée qui te fait envie pour chaque repas : les quantités s'adaptent à tes besoins.</p>
+    <p class="small">Nouveaux menus chaque jour : 3 idées par repas qui respectent ton budget, avec la recette pas à pas. Regarde les 6 prochains jours avec les flèches pour faire tes courses. Les quantités s'adaptent à tes besoins.</p>
     <div class="list">${cards}</div>
     <p class="small">Prix moyens constatés en supermarché (marques distributeur), pour 1 personne. Féculents pesés cuits. Les épices, le sel et le vinaigre ne sont pas comptés.</p>`;
 }
@@ -1985,7 +2011,8 @@ function wire(){
     $("#pfEdit") && ($("#pfEdit").onclick = () => { S.editProfile = true; render(); });
     body.querySelectorAll("[data-nday]").forEach(b => b.onclick = () => { S.nday = b.dataset.nday; store.set("nday", S.nday); render(); });
     body.querySelectorAll("[data-ntime]").forEach(b => b.onclick = () => { S.ntime = b.dataset.ntime; store.set("ntime", S.ntime); render(); });
-    body.querySelectorAll("[data-opt]").forEach(b => b.onclick = () => { const [i, id] = b.dataset.opt.split("|"), d = new Date().toDateString(), s = store.get("menuSel", {}); const v = s.d === d ? s.v : {}; v[i] = id; store.set("menuSel", {d, v}); render(); });
+    body.querySelectorAll("[data-opt]").forEach(b => b.onclick = () => { const [i, id] = b.dataset.opt.split("|"), d = new Date(Date.now() + (S.menuOff || 0)*864e5).toDateString(), s = store.get("menuSel", {}); const v = s.d === d ? s.v : {}; v[i] = id; store.set("menuSel", {d, v}); render(); });
+    body.querySelectorAll("[data-moff]").forEach(b => b.onclick = () => { S.menuOff = Math.max(0, Math.min(6, +b.dataset.moff)); render(); });
     body.querySelectorAll("[data-budget]").forEach(b => b.onclick = () => { store.set("budget", b.dataset.budget); store.set("menuSel", {}); render(); });
     body.querySelectorAll("[data-rec]").forEach(b => b.onclick = () => recipeSheet(b.dataset.rec, +b.dataset.kcal));
     const draft = {...(S.profile || {sex:"h", age:30, height:175, weight:S.weight, goal:"forme", level:"regulier", freq:3})};

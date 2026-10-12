@@ -1,7 +1,7 @@
 // Traceo — fonctionnement hors ligne de l'app (la carte et le calcul des boucles demandent Internet).
 // Version volontairement simple : on ne touche ni aux cartes ni aux services externes, pour éviter tout blocage (Safari).
 const VERSION = "traceo-v59";
-const SHELL = ["./", "index.html", "app.html", "styles.css", "app.js", "native.js", "chat-brain.js", "ensemble.js", "config.js", "manifest.webmanifest", "icons/icon-192.png", "icons/icon-512.png"];
+const SHELL = ["./", "index.html", "app.html", "styles.css", "app.js", "native.js", "chat-brain.js", "ensemble.js", "recettes.js", "config.js", "manifest.webmanifest", "icons/icon-192.png", "icons/icon-512.png"];
 
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL)).catch(() => {}).then(() => self.skipWaiting()));
