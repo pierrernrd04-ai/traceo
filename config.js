@@ -36,6 +36,10 @@ window.TRACEO_CONFIG = {
   // Chat IA (Claude) : adresse du serveur server/worker.js une fois déployé avec ta clé Anthropic,
   // ex. "https://traceo-api.<ton-compte>.workers.dev". Vide : le chat utilise l'assistant intégré.
   CHAT_API: "https://traceo-api.pierre-rnrd04.workers.dev",
+  // Amazon Partenaires : ton identifiant de suivi (ex. "traceo-21"), visible dans ton compte partenaire.amazon.fr
+  AMAZON_TAG: "",
+  // Posters de boucle (impression Printful) : prix de vente TTC, livraison incluse
+  POSTER_PRICES: {"30x40": "29.90", "50x70": "44.90"},
   PRICE_LABEL: "4,99 €",
 
   // ---------- Statistiques de visite (cloud.umami.is, gratuit) ----------

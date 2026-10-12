@@ -1,0 +1,48 @@
+# Met en ligne le site et l'app web sur Cloudflare Pages (traceorun.pages.dev) à chaque modification.
+# Utilise les mêmes secrets que le serveur : CLOUDFLARE_API_TOKEN et CLOUDFLARE_ACCOUNT_ID.
+name: Site (Cloudflare Pages)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths-ignore: ["server/**", "android/**", "ios/**", "resources/**", ".github/workflows/android.yml", ".github/workflows/server.yml"]
+
+concurrency:
+  group: site-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - name: Vérifier les secrets
+        id: check
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::warning::Secrets CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID manquants : ajoute-les dans Settings > Secrets and variables > Actions, puis relance ce workflow."
+            echo "ok=false" >> $GITHUB_OUTPUT
+          else echo "ok=true" >> $GITHUB_OUTPUT; fi
+      - uses: actions/checkout@v4
+        if: steps.check.outputs.ok == 'true'
+      - name: Préparer les fichiers du site
+        if: steps.check.outputs.ok == 'true'
+        run: |
+          mkdir -p _site
+          rsync -a --exclude '.git' --exclude '.github' --exclude 'node_modules' --exclude 'android' --exclude 'ios' --exclude 'server' --exclude 'resources' --exclude 'scripts' --exclude 'www' --exclude '*.md' --exclude 'package*.json' --exclude 'capacitor.config.json' ./ _site/
+          du -sh _site; ls _site
+      - uses: actions/setup-node@v4
+        if: steps.check.outputs.ok == 'true'
+        with:
+          node-version: 20
+      - name: Déployer sur Cloudflare Pages
+        if: steps.check.outputs.ok == 'true'
+        run: |
+          set +e
+          npx --yes wrangler@3 pages deploy _site --project-name=traceorun --branch=main --commit-dirty=true > out.txt 2>&1
+          code=$?
+          while IFS= read -r l; do echo "::notice::deploy: $l"; done < <(tail -n 25 out.txt | sed 's/\x1b\[[0-9;]*m//g')
+          exit $code

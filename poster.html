@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex">
+<title>Fichier poster · Traceo</title>
+<style>
+:root{color-scheme:dark}body{margin:0;background:#07131A;color:#fff;font:16px/1.45 Inter,system-ui,-apple-system,sans-serif;padding:20px 16px 40px}
+main{max-width:520px;margin:0 auto}h1{font-size:24px;margin:4px 0 4px}p{color:#a9d8cc;margin:6px 0}
+.prev{margin:16px auto;max-width:360px;border-radius:12px;overflow:hidden;box-shadow:0 18px 40px rgba(0,0,0,.5)}.prev canvas{display:block;width:100%;height:auto}
+.btn{display:block;width:100%;box-sizing:border-box;text-align:center;padding:15px;border-radius:14px;border:0;font:inherit;font-weight:800;cursor:pointer;margin:10px 0;text-decoration:none}
+.go{background:linear-gradient(105deg,#2BE3A0,#46C6FF);color:#04140c}.soft{background:#14222a;color:#fff;border:1px solid #24343c}
+ol{padding-left:20px;color:#cfe}li{margin:6px 0}code{background:#14222a;padding:2px 6px;border-radius:6px}
+.err{color:#ff8a8a}
+</style></head><body><main>
+<h1>Fichier d'impression · réf <span id="ref">?</span></h1>
+<p id="info"></p>
+<div class="prev"><canvas id="cv"></canvas></div>
+<button class="btn go" id="dl">Télécharger le fichier HD (PNG)</button>
+<a class="btn soft" href="https://www.printful.com/dashboard/default/orders" target="_blank" rel="noopener">Ouvrir Printful (nouvelle commande)</a>
+<ol>
+  <li>Vérifie dans PayPal le paiement <code id="inv">POSTER-…</code> et copie l'adresse de livraison.</li>
+  <li>Sur Printful : <b>New order</b> → produit <b>Enhanced Matte Paper Poster (cm)</b>, taille <b id="sz">30×40</b>.</li>
+  <li>Importe le fichier HD, colle l'adresse du client, valide.</li>
+</ol>
+</main>
+<script src="config.js"></script>
+<script src="poster.js"></script>
+<script>
+(function(){
+  const q = new URLSearchParams(location.search), P = window.TraceoPoster, f = q.get("f") in P.FORMATS ? q.get("f") : "30x40", F = P.FORMATS[f];
+  const pts = P.decode(q.get("c") || ""), stats = (q.get("s") || "").split("|").filter(Boolean).map(x => x.split("~"));
+  const d = {pts, title:q.get("t") || "Ma boucle Traceo", date:q.get("d") || "", stats};
+  document.getElementById("ref").textContent = q.get("ref") || "?"; document.getElementById("inv").textContent = "POSTER-" + (q.get("ref") || "?"); document.getElementById("sz").textContent = F.label;
+  const info = document.getElementById("info");
+  if(pts.length < 2){ info.className = "err"; info.textContent = "Lien incomplet : le tracé est introuvable."; document.getElementById("dl").disabled = true; return; }
+  info.textContent = `${F.label} · ${d.title} · payé ${F.price.replace(".", ",")} €`;
+  const cv = document.getElementById("cv"); cv.width = 600; cv.height = Math.round(600*F.h/F.w);
+  const go = () => P.draw(cv, d); (document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(go); go();
+  document.getElementById("dl").onclick = () => {
+    const long = f === "50x70" ? 5512 : 4724;          // 50×70 à 200 dpi, 30×40 à 300 dpi
+    const hd = P.canvasFor(f, long); P.draw(hd, d);
+    hd.toBlob(b => { const u = URL.createObjectURL(b), a = document.createElement("a"); a.href = u; a.download = `traceo-poster-${q.get("ref") || "x"}-${f}.png`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 5000); }, "image/png");
+  };
+})();
+</script>
+</body></html>
