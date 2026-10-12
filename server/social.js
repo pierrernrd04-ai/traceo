@@ -34,6 +34,9 @@ const LEVELS = ["debut", "regulier", "confirme", "expert"];
 const ACT_PUB = {"kty":"EC","crv":"P-256","x":"__6AWyNjAcpIy9E2jeaF-pVNzipouEcuYhBleromdtE","y":"WR7Y2cF2dCOReGhUEk7DEFkf2Bmh5rNc0NveDAggRzQ"};   // clé publique d'activation (la clé privée = secret ACT_KEY)
 const FREE_LOOPS = 3;   // boucles offertes à chaque nouveau compte (version gratuite)
 const REWARD_EVERY = 100, REWARD_EUR = 5;   // un diamant (bon d'achat de 5 €) toutes les 100 courses vérifiées
+const DASH_URL = "https://traceorun.pages.dev/tableau";   // ouvert en touchant une alerte
+const SRC_LABEL = {story:"ta story Instagram", bio:"ta bio Instagram", insta:"Instagram", instagram:"Instagram", linkedin:"LinkedIn", whatsapp:"WhatsApp", facebook:"Facebook", tiktok:"TikTok", strava:"Strava", email:"ton e-mail", qr:"ton QR code"};
+const SOCIAL_REF = /^(instagram|facebook|linkedin|lnkd\.in|tiktok|t\.co|x|twitter|snapchat|whatsapp|wa\.me|youtube|threads|reddit|strava)(\.com|\.net)?$/;
 
 export class Hub {
   constructor(state, env){
@@ -143,7 +146,14 @@ export class Hub {
     this.sql.exec("INSERT INTO users(id, pseudo, pw, first, last, email, birth, level, pace, bio, created, seen, visible, premium) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
       id, pseudo, await this.hashPw(b.key), first, last, email, birth, LEVELS.includes(b.level) ? b.level : "regulier", Math.max(150, Math.min(900, +b.pace || 345)), clean(b.bio, 140), NOW(), NOW(), b.visible === false ? 0 : 1, b.premium ? 1 : 0);
     const u = this.one("SELECT * FROM users WHERE id = ?", id), token = await this.newSession(u, req);
-    if(this.env.ALERTS_TOPIC) this.state.waitUntil(fetch("https://ntfy.sh/" + this.env.ALERTS_TOPIC, {method:"POST", headers:{Title:"Nouveau membre Traceo", Tags:"handshake"}, body:`${first} ${last} (@${pseudo}) vient de créer son compte.`}).catch(() => {}));
+    if(this.env.ALERTS_TOPIC){
+      // chiffres agrégés du jour seulement : l'inscription n'est jamais reliée à une visite précise
+      const day = new Date().toLocaleDateString("sv-SE", {timeZone:"Europe/Paris"});
+      const vis = this.one("SELECT COUNT(DISTINCT vid) AS n, COUNT(DISTINCT CASE WHEN src != '' THEN vid END) AS l FROM hits WHERE day = ? AND ev = 'pv'", day);
+      const su = this.one("SELECT COUNT(*) AS n FROM users WHERE created >= ?", NOW() - 864e5).n, tot = this.one("SELECT COUNT(*) AS n FROM users").n;
+      this.state.waitUntil(fetch("https://ntfy.sh/" + this.env.ALERTS_TOPIC, {method:"POST", headers:{Title:"Nouvel inscrit Traceo", Tags:"tada", Priority:"high", Click:DASH_URL},
+        body:`${first} ${last} (@${pseudo}) vient de créer son compte.\nAujourd'hui : ${vis.n} visiteur${vis.n > 1 ? "s" : ""} (dont ${vis.l} via tes liens) · ${su} inscription${su > 1 ? "s" : ""} en 24 h · ${tot} membres au total.`}).catch(() => {}));
+    }
     return json({token, me:this.mine(u)}, 200, {});
   }
   async login(b, ip, req){
@@ -500,7 +510,7 @@ export class Hub {
     let salt = this.one("SELECT v FROM kv WHERE k = ?", "salt:" + day)?.v;
     if(!salt){
       salt = hex(crypto.getRandomValues(new Uint8Array(16)));
-      this.sql.exec("DELETE FROM kv WHERE k LIKE 'salt:%'");
+      this.sql.exec("DELETE FROM kv WHERE k LIKE 'salt:%' OR k LIKE 'la:%'");
       this.sql.exec("INSERT OR REPLACE INTO kv(k, v) VALUES(?, ?)", "salt:" + day, salt);
       this.sql.exec("DELETE FROM hits WHERE day < ?", new Date(NOW() - 395*864e5).toLocaleDateString("sv-SE", {timeZone:"Europe/Paris"}));   // conservation : 13 mois maximum
     }
@@ -518,9 +528,27 @@ export class Hub {
     const dev = /iPad|Tablet/i.test(ua) ? "tablette" : /Mobi|Android|iPhone/i.test(ua) ? "mobile" : "ordinateur";
     // heure arrondie : impossible de rapprocher une visite d'une inscription précise
     let region = ""; try{ region = clean(decodeURIComponent(req.headers.get("X-Region") || ""), 40); }catch(e){}
+    const fresh = ev === "pv" && !this.one("SELECT 1 AS x FROM hits WHERE day = ? AND vid = ? AND ev = 'pv' LIMIT 1", day, vid);
     this.sql.exec("INSERT INTO hits(t, day, vid, ev, path, src, ref, country, dev, region) VALUES(?,?,?,?,?,?,?,?,?,?)", Math.floor(NOW()/HOUR)*HOUR, day, vid, ev, path, src, ref, clean(req.headers.get("X-Country"), 2), dev, region);
     this.hitDay.n++;
+    if(fresh && (src || SOCIAL_REF.test(ref))) this.linkAlert(day, src, ref, dev, region, path);
     return none;
+  }
+  // alerte « nouveau visiteur arrivé par ton lien » : une par personne jusqu'à 20 par jour, puis des paliers groupés
+  linkAlert(day, src, ref, dev, region, path){
+    if(!this.env.ALERTS_TOPIC) return;
+    const n = (+this.one("SELECT v FROM kv WHERE k = ?", "la:" + day)?.v || 0) + 1;
+    this.sql.exec("INSERT OR REPLACE INTO kv(k, v) VALUES(?, ?)", "la:" + day, String(n));
+    const via = src ? (SRC_LABEL[src.replace(/[-_.].*$/, "")] || `ton lien « ${src} »`) : ref.replace(/\.com$/, "").replace(/^./, c => c.toUpperCase());
+    let title, body;
+    if(n <= 20){
+      title = "Nouveau visiteur via ton lien";
+      body = `Quelqu'un vient d'arriver via ${via} (${[dev, region].filter(Boolean).join(" · ")}, page ${path}).\n${n}${n > 1 ? "e" : "er"} visiteur venu de tes liens aujourd'hui.` + (n === 20 ? "\nLes prochaines alertes seront groupées (30, 50, 100…)." : "");
+    } else if([30, 50, 75, 100, 150, 200, 300, 500, 750, 1000, 2000, 5000].includes(n)){
+      title = "Tes liens cartonnent";
+      body = `${n} visiteurs sont arrivés par tes liens aujourd'hui (dernier : ${via}).`;
+    } else return;
+    this.state.waitUntil(fetch("https://ntfy.sh/" + this.env.ALERTS_TOPIC, {method:"POST", headers:{Title:title, Tags:"eyes", Click:DASH_URL}, body}).catch(() => {}));
   }
   traffic(days){
     days = Math.max(1, Math.min(395, Math.round(days) || 30));
