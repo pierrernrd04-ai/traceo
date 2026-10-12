@@ -37,7 +37,7 @@ const REWARD_EVERY = 100, REWARD_EUR = 5;   // un diamant (bon d'achat de 5 €)
 
 export class Hub {
   constructor(state, env){
-    this.state = state; this.env = env; this.sql = state.storage.sql; this.hits = new Map();
+    this.state = state; this.env = env; this.sql = state.storage.sql; this.hits = new Map(); this.hitLim = new Map(); this.hitDay = {day:'', n:0};
     this.sql.exec(`CREATE TABLE IF NOT EXISTS users(id TEXT PRIMARY KEY, pseudo TEXT UNIQUE, pw TEXT, first TEXT, last TEXT, email TEXT UNIQUE, birth TEXT, level TEXT, pace INT, bio TEXT,
       created INT, seen INT, last_login INT, lat REAL, lon REAL, place TEXT, visible INT DEFAULT 1, avail_until INT DEFAULT 0, avail_km REAL, avail_note TEXT, push TEXT, notif INT DEFAULT 1, shout_at INT DEFAULT 0, premium INT DEFAULT 0)`);
     try{ this.sql.exec("ALTER TABLE users ADD COLUMN free_used INT DEFAULT 0"); }catch(e){}
@@ -82,7 +82,7 @@ export class Hub {
       if(path === "pseudo") return json({free:!this.one("SELECT 1 AS x FROM users WHERE pseudo = ?", clean(url.searchParams.get("p"), 20).toLowerCase())}, 200, {});
       if(path.startsWith("admin/")) return this.admin(req, path.slice(6), body, url, ip);
       if(path === "sms-status") return json({sms:this.smsReady()}, 200, {});
-      if(path === "hit") return this.hit(body, req, ip);
+      if(path === "hit") return await this.hit(body, req, ip);
       const me = await this.auth(req);
       if(!me) return json({error:"auth"}, 401, {});
       this.sql.exec("UPDATE users SET seen = ? WHERE id = ?", NOW(), me.id);
@@ -480,40 +480,54 @@ export class Hub {
 
   /* ---------- Administration (page admin.html) ---------- */
   // ---------- Audience (sans cookie, données agrégées) ----------
+  // limiteur réservé aux statistiques : n'efface jamais les limites de sécurité (connexion, SMS, paiement)
+  hitLimit(key, n, ms){ const now = NOW(), h = (this.hitLim.get(key) || []).filter(t => now - t < ms); if(h.length >= n){ this.hitLim.set(key, h); return true; } h.push(now); this.hitLim.set(key, h); if(this.hitLim.size > 50000) this.hitLim.clear(); return false; }
   async hit(b, req, ip){
     const none = new Response(null, {status:204});
+    if(req.method !== "POST" || !b || typeof b !== "object" || JSON.stringify(b).length > 1500) return none;
+    // seulement depuis les sites Traceo (un autre site ne peut pas gonfler les chiffres)
+    const origin = req.headers.get("Origin") || "";
+    const allowed = String(this.env.APP_ORIGIN || "").split(",").map(x => x.trim().replace(/\/$/, "")).filter(Boolean);
+    if(origin && allowed.length && !allowed.includes(origin)) return none;
     const ua = req.headers.get("User-Agent") || "";
-    if(!ua || /bot|crawl|spider|slurp|facebookexternalhit|preview|headless|lighthouse|pingdom|curl|wget|python|node-fetch/i.test(ua)) return none;
+    if(!ua || ua.length > 400 || /bot|crawl|spider|slurp|facebookexternalhit|preview|headless|lighthouse|pingdom|curl|wget|python|node-fetch/i.test(ua)) return none;
     const ev = String(b.e || "pv").toLowerCase();
     if(!/^(pv|clic:[a-z0-9_-]{1,24})$/.test(ev)) return none;
+    if(this.hitLimit("ip:" + ip, 300, HOUR)) return none;
     const day = new Date().toLocaleDateString("sv-SE", {timeZone:"Europe/Paris"});
     let salt = this.one("SELECT v FROM kv WHERE k = ?", "salt:" + day)?.v;
     if(!salt){
       salt = hex(crypto.getRandomValues(new Uint8Array(16)));
       this.sql.exec("DELETE FROM kv WHERE k LIKE 'salt:%'");
       this.sql.exec("INSERT OR REPLACE INTO kv(k, v) VALUES(?, ?)", "salt:" + day, salt);
-      this.sql.exec("DELETE FROM hits WHERE t < ?", NOW() - 395*864e5);   // conservation : 13 mois maximum
+      this.sql.exec("DELETE FROM hits WHERE day < ?", new Date(NOW() - 395*864e5).toLocaleDateString("sv-SE", {timeZone:"Europe/Paris"}));   // conservation : 13 mois maximum
     }
+    // plafond quotidien (protection du stockage)
+    if(this.hitDay.day !== day) this.hitDay = {day, n:this.one("SELECT COUNT(*) AS n FROM hits WHERE day = ?", day).n};
+    if(this.hitDay.n >= 60000) return none;
     const vid = (await sha(salt + "|" + ip + "|" + ua)).slice(0, 16);
-    if(this.limit("hit:" + vid, 150, HOUR)) return none;
+    if(this.hitLimit("v:" + vid, 150, HOUR)) return none;
     let path = clean(b.p, 120).split("?")[0].split("#")[0].replace(/^\/traceo(?=\/|$)/, "").replace(/\/index\.html$/, "/").replace(/\.html$/, "") || "/";
     if(!path.startsWith("/")) path = "/" + path;
     let ref = "";
-    try{ ref = new URL(String(b.r || "")).hostname.replace(/^www\./, "").replace(/^(l|lm|m)\.(instagram|facebook)\.com$/, "$2.com"); }catch(e){}
+    try{ const u = new URL(String(b.r || "").slice(0, 300)); if(/^https?:$/.test(u.protocol)) ref = clean(u.hostname, 60).replace(/^www\./, "").replace(/^(l|lm|m)\.(instagram|facebook)\.com$/, "$2.com"); }catch(e){}
     if(/(^|\.)traceorun\.pages\.dev$|(^|\.)traceo\.pages\.dev$|pierrernrd04-ai\.github\.io$/.test(ref)) ref = "";
     const src = clean(b.s, 40).toLowerCase().replace(/[^a-z0-9_.-]/g, "");
     const dev = /iPad|Tablet/i.test(ua) ? "tablette" : /Mobi|Android|iPhone/i.test(ua) ? "mobile" : "ordinateur";
-    this.sql.exec("INSERT INTO hits(t, day, vid, ev, path, src, ref, country, dev) VALUES(?,?,?,?,?,?,?,?,?)", NOW(), day, vid, ev, path, src, ref, clean(req.headers.get("X-Country"), 2), dev);
+    // heure arrondie : impossible de rapprocher une visite d'une inscription précise
+    this.sql.exec("INSERT INTO hits(t, day, vid, ev, path, src, ref, country, dev) VALUES(?,?,?,?,?,?,?,?,?)", Math.floor(NOW()/HOUR)*HOUR, day, vid, ev, path, src, ref, clean(req.headers.get("X-Country"), 2), dev);
+    this.hitDay.n++;
     return none;
   }
   traffic(days){
     days = Math.max(1, Math.min(395, Math.round(days) || 30));
-    const dayOf = ms => new Date(ms).toLocaleDateString("sv-SE", {timeZone:"Europe/Paris"});
-    const now = NOW(), from = dayOf(now - (days - 1)*864e5), since = now - days*864e5;
+    const now = NOW(), [Y, M, D] = new Date(now).toLocaleDateString("sv-SE", {timeZone:"Europe/Paris"}).split("-").map(Number);
+    const dayBack = i => new Date(Date.UTC(Y, M - 1, D - i)).toISOString().slice(0, 10);   // jours civils, sans décalage au changement d'heure
+    const from = dayBack(days - 1), since = now - days*864e5;
     const per = this.rows("SELECT day, COUNT(DISTINCT vid) AS v, SUM(ev = 'pv') AS pv FROM hits WHERE day >= ? GROUP BY day", from);
     const map = Object.fromEntries(per.map(r => [r.day, r]));
     const daily = [];
-    for(let i = days - 1; i >= 0; i--){ const d = dayOf(now - i*864e5); daily.push({day:d, visits:map[d]?.v || 0, views:map[d]?.pv || 0}); }
+    for(let i = days - 1; i >= 0; i--){ const d = dayBack(i); daily.push({day:d, visits:map[d]?.v || 0, views:map[d]?.pv || 0}); }
     const sum = (n, k) => daily.slice(-n).reduce((a, r) => a + r[k], 0);
     const visitsOf = where => this.one(`SELECT COUNT(DISTINCT day || vid) AS n FROM hits WHERE day >= ? AND ${where}`, from).n;
     return {

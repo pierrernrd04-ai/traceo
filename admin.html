@@ -130,6 +130,7 @@ function filtered(){
   return list.sort((a, b) => k(a) < k(b) ? -1 : k(a) > k(b) ? 1 : 0);
 }
 function view(){
+  document.querySelectorAll(".tip").forEach(e => e.remove());
   const s = DATA.stats, list = filtered();
   $("#app").innerHTML = `<header><h1><img src="icons/icon-192.png" alt="">Traceo Admin</h1><div class="acts"><button class="btn sm" id="bk">Sauvegarde complète</button><button class="btn sm" id="rf">Actualiser</button><button class="btn sm" id="out">Quitter</button></div></header>
     <div class="tiles">${[["Membres", s.members], ["Nouveaux (7 j)", s.new7], ["Actifs (24 h)", s.active24], ["En ligne", s.online], ["Premium", s.premium], ["Courses validées", s.runs], ["Diamants à activer", s.rewards_due], ["Messages", s.messages], ["Signalements", s.reports]].map(([l, v]) => `<div class="tile"><b>${v}</b><span>${l}</span></div>`).join("")}</div>
