@@ -37,7 +37,7 @@ window.TRACEO_CONFIG = {
   // ex. "https://traceo-api.<ton-compte>.workers.dev". Vide : le chat utilise l'assistant intégré.
   CHAT_API: "https://traceo-api.pierre-rnrd04.workers.dev",
   // Amazon Partenaires : ton identifiant de suivi (ex. "traceo-21"), visible dans ton compte partenaire.amazon.fr
-  AMAZON_TAG: "",
+  AMAZON_TAG: "traceo21-21",
   // Posters de boucle (impression Printful) : prix de vente TTC, livraison incluse
   POSTER_PRICES: {"30x40": "29.90", "50x70": "44.90"},
   PRICE_LABEL: "4,99 €",
