@@ -241,5 +241,6 @@ const u = new URLSearchParams(location.search);
 if(u.get("paiement") === "ok"){ history.replaceState(null, "", location.pathname); afterPayPal(); }
 else{ if(u.get("paiement") === "annule") history.replaceState(null, "", location.pathname); S.step = !S.auth ? 0 : paidNow() ? 4 : 1; render(); }
 </script>
+<script src="stats.js" defer></script>
 </body>
 </html>

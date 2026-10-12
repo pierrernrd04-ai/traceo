@@ -54,6 +54,29 @@ td a{color:var(--accent-2);text-decoration:none}
 .modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:grid;place-items:center;padding:16px;z-index:9}
 .modal .card{max-width:420px;width:100%}
 .mono{font-family:ui-monospace,Menlo,monospace;font-size:20px;background:var(--surface-2);padding:10px 12px;border-radius:12px;text-align:center;letter-spacing:.05em;user-select:all}
+.chart{position:relative;height:200px;margin:8px 0 6px;padding-left:34px}
+.chart .grid{position:absolute;left:34px;right:0;border-top:1px dashed rgba(138,164,163,.18)}
+.chart .grid span{position:absolute;left:-34px;top:-8px;width:28px;text-align:right;font-size:11px;color:var(--muted)}
+.chart .bars{position:absolute;left:34px;right:0;top:0;bottom:0;display:flex;align-items:flex-end;gap:2px}
+.chart .col{flex:1;height:100%;display:flex;align-items:flex-end;cursor:default}
+.chart .bar{width:100%;min-height:2px;border-radius:4px 4px 0 0;background:var(--accent)}
+.chart .col:hover .bar{background:#5FE3B3}
+.xlab{display:flex;gap:2px;padding-left:34px;font-size:11px;color:var(--muted)}
+.xlab span{flex:1;text-align:center;white-space:nowrap;overflow:visible}
+.tip{position:fixed;pointer-events:none;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:13px;box-shadow:0 8px 24px rgba(0,0,0,.4);z-index:20}
+.tip b{display:block}
+.funnel .row{display:grid;grid-template-columns:170px 1fr 92px;gap:10px;align-items:center;margin:8px 0;font-size:14px}
+.funnel .track{height:14px;border-radius:7px;background:var(--surface-2);overflow:hidden}
+.funnel .fill{height:100%;border-radius:7px;background:var(--accent)}
+.funnel .num{text-align:right;font-weight:800}
+.funnel .num small{color:var(--muted);font-weight:600}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+.linkbox{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px}
+.linkbox code{background:var(--surface-2);padding:8px 10px;border-radius:10px;font-size:13px;user-select:all}
+.seg{display:inline-flex;background:var(--surface-2);border-radius:999px;padding:3px}
+.seg button{border:0;background:none;padding:6px 12px;border-radius:999px;font-weight:800;color:var(--muted);cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink)}
+@media (max-width:760px){ .funnel .row{grid-template-columns:120px 1fr 78px} }
 @media (max-width:760px){
   table,thead,tbody,tr,td{display:block}
   thead{display:none}
@@ -77,7 +100,7 @@ const ago = t => { if(!t) return "jamais"; const m = Math.round((Date.now() - t)
 const age = b => { if(!b) return ""; const x = new Date(b), n = new Date(); let a = n.getFullYear() - x.getFullYear(); if(n < new Date(n.getFullYear(), x.getMonth(), x.getDate())) a--; return a; };
 const LVL = {debut:"Débutant", regulier:"Régulier", confirme:"Confirmé", expert:"Expert"};
 let KEY = sessionStorage.getItem("traceoAdmin") || localStorage.getItem("traceoAdmin") || "";
-let DATA = {members:[], reports:[], rewards:[], payments:[], pending:[], stats:null}, TAB = "members", SORT = "created", QRY = "";
+let DATA = {members:[], reports:[], rewards:[], payments:[], pending:[], stats:null}, TAB = "audience", SORT = "created", DAYS = 30, QRY = "";
 function toast(m){ const t = document.createElement("div"); t.className = "toast"; t.textContent = m; document.body.appendChild(t); setTimeout(() => t.remove(), 3200); }
 async function call(path, body){
   const r = await fetch(API + "/social/admin/" + path, {method:body ? "POST" : "GET", headers:{"Content-Type":"application/json", "X-Admin-Key":KEY}, body:body ? JSON.stringify(body) : undefined});
@@ -97,8 +120,8 @@ function loginView(err){
   $("#go").onclick = go; $("#k").onkeydown = e => { if(e.key === "Enter") go(); }; $("#k").focus();
 }
 async function load(){
-  const [stats, m, r, w, pp] = await Promise.all([call("stats"), call("members"), call("reports"), call("rewards"), call("payments").catch(() => ({payments:[], pending:[]}))]);
-  DATA = {stats, members:m.members, reports:r.reports, rewards:w.rewards, payments:pp.payments, pending:pp.pending}; view();
+  const [stats, m, r, w, pp, tr] = await Promise.all([call("stats"), call("members"), call("reports"), call("rewards"), call("payments").catch(() => ({payments:[], pending:[]})), call("traffic?days=" + DAYS).catch(() => null)]);
+  DATA = {stats, members:m.members, reports:r.reports, rewards:w.rewards, payments:pp.payments, pending:pp.pending, traffic:tr}; view();
 }
 function filtered(){
   const q = QRY.toLowerCase().trim();
@@ -110,7 +133,7 @@ function view(){
   const s = DATA.stats, list = filtered();
   $("#app").innerHTML = `<header><h1><img src="icons/icon-192.png" alt="">Traceo Admin</h1><div class="acts"><button class="btn sm" id="bk">Sauvegarde complète</button><button class="btn sm" id="rf">Actualiser</button><button class="btn sm" id="out">Quitter</button></div></header>
     <div class="tiles">${[["Membres", s.members], ["Nouveaux (7 j)", s.new7], ["Actifs (24 h)", s.active24], ["En ligne", s.online], ["Premium", s.premium], ["Courses validées", s.runs], ["Diamants à activer", s.rewards_due], ["Messages", s.messages], ["Signalements", s.reports]].map(([l, v]) => `<div class="tile"><b>${v}</b><span>${l}</span></div>`).join("")}</div>
-    <div class="tabs"><button data-t="members" aria-pressed="${TAB === "members"}">Membres (${DATA.members.length})</button><button data-t="payments" aria-pressed="${TAB === "payments"}">Paiements (${DATA.payments.length})</button><button data-t="rewards" aria-pressed="${TAB === "rewards"}">Diamants (${DATA.rewards.filter(r => r.status !== "versee" && r.status !== "refusee").length})</button><button data-t="reports" aria-pressed="${TAB === "reports"}">Signalements (${DATA.reports.length})</button></div>
+    <div class="tabs"><button data-t="audience" aria-pressed="${TAB === "audience"}">Audience</button><button data-t="members" aria-pressed="${TAB === "members"}">Membres (${DATA.members.length})</button><button data-t="payments" aria-pressed="${TAB === "payments"}">Paiements (${DATA.payments.length})</button><button data-t="rewards" aria-pressed="${TAB === "rewards"}">Diamants (${DATA.rewards.filter(r => r.status !== "versee" && r.status !== "refusee").length})</button><button data-t="reports" aria-pressed="${TAB === "reports"}">Signalements (${DATA.reports.length})</button></div>
     ${TAB === "members" ? `<h2>Membres inscrits</h2>
       <div class="tools"><input class="input" id="q" placeholder="Rechercher : nom, identifiant, e-mail, ville…" value="${esc(QRY)}">
       <select class="input" id="sort" style="flex:0 0 auto;width:auto">${[["created", "Plus récents"], ["seen", "Dernière activité"], ["name", "Nom"], ["age", "Âge"]].map(([k, l]) => `<option value="${k}" ${SORT === k ? "selected" : ""}>${l}</option>`).join("")}</select>
@@ -125,6 +148,7 @@ function view(){
         <td data-l="Statut">${u.premium ? '<span class="tag prem">Premium</span>' : '<span class="tag">Gratuit</span>'}${Date.now() - u.seen < 600000 ? '<span class="tag on">En ligne</span>' : ""}${u.visible ? "" : '<span class="tag">Invisible</span>'}${u.push ? '<span class="tag">Notifs</span>' : ""}${u.reported ? `<span class="tag bad">${u.reported} signalement${u.reported > 1 ? "s" : ""}</span>` : ""}</td>
         <td><div class="acts"><button class="btn sm" data-reset="${u.id}">Nouveau mot de passe</button><button class="btn sm danger" data-del="${u.id}">Supprimer</button></div></td></tr>`).join("")}</tbody></table>`
       : `<div class="card empty">${DATA.members.length ? "Aucun membre ne correspond." : "Aucun membre inscrit pour l'instant."}</div>`}`
+    : TAB === "audience" ? audienceView()
     : TAB === "rewards" ? rewardsView()
     : TAB === "payments" ? paymentsView()
     : `<h2>Signalements</h2>${DATA.reports.length ? `<table><thead><tr><th>Date</th><th>Par</th><th>Contre</th><th>Motif</th></tr></thead><tbody>${DATA.reports.map(r => `<tr><td data-l="Date">${d(r.t)}</td><td data-l="Par">@${esc(r.by_pseudo || "supprimé")}</td><td data-l="Contre">@${esc(r.whom_pseudo || "supprimé")}</td><td data-l="Motif">${esc(r.why || "–")}</td></tr>`).join("")}</tbody></table>` : `<div class="card empty">Aucun signalement.</div>`}`}
@@ -152,6 +176,7 @@ function view(){
     m.innerHTML = `<div class="card" style="max-width:640px;max-height:85vh;overflow:auto"><h2 style="margin-top:0">Courses de @${esc(r?.pseudo || "")}</h2><table><thead><tr><th>Date</th><th>Distance</th><th>Durée</th><th>Allure</th><th>Points GPS</th><th>Résultat</th></tr></thead><tbody>${j.runs.map(x => `<tr><td data-l="Date">${d(x.t)}</td><td data-l="Distance">${(x.dist/1000).toFixed(2)} km</td><td data-l="Durée">${Math.round(x.time/60)} min</td><td data-l="Allure">${x.dist ? Math.floor(x.time/(x.dist/1000)/60) + "'" + String(Math.round(x.time/(x.dist/1000)%60)).padStart(2, "0") : "–"}</td><td data-l="Points GPS">${x.n_pts}</td><td data-l="Résultat">${x.ok ? '<span class="tag on">Validée</span>' : `<span class="tag bad">${esc(x.reason)}</span>`}</td></tr>`).join("")}</tbody></table><p style="margin-top:12px"><button class="btn" id="cl2">Fermer</button></p></div>`;
     document.body.appendChild(m); $("#cl2").onclick = () => m.remove();
   });
+  if(TAB === "audience") wireAudience();
   if(TAB !== "members") return;
   $("#q").oninput = e => { QRY = e.target.value; const pos = e.target.selectionStart; view(); const i = $("#q"); i.focus(); i.setSelectionRange(pos, pos); };
   $("#sort").onchange = e => { SORT = e.target.value; view(); };
@@ -177,6 +202,54 @@ function view(){
         <div class="acts"><a class="btn hero" href="mailto:${esc(u.email)}?subject=${encodeURIComponent("Ton nouveau mot de passe Traceo")}&body=${encodeURIComponent(`Bonjour ${u.first},\n\nVoici ton nouveau mot de passe Traceo : ${pw}\n\nConnecte-toi dans l'onglet Ensemble avec ton identifiant @${u.pseudo}, puis change-le dans Mon compte.\n\nBonne course !`)}">Envoyer par e-mail</a><button class="btn" id="cl">Fermer</button></div></div>`;
       document.body.appendChild(m); $("#cl").onclick = () => m.remove();
     }catch(e){ toast("Erreur : " + e.message); }
+  });
+}
+const SRC = s => s === "direct" ? "Accès direct (lien tapé, favori, appli)" : s === "lien:story" ? "📲 Story Instagram (ton lien)" : s === "lien:bio" ? "Bio Instagram (ton lien)" : s.startsWith("lien:") ? "Lien « " + s.slice(5) + " »" : s === "instagram.com" ? "Instagram" : s === "facebook.com" ? "Facebook" : /google\./.test(s) ? "Google" : s;
+const PAGE = p => ({"/": "Accueil", "/app": "Application", "/nouveau": "Annonce « Nouveau départ »", "/essai-premium": "Page Premium", "/legal": "Mentions légales"})[p] || p;
+const CLIC = c => ({essayer:"« Essayer gratuitement »", premium:"« Voir Premium »"})[c] || c;
+const nf = n => Number(n || 0).toLocaleString("fr-FR");
+function audienceView(){
+  const T = DATA.traffic;
+  const seg = `<div class="seg">${[7, 30, 90].map(n => `<button data-days="${n}" aria-pressed="${DAYS === n}">${n} jours</button>`).join("")}</div>`;
+  const links = `<div class="card" style="margin-top:14px"><b>Tes liens suivis</b><p class="small muted" style="margin:4px 0 0">Mets ces liens à la place du lien simple : chaque visite qu'ils apportent est comptée à part dans « Sources ».</p>
+    ${[["Story Instagram", "https://traceorun.pages.dev/nouveau?src=story"], ["Bio Instagram", "https://traceorun.pages.dev/?src=bio"], ["LinkedIn", "https://traceorun.pages.dev/?src=linkedin"]].map(([l, u]) => `<div class="linkbox"><span class="small" style="min-width:120px">${l}</span><code>${u}</code><button class="btn sm" data-copy="${u}">Copier</button></div>`).join("")}</div>`;
+  if(!T) return `<h2>Audience du site</h2><div class="card empty">Les statistiques ne sont pas encore disponibles. Réessaie dans un instant.</div>${links}`;
+  const F = T.funnel, max = Math.max(1, ...T.daily.map(d => d.visits)), top = Math.max(4, Math.ceil(max/4)*4);
+  const step = Math.ceil(T.daily.length/8);
+  const pct = (n, of) => of ? Math.round(100*n/of) + " %" : "–";
+  const tbl = (title, head, rows) => `<div><h2>${title}</h2>${rows.length ? `<table><thead><tr>${head.map(h => `<th>${h}</th>`).join("")}</tr></thead><tbody>${rows.map(r => `<tr>${r.map((c, i) => `<td data-l="${head[i]}">${c}</td>`).join("")}</tr>`).join("")}</tbody></table>` : `<div class="card empty">Rien pour l'instant.</div>`}</div>`;
+  const funnel = [["Visites", F.visits], ["Clics « Essayer »", F.tried], ["Ouvertures de l'app", F.app], ["Comptes créés", F.signups], ["Paiements", F.payments]];
+  return `<h2 style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">Audience du site ${seg}</h2>
+    <div class="tiles">${[["Visites aujourd'hui", T.totals.today], ["Visites (7 j)", T.totals.d7], [`Visites (${T.days} j)`, T.totals.range], [`Pages vues (${T.days} j)`, T.totals.views], ["Venus de ta story", F.story], ["Clics « Essayer »", F.tried], [`Comptes créés (${T.days} j)`, F.signups], [`Paiements (${T.days} j)`, F.payments]].map(([l, v]) => `<div class="tile"><b>${nf(v)}</b><span>${l}</span></div>`).join("")}</div>
+    <div class="card" style="margin-top:14px"><b>Visites par jour</b>
+      <div class="chart">${[1, .5, 0].map(f => `<div class="grid" style="top:${(1 - f)*100}%"><span>${nf(Math.round(top*f))}</span></div>`).join("")}
+        <div class="bars">${T.daily.map(d => `<div class="col" data-tip="${d.day}|${d.visits}|${d.views}"><div class="bar" style="height:${100*d.visits/top}%"></div></div>`).join("")}</div></div>
+      <div class="xlab">${T.daily.map((d, i) => `<span>${i % step === 0 || i === T.daily.length - 1 ? d.day.slice(8) + "/" + d.day.slice(5, 7) : ""}</span>`).join("")}</div>
+      <details style="margin-top:10px"><summary class="small muted" style="cursor:pointer">Voir les chiffres jour par jour</summary>${tbl("", ["Jour", "Visites", "Pages vues"], T.daily.slice().reverse().map(d => [new Date(d.day + "T12:00").toLocaleDateString("fr-FR", {weekday:"short", day:"numeric", month:"short"}), nf(d.visits), nf(d.views)]))}</details>
+    </div>
+    <div class="card funnel" style="margin-top:14px"><b>Du visiteur au client (${T.days} jours)</b>
+      ${funnel.map(([l, n]) => `<div class="row"><span>${l}</span><div class="track"><div class="fill" style="width:${F.visits ? Math.min(100, Math.max(n ? 1.5 : 0, 100*n/F.visits)) : 0}%"></div></div><span class="num">${nf(n)} <small>${l === "Visites" || n > F.visits ? "" : pct(n, F.visits)}</small></span></div>`).join("")}
+      <p class="small muted" style="margin:8px 0 0">Comptes et paiements : tous ceux de la période, y compris les personnes venues directement par l'application.</p>
+    </div>
+    <div class="cols">
+      ${tbl("Sources", ["D'où ils viennent", "Visites"], T.sources.map(r => [esc(SRC(r.source)), nf(r.visits)]))}
+      ${tbl("Pages", ["Page", "Vues", "Visites"], T.pages.map(r => [esc(PAGE(r.path)), nf(r.views), nf(r.visits)]))}
+      ${tbl("Clics", ["Bouton", "Clics", "Personnes"], T.clicks.map(r => [esc(CLIC(r.what)), nf(r.n), nf(r.visitors)]))}
+      ${tbl("Pays et appareils", ["", "Visites"], T.countries.map(r => [esc(r.country ? (() => { try{ return new Intl.DisplayNames(["fr"], {type:"region"}).of(r.country); }catch(e){ return r.country; } })() : "Inconnu"), nf(r.visits)]).concat(T.devices.map(r => [esc(r.dev[0].toUpperCase() + r.dev.slice(1)), nf(r.visits)])))}
+    </div>
+    ${links}
+    <p class="small muted" style="margin-top:14px">Une visite = une personne sur le site un jour donné. Mesure sans cookie ni donnée personnelle : rien n'est stocké sur l'appareil des visiteurs, et l'identifiant anonyme change chaque jour.</p>`;
+}
+function wireAudience(){
+  document.querySelectorAll("[data-days]").forEach(b => b.onclick = async () => { DAYS = +b.dataset.days; try{ DATA.traffic = await call("traffic?days=" + DAYS); view(); }catch(e){ toast("Erreur : " + e.message); } });
+  document.querySelectorAll("[data-copy]").forEach(b => b.onclick = () => { navigator.clipboard?.writeText(b.dataset.copy).then(() => toast("Lien copié."), () => toast(b.dataset.copy)); });
+  let tip = null;
+  document.querySelectorAll("[data-tip]").forEach(c => {
+    c.onmouseenter = e => { tip?.remove(); const [d, v, pv] = c.dataset.tip.split("|"); tip = document.createElement("div"); tip.className = "tip";
+      tip.innerHTML = `<b>${new Date(d + "T12:00").toLocaleDateString("fr-FR", {weekday:"long", day:"numeric", month:"long"})}</b>${nf(v)} visite${v > 1 ? "s" : ""} · ${nf(pv)} page${pv > 1 ? "s" : ""} vue${pv > 1 ? "s" : ""}`; document.body.appendChild(tip); c.onmousemove(e); };
+    c.onmousemove = e => { if(tip){ tip.style.left = Math.min(innerWidth - tip.offsetWidth - 8, e.clientX + 12) + "px"; tip.style.top = (e.clientY - tip.offsetHeight - 10) + "px"; } };
+    c.onmouseleave = () => { tip?.remove(); tip = null; };
+    c.onclick = c.onmouseenter;
   });
 }
 function paymentsView(){

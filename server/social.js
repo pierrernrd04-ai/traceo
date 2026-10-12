@@ -13,7 +13,7 @@ import { json } from "./worker.js";
 export async function social(req, env, cors){
   if(!env.HUB) return json({error:"social_not_configured"}, 503, cors);
   const stub = env.HUB.get(env.HUB.idFromName("france"));
-  const headers = new Headers(req.headers); headers.set("X-IP", req.headers.get("CF-Connecting-IP") || "?");
+  const headers = new Headers(req.headers); headers.set("X-IP", req.headers.get("CF-Connecting-IP") || "?"); headers.set("X-Country", (req.cf && req.cf.country) || "");
   const res = await stub.fetch(new Request(req.url, {method:req.method, headers, body:req.method === "GET" ? undefined : await req.text()}));
   const out = new Response(res.body, res); for(const [k, v] of Object.entries(cors)) out.headers.set(k, v);
   return out;
@@ -60,6 +60,9 @@ export class Hub {
     // Programme « 100 courses = 1 diamant de 5 € » (bon d'achat = 31 jours de Premium) : courses vérifiées et diamants
     this.sql.exec(`CREATE TABLE IF NOT EXISTS runs(id INTEGER PRIMARY KEY AUTOINCREMENT, uid TEXT, t INT, day TEXT, dist INT, time INT, ascent INT, n_pts INT, hash TEXT, ok INT, reason TEXT, premium INT, lat REAL, lon REAL)`);
     this.sql.exec(`CREATE INDEX IF NOT EXISTS runs_uid ON runs(uid, ok, t)`);
+    // Mesure d'audience sans cookie : un identifiant de visite anonyme qui change chaque jour (empreinte salée, sel aléatoire jeté le lendemain)
+    this.sql.exec(`CREATE TABLE IF NOT EXISTS hits(id INTEGER PRIMARY KEY AUTOINCREMENT, t INT, day TEXT, vid TEXT, ev TEXT, path TEXT, src TEXT, ref TEXT, country TEXT, dev TEXT)`);
+    this.sql.exec(`CREATE INDEX IF NOT EXISTS hits_day ON hits(day, ev)`);
     this.sql.exec(`CREATE TABLE IF NOT EXISTS rewards(id INTEGER PRIMARY KEY AUTOINCREMENT, uid TEXT, milestone INT, amount REAL, status TEXT, paypal TEXT, created INT, done_at INT, note TEXT)`);
   }
   rows(q, ...a){ return [...this.sql.exec(q, ...a)]; }
@@ -79,6 +82,7 @@ export class Hub {
       if(path === "pseudo") return json({free:!this.one("SELECT 1 AS x FROM users WHERE pseudo = ?", clean(url.searchParams.get("p"), 20).toLowerCase())}, 200, {});
       if(path.startsWith("admin/")) return this.admin(req, path.slice(6), body, url, ip);
       if(path === "sms-status") return json({sms:this.smsReady()}, 200, {});
+      if(path === "hit") return this.hit(body, req, ip);
       const me = await this.auth(req);
       if(!me) return json({error:"auth"}, 401, {});
       this.sql.exec("UPDATE users SET seen = ? WHERE id = ?", NOW(), me.id);
@@ -475,6 +479,63 @@ export class Hub {
   }
 
   /* ---------- Administration (page admin.html) ---------- */
+  // ---------- Audience (sans cookie, données agrégées) ----------
+  async hit(b, req, ip){
+    const none = new Response(null, {status:204});
+    const ua = req.headers.get("User-Agent") || "";
+    if(!ua || /bot|crawl|spider|slurp|facebookexternalhit|preview|headless|lighthouse|pingdom|curl|wget|python|node-fetch/i.test(ua)) return none;
+    const ev = String(b.e || "pv").toLowerCase();
+    if(!/^(pv|clic:[a-z0-9_-]{1,24})$/.test(ev)) return none;
+    const day = new Date().toLocaleDateString("sv-SE", {timeZone:"Europe/Paris"});
+    let salt = this.one("SELECT v FROM kv WHERE k = ?", "salt:" + day)?.v;
+    if(!salt){
+      salt = hex(crypto.getRandomValues(new Uint8Array(16)));
+      this.sql.exec("DELETE FROM kv WHERE k LIKE 'salt:%'");
+      this.sql.exec("INSERT OR REPLACE INTO kv(k, v) VALUES(?, ?)", "salt:" + day, salt);
+      this.sql.exec("DELETE FROM hits WHERE t < ?", NOW() - 395*864e5);   // conservation : 13 mois maximum
+    }
+    const vid = (await sha(salt + "|" + ip + "|" + ua)).slice(0, 16);
+    if(this.limit("hit:" + vid, 150, HOUR)) return none;
+    let path = clean(b.p, 120).split("?")[0].split("#")[0].replace(/^\/traceo(?=\/|$)/, "").replace(/\/index\.html$/, "/").replace(/\.html$/, "") || "/";
+    if(!path.startsWith("/")) path = "/" + path;
+    let ref = "";
+    try{ ref = new URL(String(b.r || "")).hostname.replace(/^www\./, "").replace(/^(l|lm|m)\.(instagram|facebook)\.com$/, "$2.com"); }catch(e){}
+    if(/(^|\.)traceorun\.pages\.dev$|(^|\.)traceo\.pages\.dev$|pierrernrd04-ai\.github\.io$/.test(ref)) ref = "";
+    const src = clean(b.s, 40).toLowerCase().replace(/[^a-z0-9_.-]/g, "");
+    const dev = /iPad|Tablet/i.test(ua) ? "tablette" : /Mobi|Android|iPhone/i.test(ua) ? "mobile" : "ordinateur";
+    this.sql.exec("INSERT INTO hits(t, day, vid, ev, path, src, ref, country, dev) VALUES(?,?,?,?,?,?,?,?,?)", NOW(), day, vid, ev, path, src, ref, clean(req.headers.get("X-Country"), 2), dev);
+    return none;
+  }
+  traffic(days){
+    days = Math.max(1, Math.min(395, Math.round(days) || 30));
+    const dayOf = ms => new Date(ms).toLocaleDateString("sv-SE", {timeZone:"Europe/Paris"});
+    const now = NOW(), from = dayOf(now - (days - 1)*864e5), since = now - days*864e5;
+    const per = this.rows("SELECT day, COUNT(DISTINCT vid) AS v, SUM(ev = 'pv') AS pv FROM hits WHERE day >= ? GROUP BY day", from);
+    const map = Object.fromEntries(per.map(r => [r.day, r]));
+    const daily = [];
+    for(let i = days - 1; i >= 0; i--){ const d = dayOf(now - i*864e5); daily.push({day:d, visits:map[d]?.v || 0, views:map[d]?.pv || 0}); }
+    const sum = (n, k) => daily.slice(-n).reduce((a, r) => a + r[k], 0);
+    const visitsOf = where => this.one(`SELECT COUNT(DISTINCT day || vid) AS n FROM hits WHERE day >= ? AND ${where}`, from).n;
+    return {
+      days, from, daily,
+      totals:{today:sum(1, "visits"), d7:sum(7, "visits"), range:sum(days, "visits"), views:sum(days, "views")},
+      pages:this.rows("SELECT path, COUNT(*) AS views, COUNT(DISTINCT day || vid) AS visits FROM hits WHERE day >= ? AND ev = 'pv' GROUP BY path ORDER BY views DESC LIMIT 15", from),
+      // chaque visite est attribuée à la source de sa première page vue (page d'arrivée)
+      sources:this.rows("SELECT CASE WHEN h.src != '' THEN 'lien:' || h.src WHEN h.ref != '' THEN h.ref ELSE 'direct' END AS source, COUNT(*) AS visits FROM (SELECT MIN(id) AS fid FROM hits WHERE day >= ? AND ev = 'pv' GROUP BY day, vid) x JOIN hits h ON h.id = x.fid GROUP BY source ORDER BY visits DESC LIMIT 15", from),
+      clicks:this.rows("SELECT substr(ev, 6) AS what, COUNT(*) AS n, COUNT(DISTINCT day || vid) AS visitors FROM hits WHERE day >= ? AND ev LIKE 'clic:%' GROUP BY ev ORDER BY n DESC", from),
+      countries:this.rows("SELECT country, COUNT(DISTINCT day || vid) AS visits FROM hits WHERE day >= ? AND ev = 'pv' GROUP BY country ORDER BY visits DESC LIMIT 10", from),
+      devices:this.rows("SELECT dev, COUNT(DISTINCT day || vid) AS visits FROM hits WHERE day >= ? AND ev = 'pv' GROUP BY dev ORDER BY visits DESC", from),
+      funnel:{
+        visits:sum(days, "visits"),
+        tried:visitsOf("ev = 'clic:essayer'"),
+        app:visitsOf("ev = 'pv' AND path = '/app'"),
+        story:visitsOf("ev = 'pv' AND src LIKE 'story%'"),
+        signups:this.one("SELECT COUNT(*) AS n FROM users WHERE created > ?", since).n,
+        payments:this.one("SELECT COUNT(*) AS n FROM payments WHERE t > ? AND txn NOT LIKE 'TEST-%'", since).n
+      }
+    };
+  }
+
   async admin(req, path, b, url, ip){
     const key = req.headers.get("X-Admin-Key") || "";
     if(!this.env.ADMIN_KEY) return json({error:"admin_not_configured"}, 503, {});
@@ -494,6 +555,7 @@ export class Hub {
         rewards_due:this.one("SELECT COUNT(*) AS n FROM rewards WHERE status IN ('a_reclamer', 'demandee')").n
       }, 200, {});
     }
+    if(path === "traffic") return json(this.traffic(+url.searchParams.get("days") || 30), 200, {});
     if(path === "members"){
       const rows = this.rows(`SELECT u.*, (SELECT COUNT(*) FROM msgs WHERE a = u.id) AS sent, (SELECT COUNT(*) FROM reports WHERE whom = u.id) AS reported, (SELECT COUNT(*) FROM runs WHERE uid = u.id AND ok = 1) AS runs, u.free_used AS free_used FROM users u ORDER BY created DESC LIMIT 5000`);
       return json({members:rows.map(u => ({id:u.id, pseudo:u.pseudo, first:u.first, last:u.last, email:u.email, birth:u.birth, level:u.level, pace:u.pace, created:u.created, last_login:u.last_login, seen:u.seen,

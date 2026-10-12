@@ -191,7 +191,7 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:12px 24px;justify-content:space-bet
     <a class="logo" href="./" aria-label="Traceo">
       <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M7 23c0-8 5.5-14 11.5-14 4.6 0 7.5 2.9 7.5 6.6 0 3.8-3 6.6-6.8 6.6-2.8 0-4.7-1.9-4.7-4.2" fill="none" stroke="currentColor" stroke-width="3.6" stroke-linecap="round"/><circle cx="7" cy="23" r="3.8" fill="#E6F2F0"/></svg>traceo
     </a>
-    <a class="btn hero" href="app.html">Ouvrir l'app</a>
+    <a class="btn hero" href="app.html" data-ev="essayer">Ouvrir l'app</a>
   </div>
 </header>
 
@@ -203,7 +203,7 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:12px 24px;justify-content:space-bet
       <h1>Chaque sortie,<br><span class="grad">de nouvelles rues.</span></h1>
       <p class="lead">Traceo dessine en quelques secondes une boucle de course dans les vraies rues de ta ville, depuis là où tu es. Tu choisis la distance, Traceo te guide à la voix, rue par rue. Et demain, il t'emmène ailleurs.</p>
       <div class="ctas">
-        <a class="btn hero" href="app.html"><svg viewBox="0 0 24 24"><path d="M5 18c0-6 4-11 9-11 3 0 5 2 5 5s-2 5-5 5c-2 0-3.5-1.5-3.5-3"/><circle cx="5" cy="18" r="2"/></svg>Essayer gratuitement</a>
+        <a class="btn hero" href="app.html" data-ev="essayer"><svg viewBox="0 0 24 24"><path d="M5 18c0-6 4-11 9-11 3 0 5 2 5 5s-2 5-5 5c-2 0-3.5-1.5-3.5-3"/><circle cx="5" cy="18" r="2"/></svg>Essayer gratuitement</a>
         <a class="btn" href="#comment">Voir comment ça marche</a>
       </div>
       <p class="beta" id="beta" hidden><i></i><span id="betaTxt">Bêta gratuite en cours</span></p>
@@ -321,7 +321,7 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:12px 24px;justify-content:space-bet
         <li>Coach nutrition, hydratation et entraînement</li>
         <li>Image de ta boucle à partager</li>
       </ul>
-      <a class="btn hero" href="app.html">Commencer maintenant</a>
+      <a class="btn hero" href="app.html" data-ev="essayer">Commencer maintenant</a>
       <p class="fine">Un paiement = 31 jours de Premium. Sans abonnement, sans engagement : tu reprends quand tu veux. <a href="legal.html#cgv" style="color:var(--muted)">Conditions de vente</a></p>
     </div>
   </div>
@@ -357,7 +357,7 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:12px 24px;justify-content:space-bet
   <div class="wrap">
     <h2>Ta prochaine boucle<br><span class="grad">t'attend dehors.</span></h2>
     <p>Lace tes chaussures, Traceo s'occupe du reste.</p>
-    <a class="btn hero" href="app.html" style="min-width:280px">Lancer Traceo</a>
+    <a class="btn hero" href="app.html" style="min-width:280px" data-ev="essayer">Lancer Traceo</a>
   </div>
 </section>
 </main>
@@ -366,11 +366,11 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:12px 24px;justify-content:space-bet
   <div class="wrap">
     <span class="logo" style="font-size:20px"><svg viewBox="0 0 32 32" aria-hidden="true" style="width:24px;height:24px"><path d="M7 23c0-8 5.5-14 11.5-14 4.6 0 7.5 2.9 7.5 6.6 0 3.8-3 6.6-6.8 6.6-2.8 0-4.7-1.9-4.7-4.2" fill="none" stroke="currentColor" stroke-width="3.6" stroke-linecap="round"/><circle cx="7" cy="23" r="3.8" fill="#E6F2F0"/></svg>traceo</span>
     <span>© 2026 Traceo · Pierre Renard EI · <a href="legal.html" style="color:var(--muted);text-decoration:underline">Mentions légales, CGV et confidentialité</a></span>
-    <a href="app.html" style="color:var(--accent);font-weight:700">Ouvrir l'app →</a>
+    <a href="app.html" style="color:var(--accent);font-weight:700" data-ev="essayer">Ouvrir l'app →</a>
   </div>
 </footer>
 
-<div class="sticky" id="sticky"><a class="btn hero" href="app.html">Trouver ma boucle · c'est parti</a></div>
+<div class="sticky" id="sticky"><a class="btn hero" href="app.html" data-ev="essayer">Trouver ma boucle · c'est parti</a></div>
 
 <script src="config.js"></script>
 <script>(function(){ const C = window.TRACEO_CONFIG || {}; if(!C.UMAMI_ID) return; const s = document.createElement("script"); s.defer = true; s.src = C.UMAMI_SRC || "https://cloud.umami.is/script.js"; s.dataset.websiteId = C.UMAMI_ID; document.head.appendChild(s);
@@ -397,5 +397,6 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:12px 24px;justify-content:space-bet
   addEventListener("scroll", onScroll, {passive:true}); onScroll();
 })();
 </script>
+<script src="stats.js" defer></script>
 </body>
 </html>

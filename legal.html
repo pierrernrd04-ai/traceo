@@ -181,7 +181,7 @@ footer{padding:30px 0 calc(30px + env(safe-area-inset-bottom,0px));color:var(--m
       <tr><td>Messages du chat</td><td>Répondre à vos questions</td><td>Sur l'appareil ; lorsque le coach IA est activé, envoyés avec votre historique de courses (distances, durées, allures) au serveur Traceo (Cloudflare) puis à Anthropic ou à Cloudflare Workers AI pour générer la réponse, sans être conservés par Traceo</td></tr>
       <tr><td>Compte Ensemble (facultatif)</td><td>Mise en relation avec les coureurs proches</td><td>Serveur Traceo hébergé par Cloudflare, voir <a href="#ensemble">Ensemble</a></td></tr>
       <tr><td>Paiement</td><td>Achat de Premium</td><td>PayPal uniquement : Traceo ne reçoit aucune donnée bancaire</td></tr>
-      <tr><td>Statistiques de visite anonymes</td><td>Comprendre l'usage et améliorer l'app</td><td>Umami (sans cookie), lorsqu'il est activé</td></tr>
+      <tr><td>Mesure d'audience anonyme (pages vues, clics sur les boutons, source de la visite, pays, type d'appareil)</td><td>Compter les visites et améliorer le site</td><td>Serveur Traceo (Cloudflare), sans cookie ; identifiant de visite anonyme recalculé chaque jour et impossible à relier à une personne ; conservation 13 mois maximum</td></tr>
       <tr><td>Rapports d'erreur techniques</td><td>Corriger les bugs</td><td>Message d'erreur et modèle de navigateur, sans donnée personnelle (service ntfy)</td></tr>
     </table>
     <h3>Services tiers</h3>
@@ -196,12 +196,13 @@ footer{padding:30px 0 calc(30px + env(safe-area-inset-bottom,0px));color:var(--m
 
   <section id="cookies">
     <h2>Cookies et stockage</h2>
-    <p>Traceo n'utilise <b>aucun cookie publicitaire</b> et aucun traceur de réseau social. L'application utilise la mémoire locale de votre navigateur uniquement pour fonctionner : boucles, réglages, statut Premium, choix de la carte jour ou nuit. Les statistiques Umami, lorsqu'elles sont activées, fonctionnent sans cookie et sans identifier les visiteurs.</p>
+    <p>Traceo n'utilise <b>aucun cookie publicitaire</b> et aucun traceur de réseau social. L'application utilise la mémoire locale de votre navigateur uniquement pour fonctionner : boucles, réglages, statut Premium, choix de la carte jour ou nuit. La mesure d'audience fonctionne sans cookie et sans rien enregistrer sur votre appareil : elle ne sert qu'à produire des statistiques globales (nombre de visites, pages consultées, provenance), conformément aux conditions de dispense de consentement de la CNIL.</p>
   </section>
 </main>
 
 <footer>
   <div class="wrap">© 2026 Pierre Renard EI · Traceo · <a href="./">Accueil</a> · <a href="app.html">Ouvrir l'app</a></div>
 </footer>
+<script src="stats.js" defer></script>
 </body>
 </html>
