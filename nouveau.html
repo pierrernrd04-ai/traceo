@@ -90,6 +90,8 @@ h2{font:800 clamp(28px,4vw,40px)/1.05 var(--f-display);letter-spacing:-.02em;mar
 .price{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:18px;background:linear-gradient(135deg,rgba(37,201,143,.14),rgba(30,166,208,.1));border:1px solid rgba(43,227,155,.35);border-radius:24px;padding:26px}
 .price .big{font:800 34px var(--f-display)}
 .price .big small{font-size:16px;color:var(--muted);font-weight:700;white-space:nowrap}
+/* téléphone : « 31 jours · sans abonnement » passe sous le prix, sans point en début de ligne */
+@media (max-width:520px){ .price .big small{display:block;margin-top:2px} .price .big .dot{display:none} }
 footer{position:relative;z-index:1;border-top:1px solid var(--line);padding:22px 0 40px;color:var(--muted);font-size:13px;display:flex;flex-wrap:wrap;gap:14px;justify-content:space-between}
 @media (max-width:860px){
   .hero{grid-template-columns:1fr;gap:22px;padding-top:6px;padding-bottom:40px;text-align:left}
@@ -241,7 +243,7 @@ footer{position:relative;z-index:1;border-top:1px solid var(--line);padding:22px
   <section>
     <h2>Ce qui change <span class="g">aujourd'hui</span></h2>
     <div class="grid">
-      <div class="card"><div class="e">♾️</div><h3>Boucles illimitées</h3><p>Une nouvelle boucle en 2 s, jamais deux fois la même.</p></div>
+      <div class="card"><div class="e">♾️</div><h3>Courses illimitées</h3><p>Avec Premium : une boucle neuve à chaque sortie, jamais deux fois la même.</p></div>
       <div class="card"><div class="e">🛡️</div><h3>Boucles sûres</h3><p>Petites rues et chemins, à l'écart des départementales.</p></div>
       <div class="card"><div class="e">🗣️</div><h3>Guidage vocal</h3><p>Rue par rue, avec le nom de chaque rue en direct.</p></div>
       <div class="card"><div class="e">🤖</div><h3>Coach IA</h3><p>Séance du jour, plans, nutrition : il répond à tout.</p></div>
@@ -254,7 +256,7 @@ footer{position:relative;z-index:1;border-top:1px solid var(--line);padding:22px
 
   <section id="prix">
     <div class="price">
-      <div><div class="big">4,99 € <small>· 31 jours, sans abonnement</small></div><p class="fine" style="margin-top:4px">Tracer des boucles est gratuit ; Premium après tes courses offertes. Tu paies une fois, rien ne se renouvelle. Paiement sécurisé par PayPal. <a href="essai-premium.html" data-ev="premium" style="text-decoration:underline">Tout sur Premium</a></p></div>
+      <div><div class="big">4,99 €<small><span class="dot"> · </span>31 jours · sans abonnement</small></div><p class="fine" style="margin-top:4px">Tracer des boucles est gratuit ; Premium après tes courses offertes. Tu paies une fois, rien ne se renouvelle. Paiement sécurisé par PayPal. <a href="essai-premium.html" data-ev="premium" style="text-decoration:underline">Tout sur Premium</a></p></div>
       <div class="offre" data-offre hidden><b>Offre de lancement : 9,99 € · 3 mois</b><p>Au lieu de 14,97 € (3 × 4,99 €). Un seul paiement, sans abonnement. Jusqu'au <span data-offre-fin>dimanche 18 octobre</span> à 23 h 59 (heure de Paris), au choix au moment de passer Premium dans l'app.</p></div>
       <a class="btn main" href="/app?go=1" data-ev="essayer">Tracer ma boucle gratuite</a>
     </div>

@@ -55,7 +55,7 @@ function ensSaveAuth(){
 }
 function ensLogout(){
   // Premium retrouvé grâce au compte (pas payé sur ce téléphone) : il part avec le compte
-  if(S.premium?.acct){ S.premium = null; store.set("premium", null); try{ updateCrown(); }catch(e){} }
+  if(S.premium?.acct){ S.premium = null; store.set("premium", null); if(store.get("lastReceipt", null)?.acct) store.set("lastReceipt", null); try{ updateCrown(); }catch(e){} }
   ENS.auth = null; ENS.me = null; ENS.msgs = []; ENS.users = {}; ENS.last = 0; ENS.near = null; ENS.thread = null; ["ensAuth", "ensMe", "ensMsgs", "ensUsers", "ensRead"].forEach(k => store.set(k, null)); ENS.read = {}; try{ caches.delete("traceo-social"); }catch(e){} ensBadge(); }
 
 /* ---------- Conversations ---------- */
@@ -115,7 +115,7 @@ function ensPitch(){
 }
 function viewEnsemble(){
   if(!ensOn()) return ensPitch() + `<div class="plan"><p class="title" style="font-size:20px">Ouverture imminente</p><p class="small">Ensemble s'active dès la mise en ligne du serveur Traceo. Tu seras parmi les premiers à pouvoir créer ton compte.</p></div>`;
-  if(!isPremium()) return ensPitch() + `<button class="btn hero block" id="ensPrem">${EI.people}Débloquer Ensemble avec Premium · ${C.PRICE_LABEL}</button><p class="small" style="text-align:center">31 jours, payés par PayPal ou carte. Sans renouvellement automatique.</p>`;
+  if(!isPremium()) return ensPitch() + `<button class="btn hero block" id="ensPrem">${EI.people}Débloquer Ensemble avec Premium · ${C.PRICE_LABEL}</button><p class="small" style="text-align:center">31 jours${offer3m() ? `, ou 3 mois à ${P3M.label} (offre de lancement, jusqu'au ${offerEndTxt()})` : ""}, payés par PayPal ou carte. Sans renouvellement automatique.</p>`;
   if(!ENS.auth) return ensSignup();
   if(ENS.thread) return ensThread(ENS.thread);
   const me = ENS.me || {}, av = me.avail_until > Date.now(), convs = ensConvs(), near = ENS.near?.list || [];
@@ -350,7 +350,7 @@ function ensJoinCard(){
 }
 document.addEventListener("click", e => { if(e.target.closest?.("#ensJoin")){ track("ensemble_carte_boucle"); go("ensemble"); } });
 // statut Premium et ville affichés dans la page d'administration
-function ensSync(){ if(!ensOn() || !ENS.auth) return; const place = (S.start?.label || "").split(",").pop().replace(/\d{5}/, "").trim(); ensCall("me", {premium:paid(), place}).then(j => { ENS.me = j.me; store.set("ensMe", ENS.me); }).catch(() => {}); }
+function ensSync(){ if(!ensOn() || !ENS.auth) return; const place = (S.start?.label || "").split(",").pop().replace(/\d{5}/, "").trim(); ensCall("me", {premium:paid(), place}).then(j => { ENS.me = j.me; store.set("ensMe", ENS.me); if(typeof j.me?.free_left === "number") store.set("freeUsed", Math.max(0, (j.me.free || C.FREE_LOOPS || 3) - j.me.free_left)); }).catch(() => {}); }
 function ensOpen(){ if(ensOn() && ENS.auth){ ensPoll(); } }
 
 // démarrage : relève des messages en arrière-plan, ouverture directe depuis une notification
@@ -432,6 +432,7 @@ function authGate(next, why){
   if(!el){ el = document.createElement("div"); el.id = "authGate"; el.className = "authgate"; document.body.appendChild(el); }
   document.body.classList.add("auth-on");
   const close = () => { el.remove(); document.body.classList.remove("auth-on"); };
+  const fun = why !== "connexion";   // lien « Se connecter » des pages d'accueil : des membres, hors du parcours d'arrivée (écran de compte, compte créé)
   const paint = () => {
     // « run » : 2e course (la 1re est offerte sans compte) ; « pay » / « pay3m » : avant le paiement Premium (31 jours ou 3 mois)
     const G = why === "run" || why === "gen", P = why === "pay" || why === "pay3m", L = ENS.mode === "login", n = C.FREE_LOOPS || 3;
@@ -444,13 +445,13 @@ function authGate(next, why){
       <p class="small ag-why">${P ? "Premium suit ton compte : connecte-toi sur un autre téléphone ou navigateur, il y est aussi actif." : "Ton compte garde tes courses, compte tes diamants 💎 et te connecte aux coureurs autour de toi."}</p>
       <button class="linkbtn ag-skip" id="agSkip" hidden>Serveur indisponible : continuer sans compte</button></div>`;
     el.scrollTop = 0;
-    wireAuth(el, paint, kind => { close(); track(kind === "login" ? "entree_connexion_ok" : "entree_compte_ok", {raison:why || "?"}); next && next(); });
+    wireAuth(el, paint, kind => { close(); track(kind === "login" ? "entree_connexion_ok" : fun ? "entree_compte_ok" : "entree_compte_lien", {raison:why || "?"}); next && next(); });
     // si le serveur ne répond pas, on ne bloque pas le client (pour le reste de la visite : boucles comptées sur le téléphone)
     const sk = el.querySelector("#agSkip");
     fetch(ensApi() + "/health").then(r => { if(!r.ok) throw 0; }).catch(() => { sk.hidden = false; });
     sk.onclick = () => { ENS.skip = true; close(); next && next(); };
-    el.querySelector("#agX").onclick = () => { close(); track("entree_compte_fermee", {raison:why || "?"}); };
+    el.querySelector("#agX").onclick = () => { close(); if(fun) track("entree_compte_fermee", {raison:why || "?"}); };
   };
-  paint(); track("entree_compte_vue");
+  paint(); if(fun) track("entree_compte_vue");
 }
 document.addEventListener("keydown", e => { if(e.key === "Escape") document.querySelector("#authGate #agX")?.click(); });   // Échap referme aussi la fenêtre de compte

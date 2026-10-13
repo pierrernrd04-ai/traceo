@@ -1008,7 +1008,10 @@ async function quotaSeen(q){
   const code = [q.act, q.activation, q.code].find(c => typeof c === "string" && c.includes("."));
   if(!code || code === S.premium?.code) return;
   const v = await verifyAct(code);
-  if(v && v.until > nowT() && (!paid() || v.until > (S.premium.until || 0))) adoptPremium({via:"code", until:v.until, code, kind:v.kind, acct:(typeof ENS !== "undefined" && ENS.me?.id) || 1});
+  if(v && v.until > nowT() && (!paid() || v.until > (S.premium.until || 0))){
+    if(q.receipt && typeof q.receipt === "object") store.set("lastReceipt", {rc:q.receipt, until:v.until, acct:1});
+    adoptPremium({via:"code", until:v.until, code, kind:v.kind, acct:(typeof ENS !== "undefined" && ENS.me?.id) || 1});
+  }
 }
 // Premium du compte retrouvé sur un autre navigateur ou téléphone : activé sans fenêtre de bienvenue (ce n'est pas un nouveau paiement)
 function adoptPremium(p){
@@ -1023,8 +1026,8 @@ async function acctPremium(){
 }
 /* ---------- « Commencer » : c'est ici qu'une course offerte est utilisée ----------
    1re course sans compte (comptée sur le téléphone), puis compte gratuit (3 courses, comptées par le serveur), puis Premium.
-   Relancer la même boucle ne recompte pas. */
-const curPaid = () => !!curLoop()?.paid;
+   Relancer la même boucle dans les 6 h (course interrompue, GPS à relancer) ne recompte pas, comme côté serveur. */
+const curPaid = () => { const t = curLoop()?.paid; return !!t && Date.now() - t < 6*3600e3; };
 function markPaid(){ const l = curLoop(); if(l){ l.paid = Date.now(); store.set("loops", S.loops); } }
 async function goRun(route){
   if(!route || run.active || goRun.busy) return;
@@ -1471,7 +1474,7 @@ function viewPlan(){
       </div>
       ${r.danger && (r.engine === "brouter" || DANGER.segs.length || r.danger.len >= 60) ? (r.danger.len < 60 ? `<p class="small safe-ok">🛡️ Boucle sûre : petites rues et chemins, aucune route départementale ni nationale${r.engine === "brouter" || DANGER.ok ? "" : " repérée"}.</p>` : `<p class="small safe-warn">⚠️ ${Math.round(r.danger.len/10)*10} m sur ${r.danger.names.length ? r.danger.names.join(", ") : "une route passante"} : passage inévitable ici, reste sur le bas-côté et sois prudent.</p>`) : ""}
       <p class="small">${pct >= 95 ? "Boucle 100 % nouvelle : aucune rue déjà proposée." : `${pct} % de rues que Traceo ne t'avait jamais proposées.`} ${r.steps?.length ? `${r.steps.length} indications de guidage.` : ""}</p>
-      ${lockRun ? `<p class="small">Tes ${FREE()} courses offertes sont utilisées : passe à Premium pour courir cette boucle. Générer et comparer reste gratuit.</p>` : ""}
+      ${lockRun ? `<p class="small">Tes ${FREE()} courses offertes sont utilisées : passe à Premium pour courir cette boucle. Générer et comparer reste gratuit.</p>` : guestNow() && !guestLeft() && !curPaid() && !isPremium() ? `<p class="small">Pour courir cette boucle : compte gratuit (30 s), ${FREE()} courses offertes. Générer et comparer reste gratuit.</p>` : ""}
       <div class="cta-dock dock2"><button class="dock-sum" id="dockSum"><em><b>${km1(r.len)} km</b> · ${hmin(dur)}${S.results.length > 1 ? ` · ${S.results.length} boucles au choix` : ""}</em><span>Options ▲</span></button><button class="btn soft" id="goFly">${I.eye}Voir</button><button class="btn hero" id="goRun">${I.play}Commencer${lockRun ? '<span class="lock">★</span>' : ""}</button></div>
       <div class="row"><button class="btn garmin" id="toGarmin">${I.watch}Garmin${isPremium() ? "" : '<span class="lock">★</span>'}</button><button class="btn soft" id="toGpx">${I.dl}GPX${isPremium() ? "" : '<span class="lock">★</span>'}</button></div>
       <div class="row"><button class="btn soft" id="again">${I.redo}Une autre boucle</button><button class="btn soft" id="toMusic">${MI.note}Musique</button></div>
@@ -1491,7 +1494,7 @@ function viewPlan(){
     </div>
     <div class="cta-dock"><button class="btn hero block" id="gen">${I.route}Générer ma boucle<span class="gen-sub" id="genSub">${genSub()}</span></button></div>
     ${isPremium() ? "" : `<button class="promo" data-go="premium"><span class="c">★</span><span><b>Traceo Premium</b><small>${offer3m() ? `Offre de lancement : 3 mois à ${P3M.label} au lieu de ${P3M.was}, jusqu'au ${offerEndTxt()}` : `Courses illimitées, envoi Garmin, Strava et GPX · ${C.PRICE_LABEL} · 31 jours`}</small></span><span class="a">›</span></button>`}
-    <p class="small" style="text-align:center">${betaOn() ? "Version bêta : boucles illimitées, tout est offert." : isPremium() ? "Premium : boucles et courses illimitées." : guestNow() ? (guestLeft() ? "Génère autant de boucles que tu veux : ta première course est offerte, sans compte." : `Générer reste gratuit. Pour courir : compte gratuit, ${FREE()} courses offertes et tes boucles gardées.`) : left ? `Générer reste gratuit. ${left} ${runWord(left)} sur ${FREE()} : une est utilisée quand tu touches « Commencer ».` : `Générer reste gratuit. Tes ${FREE()} courses offertes sont utilisées : Premium pour continuer à courir.`} Appui long sur la carte pour choisir un autre départ.</p>`;
+    <p class="small" style="text-align:center">${betaOn() ? "Version bêta : boucles illimitées, tout est offert." : isPremium() ? "Premium : boucles et courses illimitées." : guestNow() ? (guestLeft() ? "Générer des boucles est gratuit. Ta première course est offerte, sans compte." : `Générer reste gratuit. Pour courir : compte gratuit, ${FREE()} courses offertes et tes boucles gardées.`) : left ? `Générer reste gratuit. ${left} ${runWord(left)} sur ${FREE()} : une est utilisée quand tu touches « Commencer ».` : `Générer reste gratuit. Tes ${FREE()} courses offertes sont utilisées : Premium pour continuer à courir.`} Appui long sur la carte pour choisir un autre départ.</p>`;
 }
 const genSub = () => S.mode === "dist" ? `${nf(1).format(S.distKm).replace(",0", "")} km` : (S.durMin >= 60 ? `${Math.floor(S.durMin/60)} h ${String(S.durMin%60).padStart(2, "0")}` : `${S.durMin} min`);
 function dialTxt(){ if(S.mode === "dist") return nf(1).format(S.distKm).replace(",0", "") + "<small>km</small>"; const h = Math.floor(S.durMin/60), m = S.durMin%60; return h ? `${h}<small>h</small>${String(m).padStart(2,"0")}` : `${S.durMin}<small>min</small>`; }
@@ -2020,7 +2023,7 @@ function viewPremium(){
       <p class="small">La version gratuite offre ${FREE()} courses pour découvrir Traceo, guidage compris.</p></div>`;
   const on = isPremium() && !S.demo && S.premium;
   const left = on && S.premium.until ? Math.max(0, Math.ceil((S.premium.until - Date.now())/864e5)) : null;
-  return `${rw}${on ? `<div class="plan pro"><p class="eyebrow" style="color:var(--gold)">★ Premium actif</p><p class="title" style="font-size:24px">Tout Traceo est débloqué.</p>${left != null ? `<p class="muted">Encore <b>${left} jour${left > 1 ? "s" : ""}</b>, jusqu'au ${new Date(S.premium.until).toLocaleDateString("fr-FR", {day:"numeric", month:"long"})}.</p>` : ""}${store.get("lastReceipt", null) ? `<button class="linkbtn" data-receipt>Voir mon reçu de paiement</button>` : ""}</div>` : ""}<div class="plan pro"><p class="eyebrow" style="color:var(--gold)">Traceo Premium</p><p class="title">Une boucle neuve à chaque sortie, sans limite.</p>
+  return `${rw}${on ? `<div class="plan pro"><p class="eyebrow" style="color:var(--gold)">★ Premium actif</p><p class="title" style="font-size:24px">Tout Traceo est débloqué.</p>${left != null ? `<p class="muted">Encore <b>${left} jour${left > 1 ? "s" : ""}</b>, jusqu'au ${new Date(S.premium.until).toLocaleDateString("fr-FR", {day:"numeric", month:"long"})}.</p>` : ""}${member() ? `<p class="small">Premium suit ton compte : connecte-toi sur un autre téléphone ou navigateur, il y est aussi actif.</p>` : ""}${store.get("lastReceipt", null) ? `<button class="linkbtn" data-receipt>Voir mon reçu de paiement</button>` : ""}</div>` : ""}<div class="plan pro"><p class="eyebrow" style="color:var(--gold)">Traceo Premium</p><p class="title">Une boucle neuve à chaque sortie, sans limite.</p>
       ${priceTag()}
       <ul class="checks"><li>Courses et boucles illimitées, partout en France</li><li>Envoi sur ta montre Garmin</li><li>Envoi de tes courses sur Strava</li><li>Export GPX pour toutes les montres</li><li>Image de ta boucle à partager</li><li><b>🛡️ Boucles sûres</b> : petites rues et chemins</li><li><b>💎 Un diamant de 5 €</b> toutes les 100 courses (31 jours offerts)</li><li><b>Ensemble</b> : coureurs autour de toi, invitations et messages</li><li><b>Coach IA</b> personnalisé dans le chat</li></ul>
       ${on ? `${S.premium.via === "sub" ? `<a class="btn block night" href="${C.PAYPAL_MANAGE_URL}" target="_blank" rel="noopener">Gérer mon abonnement PayPal</a>` : S.premium.until && S.premium.until - Date.now() < 7*864e5 ? `<p class="small">Pour continuer après cette date, reprends Premium : les jours s'ajoutent à ceux qui restent.</p>${payBlock("payMain")}` : ""}` : payBlock("payMain")}
@@ -2034,7 +2037,7 @@ function viewMe(){
     <label class="switch"><span><b>Guidage vocal</b><br><span class="small">Annonce la rue où tu es, chaque virage et chaque kilomètre.</span></span><input type="checkbox" id="vIn" ${S.voice ? "checked" : ""}></label>
     ${betaOn() || !PV ? "" : `<label class="switch"><span><b>Mode démo Premium</b><br><span class="small">Pour tout tester sans payer sur ce téléphone.</span></span><input type="checkbox" id="demoIn" ${S.demo ? "checked" : ""}></label>`}
     <div class="field"><label>Mes cartes hors connexion</label>${(() => { const m = store.get("maps", []); return m.length ? `<div class="list">${m.map(x => `<div class="wk"><span class="d">${I.route}</span><span class="b"><b>${esc(x.name)}</b><small>Enregistrée le ${new Date(x.date).toLocaleDateString("fr-FR")} · ${x.n} morceaux de carte</small></span><button class="iconbtn" data-delmap="${x.key}" aria-label="Supprimer">${I.x}</button></div>`).join("")}</div>` : `<p class="small">${PV ? "Dans l'app en ligne, le plan de chaque ville choisie s'enregistre ici automatiquement." : "Choisis une ville ou localise-toi : son plan s'enregistre ici automatiquement."}</p>`; })()}</div>
-    <button class="btn night block" data-go="premium">★ ${isPremium() && !betaOn() ? "Mon Premium" : "Traceo Premium · " + C.PRICE_LABEL + " · 31 jours"}</button>
+    <button class="btn night block" data-go="premium">★ ${isPremium() && !betaOn() ? "Mon Premium" : offer3m() ? `Traceo Premium · 3 mois à ${P3M.label} jusqu'au ${offerEndTxt()}` : "Traceo Premium · " + C.PRICE_LABEL + " · 31 jours"}</button>
     <button class="btn hero block" id="ckBtn">${I.check}Vérifier que tout fonctionne</button>
     ${standalone ? "" : `<button class="btn night block" id="instBtn">${I.dl}Installer Traceo sur mon téléphone</button>`}
     <div class="row" id="resetRow"><button class="btn soft" id="reset">Effacer mes données</button></div>
@@ -2512,7 +2515,8 @@ async function mountPay(id){
   const paid = box.parentElement?.querySelector("[data-paid]");
   if(paid) paid.onclick = () => requestActivation();
   if(btns.length){ btns.forEach(btn => btn.onclick = () => {
-    const plan = btn.dataset.pp === "3m" && offer3m() ? "3m" : "31";
+    if(btn.dataset.pp === "3m" && !offer3m()){ offerOver(); return; }
+    const plan = btn.dataset.pp === "3m" ? "3m" : "31";
     if(PV){ toast("Dans l'app en ligne, ce bouton ouvre le paiement PayPal.", 4000); return; }
     if(autoPay()){ premiumCheckout(plan); return; }
     // lien de paiement PayPal (sans paiement automatique) : activation ensuite par l'e-mail utilisé pour payer
@@ -2591,7 +2595,7 @@ function requestActivation(){
   openModal(`<button class="iconbtn x" data-close aria-label="Fermer">${I.x}</button><div class="center"><div class="medal">${I.star}</div></div>
     <p class="title" style="font-size:22px;text-align:center">Activer mon Premium</p>
     <p class="muted">Indique l'<b>e-mail utilisé pour payer</b> (compte PayPal, ou l'e-mail donné en payant par carte ou Apple Pay). Traceo retrouve ton paiement auprès de PayPal et active ton Premium sur ce téléphone, automatiquement.</p>
-    <div class="field"><label for="acMail">E-mail utilisé pour payer</label><input class="input" id="acMail" maxlength="120" value="${esc(pend?.email || (typeof ENS !== "undefined" && ENS.me?.email) || "")}" autocomplete="email"></div>
+    <div class="field"><label for="acMail">E-mail utilisé pour payer</label><input class="input" id="acMail" maxlength="120" value="${esc(pendMail(pend) || (typeof ENS !== "undefined" && ENS.me?.email) || "")}" autocomplete="email"></div>
     <p class="small">Code de ce téléphone : <b class="code">${devCode()}</b></p>
     <button class="btn hero block" id="acGo">${pend ? "Renvoyer ma demande" : "Envoyer ma demande d'activation"}</button>
     ${pend ? `<p class="small" style="text-align:center;color:var(--accent)">⏳ Demande envoyée ${new Date(pend.at).toLocaleTimeString("fr-FR", {hour:"2-digit", minute:"2-digit"})} : vérification en cours, garde l'app ouverte.</p>` : ""}
@@ -2641,9 +2645,16 @@ async function pollAct(){
 const apiBase = () => (C.PAYMENT_API || C.CHAT_API || "").replace(/\/$/, "");
 const autoPay = () => !!(C.PAYPAL_MERCHANT_ID && apiBase());
 function premiumCheckout(plan){
-  plan = plan === "3m" && offer3m() ? "3m" : "31";
+  if(plan === "3m" && !offer3m()){ offerOver(); return; }   // offre finie pendant la création du compte : on le dit, on ne bascule pas en douce
+  plan = plan === "3m" ? "3m" : "31";
   if(typeof ENS !== "undefined" && typeof needAuth === "function" && needAuth()){ closeModal(); authGate(() => premiumCheckout(plan), plan === "3m" ? "pay3m" : "pay"); return; }
   payNow(plan);
+}
+// Offre de lancement terminée (date de fin passée, ou lien retiré) pendant que l'écran était ouvert : on le dit et on remontre les prix du moment
+function offerOver(){
+  toast(`L'offre de lancement 3 mois s'est terminée le ${offerEndTxt()} à minuit. Premium reste à ${C.PRICE_LABEL} les 31 jours, sans abonnement.`, 6000);
+  if(!modal.hidden && $("#payModal")){ const t = $("#sheet .plan .title")?.textContent || "Traceo Premium", sub = $("#sheet .plan .title + .muted")?.textContent || ""; closeModal(); premiumModal(t, sub); }   // même fenêtre, prix du moment
+  else if(S.tab === "premium") render();
 }
 function payNow(plan){
   const m3 = plan === "3m" && offer3m();
@@ -2730,7 +2741,7 @@ async function payOnLaunch(){
   const end = S.premium?.via === "link" ? S.premium.until : 0, today = new Date().toDateString();
   if(end && store.get("payNag", "") !== today && u.get("paiement") !== "ok"){
     const days = Math.ceil((end - Date.now())/864e5);
-    if(days <= 0){ store.set("payNag", today); setTimeout(() => toast("Ton Premium est terminé. Reprends 31 jours dans l'onglet Premium.", 5000), 2500); }
+    if(days <= 0){ store.set("payNag", today); setTimeout(() => toast("Ton Premium est terminé. Reprends-le dans l'onglet Premium.", 5000), 2500); }
     else if(days <= 3){ store.set("payNag", today); setTimeout(() => toast(`Ton Premium se termine dans ${days} jour${days > 1 ? "s" : ""}. Prolonge-le dans l'onglet Premium.`, 5000), 2500); }
   }
   // le lien de retour de PayPal ne débloque plus rien : il ouvre seulement la demande d'activation vérifiée
@@ -2989,6 +3000,8 @@ document.addEventListener("visibilitychange", async () => {
 });
 document.addEventListener("visibilitychange", () => { if(!document.hidden && S.tab === "premium" && modal.hidden && store.get("payPending", 0) > Date.now() - 2*3600e3) render(); });
 rebuildMemory(); render(); payOnLaunch(); checkBetaLock(); syncClock();
+// Offre de lancement : à sa date de fin, l'écran se redessine et l'offre disparaît d'elle-même, même si l'app est restée ouverte
+{ const ms = OFFER_END() - nowT(); if(C.PAYPAL_PAYMENT_LINK_3M && ms > 0 && ms < 7*864e5) setTimeout(() => { if(!run.active && modal.hidden && S.view !== "loading") try{ render(); }catch(e){} }, ms + 1500); }
 // ensemble.js (chargé après app.js) sait si l'on est invité : on redessine une fois pour le bon texte (« Ta première boucle est offerte, sans compte. »)
 document.addEventListener("DOMContentLoaded", () => { if(S.tab === "plan" && S.view === "form" && !run.active) try{ render(); }catch(e){} }, {once:true});
 setTimeout(() => { if(!PV) brProfile().catch(() => {}); }, 1200);   // profil piéton sécurité prêt avant le premier calcul
@@ -2997,4 +3010,14 @@ if("serviceWorker" in navigator && location.protocol === "https:" && !PV && !NAT
 // Depuis la page d'accueil (?go=1) : directement « D'où pars-tu ? », sans l'écran d'accueil de l'app
 const fromLanding = new URLSearchParams(location.search).has("go");
 if(fromLanding){ track("accueil_go"); store.set("onboarded", true); try{ const u = new URL(location.href); u.searchParams.delete("go"); history.replaceState(history.state, "", u.pathname + u.search + u.hash); }catch(e){} }
-if(new URLSearchParams(location.search).has("test")) setTimeout(checkApp, 300); else if(fromPay || fromLanding) setTimeout(autoStart, fromPay ? 800 : 150); else splash(!store.get("onboarded", false));
+// Lien « Se connecter » des pages d'accueil (?connexion=1) : l'app s'ouvre sur la connexion (fenêtre refermable), sans son écran d'accueil.
+// Pas compté dans le parcours d'arrivée (ce sont des membres) ; déjà connecté : simple message.
+const fromLogin = new URLSearchParams(location.search).has("connexion");
+if(fromLogin){ store.set("onboarded", true); try{ const u = new URL(location.href); u.searchParams.delete("connexion"); history.replaceState(history.state, "", u.pathname + u.search + u.hash); }catch(e){} }
+function loginEntry(){
+  if(PV || typeof authGate !== "function" || typeof ensOn !== "function" || !ensOn()) return;
+  if(ENS.auth){ toast(`Tu es déjà connecté${ENS.me?.first ? " : bonjour " + ENS.me.first : ""} !`, 3500); return; }
+  ENS.mode = "login"; authGate(null, "connexion");
+}
+if(fromLogin) document.addEventListener("DOMContentLoaded", () => setTimeout(loginEntry, 200), {once:true});   // ensemble.js (connexion) est chargé après app.js
+if(new URLSearchParams(location.search).has("test")) setTimeout(checkApp, 300); else if(fromPay || fromLanding || fromLogin) setTimeout(autoStart, fromPay ? 800 : 150); else splash(!store.get("onboarded", false));

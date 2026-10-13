@@ -41,6 +41,7 @@ const GUEST_IP_GENS = 120, GUEST_IP_RUNS = 30;   // plafonds larges par adresse 
 // Pass Premium payé par PayPal : 9,99 € ou plus = 3 mois (92 jours), 4,99 € ou plus = 31 jours (prix réglables : variables PRICE et PRICE_3M)
 const PLAN_1M = {days:31, label:"31 jours"}, PLAN_3M = {days:92, label:"3 mois"};
 const parisDay = () => new Date().toLocaleDateString("sv-SE", {timeZone:"Europe/Paris"});
+const frDate = ms => new Date(ms).toLocaleDateString("fr-FR", {day:"numeric", month:"long", year:"numeric", timeZone:"Europe/Paris"});   // « 13 novembre 2026 » (fin du pass, heure de Paris)
 const REWARD_EVERY = 100, REWARD_EUR = 5;   // un diamant (bon d'achat de 5 €) toutes les 100 courses vérifiées
 const DASH_URL = "https://traceorun.pages.dev/tableau";   // ouvert en touchant une alerte
 const SITE = "https://traceorun.pages.dev", API_URL = "https://traceo-api.pierre-rnrd04.workers.dev";
@@ -454,10 +455,18 @@ export class Hub {
   async quota(me, b, use, ip){
     if(!me) return await this.guestQuota(b, use, ip);
     const pr = await this.premiumOf(me, b), k = "gen:u:" + me.id, max = pr.premium ? GEN_DAY_PREMIUM : GEN_DAY;
-    const used = this.one("SELECT free_used FROM users WHERE id = ?", me.id)?.free_used || 0;
+    let used = this.one("SELECT free_used FROM users WHERE id = ?", me.id)?.free_used || 0;
     let gens = this.dayGet(k);
     const res = () => ({premium:pr.premium, left:pr.premium ? 999 : Math.max(0, FREE_LOOPS - used), used, free:FREE_LOOPS, gens, genMax:max, genLeft:Math.max(0, max - gens), ...pr.extra});
-    if(use){ if(gens >= max) return json({...res(), error:"gen_limit"}, 429, {}); gens = this.dayAdd(k); }
+    if(use){
+      if(gens >= max) return json({...res(), error:"gen_limit"}, 429, {});
+      // ancienne app encore en cache (elle n'envoie pas le code de l'appareil et n'appelle jamais « start ») : la boucle tracée décompte une course offerte, comme avant
+      if(!pr.premium && !this.devOf(b)){
+        if(used >= FREE_LOOPS) return json({...res(), error:"quota"}, 402, {});
+        this.sql.exec("UPDATE users SET free_used = ? WHERE id = ?", ++used, me.id);
+      }
+      gens = this.dayAdd(k);
+    }
     return json(res(), 200, {});
   }
   // sans compte : 1 course offerte par appareil, boucles tracées plafonnées par appareil et (largement) par adresse IP
@@ -572,17 +581,18 @@ export class Hub {
       const [cdev0, cuid] = (f.get("custom") || "").split("."), cdev = (cdev0 || "").toLowerCase();
       const u = cuid ? this.one("SELECT * FROM users WHERE id = ?", clean(cuid, 32)) : null;
       this.sql.exec("INSERT INTO payments(txn, email, amount, currency, t, name, days, uid) VALUES(?,?,?,?,?,?,?,?)", txn, email, amount, cur, NOW(), name, plan.days, u ? u.id : null);
-      this.alert("Paiement PayPal reçu", `${amount} € reçus de ${name || email} (${email}) : Premium ${plan.label}${u ? ` pour @${u.pseudo} (sur tous ses appareils)` : ""}. Activation automatique dès sa demande dans l'app.`, {tags:"moneybag", priority:"high"});
-      if(/^[a-f0-9]{16}$/.test(cdev)){
-        await this.grant(txn, cdev, 0, u ? u.id : null);   // activation immédiate sur ce téléphone
-        // reçu par SMS au numéro vérifié du client, avec le mot du fondateur
-        const pay = this.one("SELECT * FROM payments WHERE txn = ?", txn);
-        if(u && pay) this.state.waitUntil(this.smsReceipt(u, pay));
-        return new Response("ok", {status:200});
+      let who = u;
+      if(/^[a-f0-9]{16}$/.test(cdev)) await this.grant(txn, cdev, 0, u ? u.id : null);   // activation immédiate sur ce téléphone
+      else{
+        // demande déjà faite par le client ? on active tout de suite
+        const req = this.one("SELECT * FROM act_requests WHERE (email = ? OR email = ?) AND done = 0 AND t > ? ORDER BY id DESC", email, name.toLowerCase(), NOW() - 7*864e5);
+        if(req){ await this.grant(txn, req.dev, req.id, req.uid || (u && u.id)); if(!who && req.uid) who = this.one("SELECT * FROM users WHERE id = ?", req.uid); }
       }
-      // demande déjà faite par le client ? on active tout de suite
-      const req = this.one("SELECT * FROM act_requests WHERE (email = ? OR email = ?) AND done = 0 AND t > ? ORDER BY id DESC", email, name.toLowerCase(), NOW() - 7*864e5);
-      if(req) await this.grant(txn, req.dev, req.id, req.uid);
+      const pay = this.one("SELECT * FROM payments WHERE txn = ?", txn);
+      this.alert("Paiement PayPal reçu", `${amount} € reçus de ${name || email} (${email}) : Premium ${plan.label}${who ? ` pour @${who.pseudo} (sur tous ses appareils)` : ""}. `
+        + (pay && pay.until ? `Activé automatiquement, jusqu'au ${frDate(pay.until)}.` : "Activation automatique dès sa demande dans l'app."), {tags:"moneybag", priority:"high"});
+      // reçu par SMS au numéro confirmé du client (ajouté après un paiement, jamais obligatoire), avec le mot du fondateur
+      if(who && pay && pay.until) this.state.waitUntil(this.smsReceipt(who, pay));
     }catch(e){}
     return new Response("ok", {status:200});
   }
@@ -592,12 +602,12 @@ export class Hub {
     const plan = p.days ? (p.days >= PLAN_3M.days ? PLAN_3M : PLAN_1M) : this.planOf(p.amount), label = plan ? plan.label : "essai";
     return {txn:p.txn, amount:p.amount, currency:p.currency || "EUR", date:p.t, until:p.until, days:plan ? plan.days : 0, plan:label, label:"Traceo Premium · " + label};
   }
+  // reçu par SMS (numéro confirmé) : offre et date de fin du pass ; TWILIO_API sert seulement aux essais locaux (jamais dans wrangler.toml)
   async smsReceipt(u, p){
     if(!u.phone || !u.phone_ok || !this.env.TWILIO_ACCOUNT_SID || !this.env.TWILIO_AUTH_TOKEN) return;
-    const fin = new Date(p.until).toLocaleDateString("fr-FR", {day:"numeric", month:"long", year:"numeric", timeZone:"Europe/Paris"});
-    const body = `Traceo : paiement de ${String(p.amount).replace(".", ",")} € confirmé (réf. ${p.txn}). Premium ${this.receipt(p).plan} actif jusqu'au ${fin}. Merci pour ta confiance et ta fidélité, bonne course ! Pierre Renard, fondateur de Traceo`;
+    const body = `Traceo : paiement de ${String(p.amount).replace(".", ",")} € confirmé (réf. ${p.txn}). Premium ${this.receipt(p).plan} actif jusqu'au ${frDate(p.until)}. Merci pour ta confiance et ta fidélité, bonne course ! Pierre Renard, fondateur de Traceo`;
     try{
-      await fetch(`https://api.twilio.com/2010-04-01/Accounts/${this.env.TWILIO_ACCOUNT_SID}/Messages.json`, {method:"POST", headers:{Authorization:"Basic " + btoa(this.env.TWILIO_ACCOUNT_SID + ":" + this.env.TWILIO_AUTH_TOKEN), "Content-Type":"application/x-www-form-urlencoded"}, body:new URLSearchParams({To:u.phone, From:this.env.TWILIO_SMS_FROM || "Traceo", Body:body}).toString()});
+      await fetch(`${this.env.TWILIO_API || "https://api.twilio.com"}/2010-04-01/Accounts/${this.env.TWILIO_ACCOUNT_SID}/Messages.json`, {method:"POST", headers:{Authorization:"Basic " + btoa(this.env.TWILIO_ACCOUNT_SID + ":" + this.env.TWILIO_AUTH_TOKEN), "Content-Type":"application/x-www-form-urlencoded"}, body:new URLSearchParams({To:u.phone, From:this.env.TWILIO_SMS_FROM || "Traceo", Body:body}).toString()});
     }catch(e){}
   }
   // active un paiement reçu sur ce téléphone (et le relie au compte du membre s'il est connu) : 31 ou 92 jours selon le montant.
@@ -826,7 +836,7 @@ export class Hub {
     const add = (acc, r) => { for(const k of ["visites", ...K]) acc[k] = (acc[k] || 0) + r[k]; return acc; };
     const fTop = fRows.slice(0, 12), fRest = fRows.slice(12);
     if(fRest.length) fTop.push(fRest.reduce(add, {source:"autres"}));
-    const parcours = {steps:STEPS.map(([k, label]) => ({k, label})), total:{...fRows.reduce(add, {source:"toutes"}), paiements:cur.payments}, sources:fTop, paiements:cur.payments, passes3m:cur.passes3m,
+    const parcours = {steps:STEPS.map(([k, label]) => ({k, label})), total:{...fRows.reduce(add, Object.fromEntries([["source", "toutes"], ...["visites", ...K].map(k => [k, 0])])), paiements:cur.payments}, sources:fTop, paiements:cur.payments, passes3m:cur.passes3m,
       note:"Visiteurs uniques comptés par jour (identifiant anonyme renouvelé chaque nuit) : une personne qui revient le lendemain compte deux fois, et ses étapes ne s'additionnent pas d'un jour à l'autre. Les paiements ne sont jamais reliés à une visite : ils sont donnés tous canaux confondus. Avec moins de 30 visites, un pourcentage change beaucoup pour une seule personne : à lire comme une tendance."};
     return {
       days, from, to, cur, prev, daily, hours, sources, parcours,

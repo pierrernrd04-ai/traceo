@@ -155,7 +155,7 @@ h2{font:800 17px "Bricolage Grotesque",sans-serif;letter-spacing:-.01em;margin-b
 .pc summary{cursor:pointer;font-weight:700;padding:4px 0}
 .pc details p{margin-top:4px}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap}
-@media (max-width:720px){ .pc-body{grid-template-columns:1fr} .pc-src{flex:1 1 100%} .pc-src select{width:100%} }
+@media (max-width:720px){ .pc-body{grid-template-columns:1fr} .pc-src{flex:1 1 100%} .pc-src select{width:100%;font-size:16px} }   /* 16 px : pas de zoom automatique sur iPhone */
 </style>
 </head>
 <body>
@@ -359,19 +359,26 @@ const PC_STEP = {
 const pcKey = k => PC_ALIAS[k] || k;
 const pcSrc = s => s === "autres" ? ["➕", "Autres sources"] : SRC(s);
 const pcPct = (a, b) => { if(!b) return "0"; const r = 100*a/b; return r > 0 && r < 1 ? "< 1" : String(Math.round(r)); };
+// deux clés qui désignent la même étape (ex. essayer et accueil_go) : une seule ligne, la plus grande valeur (un clic sur l'accueil ouvre aussi ?go : additionner compterait deux fois)
+const pcPut = (o, k, n) => { if(k) o[k] = o[k] == null || n == null ? n ?? o[k] : Math.max(o[k], n); return o; };
+const pcUniq = steps => steps.filter((s, i) => s.k && steps.findIndex(x => x.k === s.k) === i);
+// étape absente de toutes les sources = non fournie par source (ex. paiements) ; absente d'une seule source = zéro
+const pcFill = sources => { const given = new Set(sources.flatMap(s => Object.keys(s.v).filter(k => s.v[k] != null))); sources.forEach(s => given.forEach(k => { if(s.v[k] == null) s.v[k] = 0; })); return sources; };
 function pcData(){
   const P = D.parcours, F = D.funnel;
   if(P && Array.isArray(P.steps) && P.steps.length && P.total){
-    const steps = P.steps.map(s => ({k:pcKey(s.k ?? s.key), label:s.label})).filter(s => s.k);
-    const vals = r => Object.fromEntries(P.steps.map(s => [pcKey(s.k ?? s.key), r?.[s.k ?? s.key] == null ? undefined : Number(r[s.k ?? s.key]) || 0]));   // absent ≠ zéro
-    return {steps, total:{...vals(P.total), paiements:Number(P.total.paiements ?? P.paiements) || 0}, sources:(Array.isArray(P.sources) ? P.sources : []).map(r => ({source:String(r.source || "direct"), v:vals(r)})),
+    const steps = pcUniq(P.steps.map(s => ({k:pcKey(s.k ?? s.key), label:s.label})));
+    if(!steps.length) return null;
+    const vals = r => P.steps.reduce((o, s) => { const raw = r?.[s.k ?? s.key]; return pcPut(o, pcKey(s.k ?? s.key), raw == null ? undefined : Number(raw) || 0); }, {});   // absent ≠ zéro
+    return {steps, total:{...vals(P.total), paiements:Number(P.total.paiements ?? P.paiements) || 0}, sources:pcFill((Array.isArray(P.sources) ? P.sources : []).map(r => ({source:String(r.source || "direct"), v:vals(r)}))),
       pay:Number(P.paiements ?? P.total.paiements) || 0, m3:Number(P.passes3m) || 0, note:P.note || ""};
   }
   if(F && Array.isArray(F.steps) && F.steps.length){
-    const steps = F.steps.map(s => ({k:pcKey(s.key ?? s.k), label:s.label})).filter(s => s.k);
-    const vals = arr => Object.fromEntries((Array.isArray(arr) ? arr : []).map(x => [pcKey(x.key ?? x.k), Number(x.n) || 0]));
-    const total = vals(F.steps), k0 = steps[0].k;
-    const sources = Object.entries(F.bySource || {}).map(([source, arr]) => ({source, v:vals(arr)})).sort((a, b) => (b.v[k0] || 0) - (a.v[k0] || 0));
+    const steps = pcUniq(F.steps.map(s => ({k:pcKey(s.key ?? s.k), label:s.label})));
+    const vals = arr => (Array.isArray(arr) ? arr : []).reduce((o, x) => pcPut(o, pcKey(x.key ?? x.k), Number(x.n) || 0), {});
+    const total = vals(F.steps), k0 = steps[0]?.k;
+    if(!k0) return null;
+    const sources = pcFill(Object.entries(F.bySource || {}).map(([source, arr]) => ({source, v:vals(arr)}))).sort((a, b) => (b.v[k0] || 0) - (a.v[k0] || 0));
     return {steps, total, sources, pay:total.paiements || 0, m3:Number(F.passes3m) || 0, note:F.note || ""};
   }
   return null;
@@ -387,9 +394,11 @@ function pcCard(){
   const opts = [all, ...X.sources].map(s => `<option value="${esc(s.source)}" ${s === cur ? "selected" : ""}>${s.source ? esc(pcSrc(s.source)[1]) : "Toutes les sources"} (${nf(s.v[k0])})</option>`).join("");
   const sel = X.sources.length ? `<label class="pc-src">Source des visiteurs<select id="pcSrc">${opts}</select></label>` : "";
   if(!base && !v("paiements")) return `<div class="card pc" id="pcCard">${head(sel)}<p class="empty">${one ? "Aucune visite de cette source" : "Pas encore de visite"} ${now} : le parcours s'affichera ici.</p></div>`;
-  // plus forte perte entre deux étapes (au moins 10 personnes à l'étape d'avant ; le mur Premium n'est pas une perte : il ne concerne que les courses offertes épuisées)
+  // plus forte perte entre deux étapes (au moins 10 personnes à l'étape d'avant ; le mur Premium n'est pas une perte : il ne concerne que les courses offertes épuisées).
+  // Étape contournée (l'étape suivante compte plus de monde, ex. arrivée directe dans l'app sans clic « essayer ») : pas une perte non plus.
   let loss = -1, lr = 1;
-  steps.forEach((s, i) => { if(!i || s.k === "mur" || s.k === "paiements") return; const a = v(steps[i - 1].k), n = v(s.k); if(a >= 10 && n <= a && n/a < lr){ lr = n/a; loss = i; } });
+  const side = i => { const nx = steps[i + 1]; return !!nx && nx.k !== "paiements" && v(nx.k) > v(steps[i].k); };
+  steps.forEach((s, i) => { if(!i || s.k === "mur" || s.k === "paiements" || side(i)) return; const a = v(steps[i - 1].k), n = v(s.k); if(a >= 10 && n <= a && n/a < lr){ lr = n/a; loss = i; } });
   const rows = steps.map((s, i) => {
     const n = v(s.k), a = i ? v(steps[i - 1].k) : 0, [lab, hint] = PC_STEP[s.k] || [s.label || s.k, ""];
     const hint2 = s.k === "paiements" && X.m3 ? `${hint}, dont ${nf(X.m3)} pass 3 mois` : hint;

@@ -146,8 +146,9 @@ section{padding:72px 0}
 .price small{font:700 18px var(--f-body);color:var(--muted);letter-spacing:0}
 .price-sub{font-weight:700;margin-bottom:6px}
 .checks{list-style:none;display:grid;gap:12px;margin:22px 0 26px}
-.checks li{display:flex;gap:12px;align-items:flex-start;font-weight:600}
-.checks li::before{content:"✓";flex:none;width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:var(--accent);color:var(--accent-ink);font-weight:900;font-size:13px}
+/* texte en flux normal (pas de flex) : un <b> au milieu d'une ligne ne se coupe pas en colonne */
+.checks li{position:relative;padding-left:36px;font-weight:600}
+.checks li::before{content:"✓";position:absolute;left:0;top:0;width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:var(--accent);color:var(--accent-ink);font-weight:900;font-size:13px}
 .price-card .btn{width:100%}
 .fine{color:var(--muted);font-size:13.5px;margin-top:14px;text-align:center}
 .offre{margin:18px 0 4px;padding:16px 18px;border-radius:18px;background:rgba(37,201,143,.1);border:1px dashed rgba(37,201,143,.6)}
