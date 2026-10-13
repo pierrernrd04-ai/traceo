@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#04080B">
+<title>Ta vidéo Traceo</title>
+<link rel="icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Figtree:wght@700;800;900&display=swap">
+<style>
+  :root { --bg: #04080B; --ink: #E6F2F0; --muted: #8FB9B2; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink); font-family: Figtree, system-ui, sans-serif; }
+  main { min-height: 100svh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 16px 16px calc(20px + env(safe-area-inset-bottom)); }
+  /* cadre 9:16 : la vidéo commune + le prénom incrusté par-dessus, dans le même repère 540 × 960 */
+  #box { position: relative; width: min(100%, calc((100svh - 150px)*9/16)); aspect-ratio: 9/16; border-radius: 22px; overflow: hidden; background: #000; box-shadow: 0 0 0 1.5px rgba(59,245,168,.45), 0 24px 60px rgba(0,0,0,.6); }
+  #box video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  #ov { position: absolute; left: 0; top: 0; width: 540px; height: 960px; transform-origin: 0 0; pointer-events: none; }
+  .g { background: linear-gradient(95deg,#3BF5A8,#22D3C5 45%,#28B4F0); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  #n1 { position: absolute; left: 30px; top: 214px; font: 400 104px/.92 Anton, Impact, sans-serif; letter-spacing: .005em; text-transform: uppercase; white-space: nowrap; opacity: 0; transform-origin: 0 50%; text-shadow: 0 8px 40px rgba(0,0,0,.55); }
+  #n2 { position: absolute; left: 24px; right: 24px; top: 448px; text-align: center; font: 400 66px/1 Anton, Impact, sans-serif; text-transform: uppercase; white-space: nowrap; opacity: 0; text-shadow: 0 6px 30px rgba(0,0,0,.6); }
+  #play { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(2,6,8,.35); border: 0; cursor: pointer; }
+  #play span { width: 96px; height: 96px; border-radius: 50%; background: #2BE39B; display: grid; place-items: center; box-shadow: 0 0 40px rgba(43,227,155,.5); }
+  #play svg { width: 40px; height: 40px; margin-left: 6px; }
+  .acts { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; width: min(100%, 520px); }
+  .btn { flex: 1 1 200px; text-align: center; padding: 15px 18px; border-radius: 999px; font-weight: 900; font-size: 17px; text-decoration: none; }
+  .go { background: linear-gradient(95deg,#2BE39B,#22D3C5 50%,#28B4F0); color: #04110D; }
+  .fb { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 1.5px rgba(230,242,240,.3); }
+  p.small { margin: 0; color: var(--muted); font-size: 14px; text-align: center; }
+</style>
+<script defer src="stats.js"></script>
+</head>
+<body>
+<main>
+  <div id="box">
+    <video id="v" src="media/bienvenue.mp4" poster="media/bienvenue-affiche.jpg" playsinline preload="auto"></video>
+    <div id="ov"><div id="n1"><span class="g" id="t1"></span></div><div id="n2"><span class="g" id="t2"></span></div></div>
+    <button id="play" aria-label="Lire la vidéo"><span><svg viewBox="0 0 24 24"><path d="M6 4l14 8-14 8z" fill="#04110D"/></svg></span></button>
+  </div>
+  <div class="acts">
+    <a class="btn go" href="app?src=video" data-ev="video_app">▶ Lancer ma 1re boucle</a>
+    <a class="btn fb" href="avis?src=video" data-ev="video_avis">Donner mon avis</a>
+  </div>
+  <p class="small">3 boucles offertes · sans carte bancaire</p>
+</main>
+<script>
+// Prénom incrusté en direct, calé image par image sur la vidéo commune (mêmes temps et mêmes effets que le rendu, voir welcome.html)
+(function(){
+  var raw = new URLSearchParams(location.search).get("n") || "";
+  var name = raw.replace(/[^\p{L}\p{M}' -]/gu, "").replace(/\s+/g, " ").trim().slice(0, 24);
+  name = name ? name.charAt(0).toUpperCase() + name.slice(1) : "";
+  var v = document.getElementById("v"), ov = document.getElementById("ov"), box = document.getElementById("box");
+  var n1 = document.getElementById("n1"), n2 = document.getElementById("n2"), t1 = document.getElementById("t1"), t2 = document.getElementById("t2");
+  t1.textContent = name ? name.toUpperCase() + "." : ""; t2.textContent = name ? name + "." : "";
+  if(name) document.title = name + ", ta vidéo Traceo";
+  var cl = function(x, a, b){ return Math.max(a === undefined ? 0 : a, Math.min(b === undefined ? 1 : b, x)); }, seg = function(t, a, b){ return cl((t - a)/(b - a)); };
+  var eo = function(x){ return 1 - Math.pow(1 - cl(x), 3); }, back = function(x){ x = cl(x); var c = 1.9; return 1 + (c + 1)*Math.pow(x - 1, 3) + c*Math.pow(x - 1, 2); };
+  function rng(seed){ var a = seed >>> 0; return function(){ a |= 0; a = a + 0x6D2B79F5 | 0; var t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0)/4294967296; }; }
+  var BEAT = 60/144, BAR = 4*BEAT, DROP = 2*BAR, FIN = 7*BAR, HITS = [DROP, 3*BAR, 4*BAR, 5*BAR, 6*BAR, FIN];
+  function fit(){
+    var s = box.clientWidth/540; ov.style.transform = "scale(" + s + ")";
+    n1.style.fontSize = ""; n2.style.fontSize = "";
+    var w = t1.getBoundingClientRect().width/s; if(w > 470) n1.style.fontSize = Math.floor(104*470/w) + "px";
+    var w2 = t2.getBoundingClientRect().width/s; if(w2 > 480) n2.style.fontSize = Math.floor(66*480/w2) + "px";
+  }
+  function frame(){
+    var t = v.currentTime || 0, f = Math.round(t*30);
+    var last = null; for(var i = 0; i < HITS.length; i++) if(t >= HITS[i]) last = HITS[i];
+    var strong = last === DROP || last === FIN, hit = last !== null ? Math.exp(-(t - last)/(strong ? .2 : .12)) : 0;
+    var r = rng(f*31 + 7), sh = hit*(strong ? 11 : 4), dx = (r() - .5)*sh, dy = (r() - .5)*sh, sc = 1.01 + .025*hit*(strong ? 1 : .4);
+    var shake = "translate(" + dx.toFixed(1) + "px," + dy.toFixed(1) + "px) scale(" + sc.toFixed(4) + ") ";
+    // prénom n° 1 : entrée 0,82 → 1,14 s, sortie avant le drop
+    var a = seg(t, .82, 1.14), x = seg(t, DROP - .2, DROP - .02);
+    n1.style.opacity = (a*(1 - x)).toFixed(3);
+    n1.style.transform = shake + "translateY(" + (-x*10).toFixed(1) + "px) scale(" + (1 + .35*(1 - back(a))).toFixed(3) + ")";
+    var bl = (1 - a)*12 + x*12, glow = t > .82 && t < DROP ? Math.exp(-((t - .82) % (2*BEAT))/.15) : 0;
+    n1.style.filter = (bl > .05 ? "blur(" + bl.toFixed(1) + "px) " : "") + "drop-shadow(0 0 " + (14*glow).toFixed(1) + "px rgba(59,245,168,.75))";
+    // prénom n° 2 : carte de fin (« À toi de jouer, … »)
+    var e = seg(t, FIN, FIN + .35)*(1 - seg(t, 14.55, 15)), k = seg(t, FIN + .1, FIN + .45);
+    n2.style.opacity = (e*k*(1 - .95*seg(t, 14.55, 15))).toFixed(3);
+    n2.style.transform = shake + "translateY(" + ((1 - eo(k))*20).toFixed(1) + "px)";
+    if(!v.paused && !v.ended) requestAnimationFrame(frame);
+  }
+  var play = document.getElementById("play");
+  play.onclick = function(){ if(v.ended) v.currentTime = 0; v.play().catch(function(){}); play.style.display = "none"; try{ window.traceoTrack && traceoTrack("video_lue"); }catch(e){} };
+  v.addEventListener("play", function(){ requestAnimationFrame(frame); });
+  v.addEventListener("seeked", frame); v.addEventListener("pause", frame);
+  v.addEventListener("ended", function(){ play.style.display = ""; });
+  addEventListener("resize", fit);
+  (document.fonts && document.fonts.ready || Promise.resolve()).then(function(){ fit(); frame(); });
+})();
+</script>
+</body>
+</html>

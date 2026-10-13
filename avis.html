@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#04080B">
+<title>Ton avis sur Traceo</title>
+<link rel="icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@600;700;800;900&display=swap">
+<style>
+  :root { --bg: #04080B; --card: #0B1A20; --ink: #E6F2F0; --muted: #8FB9B2; --line: rgba(230,242,240,.14); --accent: #2BE39B; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink); font-family: Figtree, system-ui, sans-serif; }
+  main { max-width: 520px; margin: 0 auto; padding: 28px 16px calc(28px + env(safe-area-inset-bottom)); }
+  h1 { font-size: 28px; line-height: 1.15; margin: 8px 0 6px; letter-spacing: -.01em; }
+  p { color: var(--muted); line-height: 1.5; margin: 0 0 18px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 20px; padding: 18px; }
+  .stars { display: flex; gap: 6px; justify-content: center; margin: 4px 0 16px; }
+  .stars button { width: 52px; height: 52px; border: 0; border-radius: 14px; background: rgba(230,242,240,.06); font-size: 30px; line-height: 1; cursor: pointer; filter: grayscale(1) opacity(.5); transition: transform .12s; }
+  .stars button.on { filter: none; background: rgba(43,227,155,.14); }
+  .stars button:active { transform: scale(.92); }
+  label { display: block; font-weight: 800; margin: 0 0 8px; }
+  textarea { width: 100%; min-height: 130px; resize: vertical; border-radius: 14px; border: 1px solid var(--line); background: #071318; color: var(--ink); padding: 12px 14px; font: 600 16px/1.45 Figtree, system-ui, sans-serif; }
+  textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .btn { display: block; width: 100%; margin-top: 14px; padding: 16px; border: 0; border-radius: 999px; background: linear-gradient(95deg,#2BE39B,#22D3C5 50%,#28B4F0); color: #04110D; font: 900 17px Figtree, system-ui, sans-serif; cursor: pointer; }
+  .btn:disabled { opacity: .5; }
+  .msg { text-align: center; margin-top: 12px; color: var(--muted); min-height: 1.4em; }
+  .done { text-align: center; padding: 30px 10px; }
+  .done b { display: block; font-size: 44px; margin-bottom: 8px; }
+  a { color: var(--accent); }
+</style>
+<script defer src="stats.js"></script>
+</head>
+<body>
+<main>
+  <h1 id="hello">Ton avis compte 🙏</h1>
+  <p>30 secondes pour me dire comment s'est passée ta boucle. Je lis chaque message.<br>Pierre, fondateur de Traceo</p>
+  <div class="card" id="form">
+    <div class="stars" role="radiogroup" aria-label="Ta note">
+      <button data-s="1" aria-label="1 sur 5">⭐</button><button data-s="2" aria-label="2 sur 5">⭐</button><button data-s="3" aria-label="3 sur 5">⭐</button><button data-s="4" aria-label="4 sur 5">⭐</button><button data-s="5" aria-label="5 sur 5">⭐</button>
+    </div>
+    <label for="txt">Qu'est-ce qui t'a plu ? Qu'est-ce que je dois améliorer ?</label>
+    <textarea id="txt" maxlength="1500" placeholder="Ta boucle, le guidage, l'appli… tout m'intéresse."></textarea>
+    <button class="btn" id="send" disabled>Envoyer mon avis</button>
+    <div class="msg" id="msg" role="status"></div>
+  </div>
+</main>
+<script>
+(function(){
+  var API = "https://traceo-api.pierre-rnrd04.workers.dev", q = new URLSearchParams(location.search), stars = 0;
+  var name = (q.get("n") || "").replace(/[^\p{L}\p{M}' -]/gu, "").trim().slice(0, 24);
+  if(name) document.getElementById("hello").textContent = name + ", ton avis compte 🙏";
+  var btns = document.querySelectorAll(".stars button"), send = document.getElementById("send"), msg = document.getElementById("msg");
+  btns.forEach(function(b){ b.onclick = function(){ stars = +b.dataset.s; btns.forEach(function(x){ x.classList.toggle("on", +x.dataset.s <= stars); x.setAttribute("aria-checked", +x.dataset.s === stars); }); send.disabled = false; }; });
+  send.onclick = function(){
+    send.disabled = true; msg.textContent = "Envoi…";
+    fetch(API + "/social/avis", {method:"POST", headers:{"Content-Type":"text/plain"}, body:JSON.stringify({stars:stars, text:document.getElementById("txt").value, n:name, src:q.get("src") || ""})})
+      .then(function(r){ return r.json(); }).then(function(j){
+        if(!j.ok) throw 0;
+        document.getElementById("form").innerHTML = '<div class="done"><b>' + (stars >= 4 ? "🙌" : "🙏") + '</b>Merci ' + (name ? name.replace(/[<>&]/g, "") + " " : "") + '! Ton avis est bien arrivé.<br><br><a href="app?src=avis">Lancer une nouvelle boucle →</a></div>';
+        try{ window.traceoTrack && traceoTrack("avis_envoye"); }catch(e){}
+      }).catch(function(){ send.disabled = false; msg.textContent = "Envoi impossible : vérifie ta connexion et réessaie."; });
+  };
+})();
+</script>
+</body>
+</html>

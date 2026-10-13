@@ -206,7 +206,7 @@ footer{padding:30px 0 calc(30px + env(safe-area-inset-bottom,0px));color:var(--m
       <tr><td>Numéro de téléphone (avant un abonnement Premium)</td><td>Jamais ; vérifié par un code envoyé par SMS (prestataire Twilio) pour prouver qu'une vraie personne paie avec son téléphone</td><td>Jusqu'à la suppression du compte</td></tr>
       <tr><td>Date de naissance</td><td>Jamais (sert à vérifier l'âge minimum de 15 ans)</td><td>Jusqu'à la suppression du compte</td></tr>
       <tr><td>Mot de passe</td><td>Jamais ; il n'est ni transmis ni stocké en clair (empreinte salée et hachée uniquement)</td><td>Jusqu'à la suppression du compte</td></tr>
-      <tr><td>Adresse e-mail</td><td>Jamais</td><td>Jusqu'à la suppression du compte ; sert uniquement à vous contacter au sujet de votre compte</td></tr>
+      <tr><td>Adresse e-mail</td><td>Jamais</td><td>Jusqu'à la suppression du compte ; sert à vous contacter au sujet de votre compte et à vous envoyer, une seule fois, un e-mail de bienvenue (vidéo personnalisée avec votre prénom, invitation à essayer vos boucles et à donner votre avis), expédié par le prestataire Brevo. Chaque e-mail contient un lien de désinscription en un clic</td></tr>
       <tr><td>Niveau et allure moyenne</td><td>Oui</td><td>Jusqu'à la suppression du compte</td></tr>
       <tr><td>Position</td><td>Jamais exacte : seulement une distance arrondie (« moins de 1 km », « 2,5 km »…)</td><td>Arrondie à environ 300 m avant enregistrement ; n'est plus montrée 3 heures après votre dernière activité</td></tr>
       <tr><td>Messages et invitations</td><td>Par le destinataire uniquement</td><td>Jusqu'à la suppression du compte de l'un des deux coureurs</td></tr>
@@ -246,6 +246,7 @@ footer{padding:30px 0 calc(30px + env(safe-area-inset-bottom,0px));color:var(--m
       <tr><td>Paiement</td><td>Achat de Premium</td><td>PayPal uniquement : Traceo ne reçoit aucune donnée bancaire</td></tr>
       <tr><td>Mesure d'audience anonyme (pages vues, clics sur les boutons, source de la visite, pays, type d'appareil)</td><td>Compter les visites et améliorer le site</td><td>Serveur Traceo (Cloudflare), sans cookie ; identifiant de visite anonyme recalculé chaque jour et impossible à relier à une personne ; conservation 13 mois maximum</td></tr>
       <tr><td>Statistiques d'usage de l'app (visites, temps passé, onglets ouverts, boucles générées, clics vers le paiement)</td><td>Comprendre l'usage et améliorer l'app</td><td>Umami Cloud (sans cookie, sans identifiant persistant)</td></tr>
+      <tr><td>Avis (note, commentaire, prénom facultatif)</td><td>Améliorer l'app</td><td>Serveur Traceo (Cloudflare), lus uniquement par l'éditeur</td></tr>
       <tr><td>Rapports d'erreur techniques</td><td>Corriger les bugs</td><td>Message d'erreur et modèle de navigateur, sans donnée personnelle (service ntfy)</td></tr>
     </table>
     <h3>Services tiers</h3>

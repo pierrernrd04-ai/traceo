@@ -35,6 +35,31 @@ const ACT_PUB = {"kty":"EC","crv":"P-256","x":"__6AWyNjAcpIy9E2jeaF-pVNzipouEcuY
 const FREE_LOOPS = 3;   // boucles offertes à chaque nouveau compte (version gratuite)
 const REWARD_EVERY = 100, REWARD_EUR = 5;   // un diamant (bon d'achat de 5 €) toutes les 100 courses vérifiées
 const DASH_URL = "https://traceorun.pages.dev/tableau";   // ouvert en touchant une alerte
+const SITE = "https://traceorun.pages.dev", API_URL = "https://traceo-api.pierre-rnrd04.workers.dev";
+const escH = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;"}[c]));
+// e-mail de bienvenue : même contenu en HTML (mise en page simple, compatible Gmail / Outlook / Apple Mail) et en texte brut
+function welcomeMail(first, u){
+  const f = escH(first), P = 'style="margin:0;padding:12px 28px 0;font-size:16px;line-height:1.6;color:#2A3B39;"';
+  const btn = (href, label, bg, fg) => `<tr><td align="center" style="padding:20px 28px 4px;"><a href="${escH(href)}" style="display:inline-block;padding:15px 30px;border-radius:999px;background:${bg};color:${fg};font-weight:800;font-size:17px;text-decoration:none;">${label}</a></td></tr>`;
+  const html = `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${f}, ta première boucle t'attend</title></head>
+<body style="margin:0;padding:0;background:#EEF3F2;"><div style="display:none;max-height:0;overflow:hidden;opacity:0">Une vidéo de 15 secondes rien que pour toi, et tes 3 boucles offertes.</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#EEF3F2;"><tr><td align="center" style="padding:24px 12px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:22px;overflow:hidden;font-family:Helvetica,Arial,sans-serif;color:#13201F;">
+<tr><td style="padding:22px 28px 6px;font-weight:800;font-size:18px;color:#0B5F4A;"><img src="${escH(u.logo)}" width="26" height="26" alt="" style="vertical-align:middle;border-radius:7px;margin-right:8px;border:0;">Traceo</td></tr>
+<tr><td style="padding:10px 20px 0;"><a href="${escH(u.video)}" style="display:block;text-decoration:none;"><img src="${escH(u.thumb)}" width="520" alt="▶ Ta vidéo, ${f} (15 s)" style="display:block;width:100%;max-width:520px;height:auto;border-radius:16px;border:0;"></a></td></tr>
+<tr><td style="padding:22px 28px 0;font-size:24px;font-weight:800;line-height:1.25;">Salut ${f} 👋</td></tr>
+<tr><td ${P}>Merci d'avoir rejoint Traceo ! Je suis Pierre, coureur et créateur de l'app. Je t'ai préparé une petite vidéo de 15 secondes, rien que pour toi.</td></tr>
+${btn(u.video, "▶ Voir ma vidéo", "#2BE39B", "#04110D")}
+<tr><td style="padding:20px 28px 0;font-size:16px;line-height:1.6;color:#2A3B39;"><b>Ton défi cette semaine : lancer ta première boucle.</b> Tu choisis la distance, Traceo te trace un parcours tout neuf autour de toi, loin des grands axes, et te guide à la voix rue par rue. Tes <b>3 premières boucles sont offertes</b>, sans carte bancaire.</td></tr>
+${btn(u.app, "Lancer ma 1re boucle →", "#071318", "#ffffff")}
+<tr><td style="padding:22px 28px 0;font-size:16px;line-height:1.6;color:#2A3B39;">Et après ta sortie, dis-moi ce que tu en as pensé : <a href="${escH(u.avis)}" style="color:#0B8A66;font-weight:700;">30 secondes ici</a>, ou réponds simplement à cet e-mail. Je lis chaque retour, et c'est grâce à eux que Traceo s'améliore.</td></tr>
+<tr><td style="padding:22px 28px 26px;font-size:16px;line-height:1.6;color:#2A3B39;">Bonne course,<br><b>Pierre</b><br><span style="color:#6B7F7C;font-size:14px;">Fondateur de Traceo</span></td></tr>
+</table>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;"><tr><td style="padding:16px 28px;font-family:Helvetica,Arial,sans-serif;font-size:12px;line-height:1.5;color:#7D8F8C;text-align:center;">Tu reçois cet e-mail parce que tu as créé un compte Traceo. <a href="${escH(u.unsub)}" style="color:#7D8F8C;">Ne plus recevoir ces e-mails</a>.<br>Traceo · Pierre Renard EI · traceorun.pages.dev</td></tr></table>
+</td></tr></table></body></html>`;
+  const text = `Salut ${first} !\n\nMerci d'avoir rejoint Traceo ! Je suis Pierre, coureur et créateur de l'app. Je t'ai préparé une petite vidéo de 15 secondes, rien que pour toi :\n${u.video}\n\nTon défi cette semaine : lancer ta première boucle. Tu choisis la distance, Traceo te trace un parcours tout neuf autour de toi, loin des grands axes, et te guide à la voix rue par rue. Tes 3 premières boucles sont offertes, sans carte bancaire :\n${u.app}\n\nEt après ta sortie, dis-moi ce que tu en as pensé (30 secondes) : ${u.avis}\nou réponds simplement à cet e-mail. Je lis chaque retour.\n\nBonne course,\nPierre, fondateur de Traceo\n\n—\nTu reçois cet e-mail parce que tu as créé un compte Traceo. Ne plus recevoir ces e-mails : ${u.unsub}\nTraceo · Pierre Renard EI`;
+  return {subject:`${first}, ta première boucle t'attend 🏃`, html, text};
+}
 const SRC_LABEL = {story:"ta story Instagram", bio:"ta bio Instagram", ig:"Instagram", insta:"Instagram", instagram:"Instagram", linkedin:"LinkedIn", whatsapp:"WhatsApp", facebook:"Facebook", tiktok:"TikTok", strava:"Strava", email:"ton e-mail", qr:"ton QR code", reddit:"Reddit", forum:"un forum running", club:"un club contacté", createur:"un créateur partenaire"};
 const SOCIAL_REF = /^(instagram|facebook|linkedin|lnkd\.in|tiktok|t\.co|x|twitter|snapchat|whatsapp|wa\.me|youtube|threads|reddit|strava)(\.com|\.net)?$/;
 
@@ -72,6 +97,10 @@ export class Hub {
     // Alertes du fondateur : historique (~300 dernières, lues par le téléphone) et téléphones activés depuis le tableau de bord (notifications natives)
     this.sql.exec(`CREATE TABLE IF NOT EXISTS alerts(id INTEGER PRIMARY KEY AUTOINCREMENT, t INT, title TEXT, body TEXT, url TEXT)`);
     this.sql.exec(`CREATE TABLE IF NOT EXISTS admin_push(id INTEGER PRIMARY KEY AUTOINCREMENT, endpoint TEXT UNIQUE, sub TEXT, tok TEXT, created INT, label TEXT)`);
+    // e-mail de bienvenue (vidéo personnalisée) : désinscription en un clic, envoyé une seule fois ; avis des coureurs
+    try{ this.sql.exec("ALTER TABLE users ADD COLUMN mail_off INT DEFAULT 0"); }catch(e){}
+    try{ this.sql.exec("ALTER TABLE users ADD COLUMN welcomed INT DEFAULT 0"); }catch(e){}
+    this.sql.exec(`CREATE TABLE IF NOT EXISTS feedback(id INTEGER PRIMARY KEY AUTOINCREMENT, t INT, stars INT, text TEXT, name TEXT, src TEXT)`);
   }
   rows(q, ...a){ return [...this.sql.exec(q, ...a)]; }
   one(q, ...a){ return this.rows(q, ...a)[0] || null; }
@@ -97,6 +126,8 @@ export class Hub {
       if(path === "hit") return await this.hit(body, req, ip);
       if(path === "alerts") return await this.alertsFeed(req, url, ip);
       if(path === "evt") return this.evtAlert(body, ip);
+      if(path === "avis") return req.method === "POST" ? this.feedback(body, ip) : json({error:"method"}, 405, {});
+      if(path === "unsub") return await this.unsub(url, req);
       const me = await this.auth(req);
       if(!me) return json({error:"auth"}, 401, {});
       this.sql.exec("UPDATE users SET seen = ? WHERE id = ?", NOW(), me.id);
@@ -163,6 +194,7 @@ export class Hub {
       const su = this.one("SELECT COUNT(*) AS n FROM users WHERE created >= ?", NOW() - 864e5).n, tot = this.one("SELECT COUNT(*) AS n FROM users").n;
       this.alert("Nouvel inscrit Traceo", `${first} ${last} (@${pseudo}) vient de créer son compte.\nAujourd'hui : ${vis.n} visiteur${vis.n > 1 ? "s" : ""} (dont ${vis.l} via tes liens) · ${su} inscription${su > 1 ? "s" : ""} en 24 h · ${tot} membres au total.`, {tags:"tada", priority:"high", click:DASH_URL});
     }
+    if(this.one("SELECT v FROM kv WHERE k = 'welcome:auto'")?.v === "1") this.state.waitUntil(this.welcome(u).catch(() => {}));
     return json({token, me:this.mine(u)}, 200, {});
   }
   async login(b, ip, req){
@@ -698,6 +730,18 @@ export class Hub {
     // Alertes en notification native sur le téléphone du fondateur (bouton « Activer » du tableau de bord)
     if(path === "push-sub") return req.method === "POST" ? this.pushSub(b) : json({error:"method"}, 405, {});
     if(path === "push-unsub"){ this.sql.exec("DELETE FROM admin_push WHERE endpoint = ?", String(b.endpoint || "").slice(0, 1000)); return json({ok:true}, 200, {}); }
+    // e-mail de bienvenue : état, essai vers une adresse, envoi aux membres existants (dry = liste seulement), envoi automatique à chaque inscription
+    if(path === "welcome-auto"){ if(req.method === "POST") this.sql.exec("INSERT OR REPLACE INTO kv(k, v) VALUES('welcome:auto', ?)", b.on ? "1" : "0");
+      return json({auto:this.one("SELECT v FROM kv WHERE k = 'welcome:auto'")?.v === "1", mail:!!(this.env.BREVO_API_KEY && this.env.MAIL_FROM), waiting:this.one("SELECT COUNT(*) AS n FROM users WHERE mail_off = 0 AND (welcomed IS NULL OR welcomed = 0)").n}, 200, {}); }
+    if(path === "welcome-test"){ if(req.method !== "POST" || !/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(String(b.email || ""))) return json({error:"bad_email"}, 400, {});
+      return json(await this.welcome({id:"test", first:clean(b.first, 30) || "Pierre", last:"", email:clean(b.email, 120)}, clean(b.email, 120)), 200, {}); }
+    if(path === "welcome-all"){ if(req.method !== "POST") return json({error:"method"}, 405, {});
+      const skip = Array.isArray(b.skip) ? b.skip.map(x => String(x).toLowerCase()) : [], list = this.rows("SELECT * FROM users WHERE mail_off = 0 AND (welcomed IS NULL OR welcomed = 0) ORDER BY created").filter(u => !skip.includes(u.pseudo));
+      if(b.dry) return json({count:list.length, members:list.map(u => ({pseudo:u.pseudo, first:u.first, email:String(u.email).replace(/^(.{2})[^@]*/, "$1…")}))}, 200, {});
+      let sent = 0; const fails = [];
+      for(const u of list){ const r = await this.welcome(u); if(r.ok) sent++; else fails.push({pseudo:u.pseudo, error:r.error || r.status}); await new Promise(res => setTimeout(res, 250)); }
+      return json({sent, fails}, 200, {}); }
+    if(path === "avis") return json({avis:this.rows("SELECT * FROM feedback ORDER BY id DESC LIMIT 300")}, 200, {});
     if(path === "push-test") return req.method === "POST" ? json({ok:true, ...await this.alert("Notifications activées ✅", "Les alertes Traceo arriveront maintenant ici, même app fermée : inscriptions, visiteurs de tes liens, paiements, signalements.", {tags:"bell", click:DASH_URL})}, 200, {}) : json({error:"method"}, 405, {});
     if(path === "reset"){
       const u = this.one("SELECT * FROM users WHERE id = ?", clean(b.id, 32)); if(!u || !/^[a-f0-9]{64}$/.test(String(b.key || ""))) return json({error:"bad_request"}, 400, {});
@@ -752,6 +796,39 @@ export class Hub {
   /* ---------- Alertes du fondateur : ntfy (comme avant) + historique + notification native sur ses téléphones ----------
      Le téléphone activé depuis le tableau de bord reçoit un signal vide, puis son service worker lit GET /social/alerts
      avec le jeton de lecture donné à l'activation (seule son empreinte est gardée ici). Aucune appli à installer. */
+  /* ---------- E-mail de bienvenue : vidéo personnalisée (prénom incrusté par la page video.html), défi première boucle, avis ----------
+     Envoi par Brevo (offre gratuite : 300 e-mails par jour) : secrets BREVO_API_KEY et MAIL_FROM (expéditeur validé chez Brevo),
+     facultatifs MAIL_NAME et MAIL_REPLY. Une seule fois par membre, jamais après une désinscription (lien en un clic dans chaque e-mail). */
+  async unsubTok(id){ return (await sha("desinscription|" + id + "|" + (this.env.ADMIN_KEY || this.env.ACT_KEY || "traceo"))).slice(0, 24); }
+  async welcome(u, to){
+    if(!this.env.BREVO_API_KEY || !this.env.MAIL_FROM) return {ok:false, error:"mail_not_configured"};
+    if(!to && (u.mail_off || u.welcomed)) return {ok:false, error:"deja_envoye_ou_desinscrit"};
+    const first = clean(u.first, 30) || "toi", n = encodeURIComponent(first);
+    const urls = {video:`${SITE}/video?n=${n}&src=email`, app:`${SITE}/app?src=email`, avis:`${SITE}/avis?n=${n}&src=email`, thumb:`${SITE}/media/bienvenue-email.jpg`, logo:`${SITE}/icons/icon-192.png`,
+      unsub:`${API_URL}/social/unsub?u=${encodeURIComponent(u.id)}&t=${await this.unsubTok(u.id)}`};
+    const m = welcomeMail(first, urls);
+    const r = await fetch(this.env.MAIL_API || "https://api.brevo.com/v3/smtp/email", {method:"POST", headers:{"api-key":this.env.BREVO_API_KEY, "Content-Type":"application/json", Accept:"application/json"},
+      body:JSON.stringify({sender:{name:this.env.MAIL_NAME || "Pierre de Traceo", email:this.env.MAIL_FROM}, to:[{email:to || u.email, name:`${u.first || ""} ${u.last || ""}`.trim() || first}],
+        replyTo:{email:this.env.MAIL_REPLY || this.env.MAIL_FROM}, subject:m.subject, htmlContent:m.html, textContent:m.text, tags:["bienvenue"],
+        headers:{"List-Unsubscribe":`<${urls.unsub}>`, "List-Unsubscribe-Post":"List-Unsubscribe=One-Click"}})}).catch(e => ({status:0, text:async () => String(e)}));
+    const ok = r.status >= 200 && r.status < 300;
+    if(ok && !to) this.sql.exec("UPDATE users SET welcomed = ? WHERE id = ?", NOW(), u.id);
+    return {ok, status:r.status, error:ok ? "" : String(await r.text()).slice(0, 200)};
+  }
+  async unsub(url, req){
+    const id = clean(url.searchParams.get("u"), 40), t = clean(url.searchParams.get("t"), 40), ok = !!id && t === await this.unsubTok(id);
+    if(ok) this.sql.exec("UPDATE users SET mail_off = 1 WHERE id = ?", id);
+    const msg = ok ? "C'est noté : tu ne recevras plus d'e-mails de Traceo. Ton compte et tes boucles restent là, bien sûr." : "Ce lien de désinscription n'est pas valide.";
+    return new Response(`<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Traceo</title></head><body style="margin:0;min-height:100vh;display:grid;place-items:center;background:#04080B;color:#E6F2F0;font:600 17px/1.5 system-ui,sans-serif;text-align:center;padding:24px"><div><p>${msg}</p><p><a style="color:#2BE39B" href="${SITE}/app">Revenir sur Traceo</a></p></div></body></html>`, {status:ok ? 200 : 400, headers:{"Content-Type":"text/html; charset=utf-8"}});
+  }
+  feedback(b, ip){
+    if(this.limit("avis:" + ip, 6, HOUR)) return json({error:"rate_limited"}, 429, {});
+    const stars = Math.round(+b.stars), text = clean(b.text, 1500), name = clean(b.n, 24), src = clean(b.src, 20).toLowerCase().replace(/[^a-z0-9_-]/g, "");
+    if(!(stars >= 1 && stars <= 5)) return json({error:"bad_stars"}, 400, {});
+    this.sql.exec("INSERT INTO feedback(t, stars, text, name, src) VALUES(?,?,?,?,?)", NOW(), stars, text, name, src);
+    this.alert(`Nouvel avis ${stars}/5`, `${"⭐".repeat(stars)} ${name || "Un coureur"}${src ? " (via " + src + ")" : ""} : ${text || "pas de commentaire"}`, {tags:"star", priority:stars <= 2 ? "high" : "default", click:DASH_URL});
+    return json({ok:true}, 200, {});
+  }
   // événements vus dans l'app (le téléphone du visiteur prévient le serveur) : liste fermée, aucun texte libre, plafonds par IP et par jour
   evtAlert(b, ip){
     const E = {paiement_clic:["Quelqu'un ouvre le paiement PayPal", "eyes", "default", 40], course_terminee:["Une course terminée avec Traceo", "runner", "low", 60], ensemble_depart:["Un coureur lance « Je pars courir »", "loudspeaker", "low", 30]};
