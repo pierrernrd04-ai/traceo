@@ -804,7 +804,9 @@ export class Hub {
   async welcome(u, to){
     if(!this.env.BREVO_API_KEY || !this.env.MAIL_FROM) return {ok:false, error:"mail_not_configured"};
     if(!to && (u.mail_off || u.welcomed)) return {ok:false, error:"deja_envoye_ou_desinscrit"};
-    const first = clean(u.first, 30) || "toi", n = encodeURIComponent(first);
+    // prénom tel qu'inscrit dans la fiche du membre ; tout en minuscules ou en majuscules → « Jean-Marc »
+    let first = clean(u.first, 30); if(first && (first === first.toLowerCase() || first === first.toUpperCase())) first = first.toLowerCase().replace(/(^|[\s'-])(\p{L})/gu, (m, a, b) => a + b.toUpperCase());
+    first = first || "toi"; const n = encodeURIComponent(first);
     const urls = {video:`${SITE}/video?n=${n}&src=email`, app:`${SITE}/app?src=email`, avis:`${SITE}/avis?n=${n}&src=email`, thumb:`${SITE}/media/bienvenue-email.jpg`, logo:`${SITE}/icons/icon-192.png`,
       unsub:`${API_URL}/social/unsub?u=${encodeURIComponent(u.id)}&t=${await this.unsubTok(u.id)}`};
     const m = welcomeMail(first, urls);
