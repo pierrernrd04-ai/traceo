@@ -23,6 +23,10 @@
   label { display: block; font-weight: 800; margin: 0 0 8px; }
   textarea { width: 100%; min-height: 130px; resize: vertical; border-radius: 14px; border: 1px solid var(--line); background: #071318; color: var(--ink); padding: 12px 14px; font: 600 16px/1.45 Figtree, system-ui, sans-serif; }
   textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .prem { display: flex; gap: 8px; margin: 2px 0 6px; }
+  .prem button { flex: 1; padding: 12px 6px; border-radius: 14px; border: 1px solid var(--line); background: #071318; color: var(--ink); font: 800 15px Figtree, system-ui, sans-serif; cursor: pointer; }
+  .prem button.on { border-color: var(--accent); background: rgba(43,227,155,.14); }
+  .q2 { margin-top: 16px; }
   .btn { display: block; width: 100%; margin-top: 14px; padding: 16px; border: 0; border-radius: 999px; background: linear-gradient(95deg,#2BE39B,#22D3C5 50%,#28B4F0); color: #04110D; font: 900 17px Figtree, system-ui, sans-serif; cursor: pointer; }
   .btn:disabled { opacity: .5; }
   .msg { text-align: center; margin-top: 12px; color: var(--muted); min-height: 1.4em; }
@@ -35,27 +39,30 @@
 <body>
 <main>
   <h1 id="hello">Ton avis compte 🙏</h1>
-  <p>30 secondes pour me dire comment s'est passée ta boucle. Je lis chaque message.<br>Pierre, fondateur de Traceo</p>
+  <p>30 secondes pour me dire comment s'est passée ta course. Je lis chaque message.<br>Pierre Renard, fondateur de Traceo</p>
   <div class="card" id="form">
     <div class="stars" role="radiogroup" aria-label="Ta note">
       <button data-s="1" aria-label="1 sur 5">⭐</button><button data-s="2" aria-label="2 sur 5">⭐</button><button data-s="3" aria-label="3 sur 5">⭐</button><button data-s="4" aria-label="4 sur 5">⭐</button><button data-s="5" aria-label="5 sur 5">⭐</button>
     </div>
     <label for="txt">Qu'est-ce qui t'a plu ? Qu'est-ce que je dois améliorer ?</label>
     <textarea id="txt" maxlength="1500" placeholder="Ta boucle, le guidage, l'appli… tout m'intéresse."></textarea>
+    <label class="q2">Premium t'intéresserait ? <span style="font-weight:600;color:var(--muted)">(boucles illimitées, Garmin, Strava, GPX · 4,99 €)</span></label>
+    <div class="prem" role="radiogroup" aria-label="Intérêt pour Premium"><button data-p="oui">Oui 💎</button><button data-p="peut-etre">Peut-être</button><button data-p="non">Non merci</button></div>
     <button class="btn" id="send" disabled>Envoyer mon avis</button>
     <div class="msg" id="msg" role="status"></div>
   </div>
 </main>
 <script>
 (function(){
-  var API = "https://traceo-api.pierre-rnrd04.workers.dev", q = new URLSearchParams(location.search), stars = 0;
+  var API = "https://traceo-api.pierre-rnrd04.workers.dev", q = new URLSearchParams(location.search), stars = 0, prem = "";
   var name = (q.get("n") || "").replace(/[^\p{L}\p{M}' -]/gu, "").trim().slice(0, 24);
   if(name) document.getElementById("hello").textContent = name + ", ton avis compte 🙏";
   var btns = document.querySelectorAll(".stars button"), send = document.getElementById("send"), msg = document.getElementById("msg");
   btns.forEach(function(b){ b.onclick = function(){ stars = +b.dataset.s; btns.forEach(function(x){ x.classList.toggle("on", +x.dataset.s <= stars); x.setAttribute("aria-checked", +x.dataset.s === stars); }); send.disabled = false; }; });
+  document.querySelectorAll(".prem button").forEach(function(b){ b.onclick = function(){ prem = prem === b.dataset.p ? "" : b.dataset.p; document.querySelectorAll(".prem button").forEach(function(x){ x.classList.toggle("on", x.dataset.p === prem); }); }; });
   send.onclick = function(){
     send.disabled = true; msg.textContent = "Envoi…";
-    fetch(API + "/social/avis", {method:"POST", headers:{"Content-Type":"text/plain"}, body:JSON.stringify({stars:stars, text:document.getElementById("txt").value, n:name, src:q.get("src") || ""})})
+    fetch(API + "/social/avis", {method:"POST", headers:{"Content-Type":"text/plain"}, body:JSON.stringify({stars:stars, text:document.getElementById("txt").value, n:name, src:q.get("src") || "", premium:prem})})
       .then(function(r){ return r.json(); }).then(function(j){
         if(!j.ok) throw 0;
         document.getElementById("form").innerHTML = '<div class="done"><b>' + (stars >= 4 ? "🙌" : "🙏") + '</b>Merci ' + (name ? name.replace(/[<>&]/g, "") + " " : "") + '! Ton avis est bien arrivé.<br><br><a href="app?src=avis">Lancer une nouvelle boucle →</a></div>';

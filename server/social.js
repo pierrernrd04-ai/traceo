@@ -41,24 +41,24 @@ const escH = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;", "<":"&lt;", 
 function welcomeMail(first, u){
   const f = escH(first), P = 'style="margin:0;padding:12px 28px 0;font-size:16px;line-height:1.6;color:#2A3B39;"';
   const btn = (href, label, bg, fg) => `<tr><td align="center" style="padding:20px 28px 4px;"><a href="${escH(href)}" style="display:inline-block;padding:15px 30px;border-radius:999px;background:${bg};color:${fg};font-weight:800;font-size:17px;text-decoration:none;">${label}</a></td></tr>`;
-  const html = `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${f}, ta première boucle t'attend</title></head>
+  const html = `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${f}, merci ! Ta première course t'attend</title></head>
 <body style="margin:0;padding:0;background:#EEF3F2;"><div style="display:none;max-height:0;overflow:hidden;opacity:0">Une vidéo de 15 secondes rien que pour toi, et tes 3 boucles offertes.</div>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#EEF3F2;"><tr><td align="center" style="padding:24px 12px;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:22px;overflow:hidden;font-family:Helvetica,Arial,sans-serif;color:#13201F;">
 <tr><td style="padding:22px 28px 6px;font-weight:800;font-size:18px;color:#0B5F4A;"><img src="${escH(u.logo)}" width="26" height="26" alt="" style="vertical-align:middle;border-radius:7px;margin-right:8px;border:0;">Traceo</td></tr>
 <tr><td style="padding:10px 20px 0;"><a href="${escH(u.video)}" style="display:block;text-decoration:none;"><img src="${escH(u.thumb)}" width="520" alt="▶ Ta vidéo, ${f} (15 s)" style="display:block;width:100%;max-width:520px;height:auto;border-radius:16px;border:0;"></a></td></tr>
 <tr><td style="padding:22px 28px 0;font-size:24px;font-weight:800;line-height:1.25;">Salut ${f} 👋</td></tr>
-<tr><td ${P}>Merci d'avoir rejoint Traceo ! Je suis Pierre, coureur et créateur de l'app. Je t'ai préparé une petite vidéo de 15 secondes, rien que pour toi.</td></tr>
+<tr><td ${P}>Merci pour ton inscription sur Traceo ! Je suis Pierre Renard, coureur et fondateur de Traceo. Je t'ai préparé une vidéo de 15 secondes, rien que pour toi.</td></tr>
 ${btn(u.video, "▶ Voir ma vidéo", "#2BE39B", "#04110D")}
-<tr><td style="padding:20px 28px 0;font-size:16px;line-height:1.6;color:#2A3B39;"><b>Ton défi cette semaine : lancer ta première boucle.</b> Tu choisis la distance, Traceo te trace un parcours tout neuf autour de toi, loin des grands axes, et te guide à la voix rue par rue. Tes <b>3 premières boucles sont offertes</b>, sans carte bancaire.</td></tr>
-${btn(u.app, "Lancer ma 1re boucle →", "#071318", "#ffffff")}
-<tr><td style="padding:22px 28px 0;font-size:16px;line-height:1.6;color:#2A3B39;">Et après ta sortie, dis-moi ce que tu en as pensé : <a href="${escH(u.avis)}" style="color:#0B8A66;font-weight:700;">30 secondes ici</a>, ou réponds simplement à cet e-mail. Je lis chaque retour, et c'est grâce à eux que Traceo s'améliore.</td></tr>
-<tr><td style="padding:22px 28px 26px;font-size:16px;line-height:1.6;color:#2A3B39;">Bonne course,<br><b>Pierre</b><br><span style="color:#6B7F7C;font-size:14px;">Fondateur de Traceo</span></td></tr>
+<tr><td style="padding:20px 28px 0;font-size:16px;line-height:1.6;color:#2A3B39;"><b>Ton défi : ta première course, aujourd'hui.</b> Tu choisis la distance, Traceo te trace en un clic une boucle toute neuve autour de toi, loin des grands axes, et te guide à la voix rue par rue. Tes <b>3 premières boucles sont offertes</b>, sans carte bancaire.</td></tr>
+${btn(u.app, "Lancer ma 1re course →", "#071318", "#ffffff")}
+<tr><td style="padding:22px 28px 0;font-size:16px;line-height:1.6;color:#2A3B39;">Et après ta course, dis-moi ce que tu en as pensé : <a href="${escH(u.avis)}" style="color:#0B8A66;font-weight:700;">30 secondes ici</a>, ou réponds simplement à cet e-mail. Je lis chaque retour. Dis-moi aussi si <b>Premium</b> te serait utile : boucles illimitées, envoi vers Garmin et Strava, export GPX, pour 4,99 €.</td></tr>
+<tr><td style="padding:22px 28px 26px;font-size:16px;line-height:1.6;color:#2A3B39;">Bonne course,<br><b>Pierre Renard</b><br><span style="color:#6B7F7C;font-size:14px;">Fondateur de Traceo</span></td></tr>
 </table>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;"><tr><td style="padding:16px 28px;font-family:Helvetica,Arial,sans-serif;font-size:12px;line-height:1.5;color:#7D8F8C;text-align:center;">Tu reçois cet e-mail parce que tu as créé un compte Traceo. <a href="${escH(u.unsub)}" style="color:#7D8F8C;">Ne plus recevoir ces e-mails</a>.<br>Traceo · Pierre Renard EI · traceorun.pages.dev</td></tr></table>
 </td></tr></table></body></html>`;
-  const text = `Salut ${first} !\n\nMerci d'avoir rejoint Traceo ! Je suis Pierre, coureur et créateur de l'app. Je t'ai préparé une petite vidéo de 15 secondes, rien que pour toi :\n${u.video}\n\nTon défi cette semaine : lancer ta première boucle. Tu choisis la distance, Traceo te trace un parcours tout neuf autour de toi, loin des grands axes, et te guide à la voix rue par rue. Tes 3 premières boucles sont offertes, sans carte bancaire :\n${u.app}\n\nEt après ta sortie, dis-moi ce que tu en as pensé (30 secondes) : ${u.avis}\nou réponds simplement à cet e-mail. Je lis chaque retour.\n\nBonne course,\nPierre, fondateur de Traceo\n\n—\nTu reçois cet e-mail parce que tu as créé un compte Traceo. Ne plus recevoir ces e-mails : ${u.unsub}\nTraceo · Pierre Renard EI`;
-  return {subject:`${first}, ta première boucle t'attend 🏃`, html, text};
+  const text = `Salut ${first} !\n\nMerci pour ton inscription sur Traceo ! Je suis Pierre Renard, coureur et fondateur de Traceo. Je t'ai préparé une vidéo de 15 secondes, rien que pour toi :\n${u.video}\n\nTon défi : ta première course, aujourd'hui. Tu choisis la distance, Traceo te trace en un clic une boucle toute neuve autour de toi, loin des grands axes, et te guide à la voix rue par rue. Tes 3 premières boucles sont offertes, sans carte bancaire :\n${u.app}\n\nEt après ta course, dis-moi ce que tu en as pensé (30 secondes) : ${u.avis}\nou réponds simplement à cet e-mail. Dis-moi aussi si Premium te serait utile : boucles illimitées, Garmin, Strava, GPX, pour 4,99 €.\n\nBonne course,\nPierre Renard, fondateur de Traceo\n\n—\nTu reçois cet e-mail parce que tu as créé un compte Traceo. Ne plus recevoir ces e-mails : ${u.unsub}\nTraceo · Pierre Renard EI`;
+  return {subject:`${first}, merci ! Ta première course t'attend 🏃`, html, text};
 }
 const SRC_LABEL = {story:"ta story Instagram", bio:"ta bio Instagram", ig:"Instagram", insta:"Instagram", instagram:"Instagram", linkedin:"LinkedIn", whatsapp:"WhatsApp", facebook:"Facebook", tiktok:"TikTok", strava:"Strava", email:"ton e-mail", qr:"ton QR code", reddit:"Reddit", forum:"un forum running", club:"un club contacté", createur:"un créateur partenaire"};
 const SOCIAL_REF = /^(instagram|facebook|linkedin|lnkd\.in|tiktok|t\.co|x|twitter|snapchat|whatsapp|wa\.me|youtube|threads|reddit|strava)(\.com|\.net)?$/;
@@ -101,6 +101,7 @@ export class Hub {
     try{ this.sql.exec("ALTER TABLE users ADD COLUMN mail_off INT DEFAULT 0"); }catch(e){}
     try{ this.sql.exec("ALTER TABLE users ADD COLUMN welcomed INT DEFAULT 0"); }catch(e){}
     this.sql.exec(`CREATE TABLE IF NOT EXISTS feedback(id INTEGER PRIMARY KEY AUTOINCREMENT, t INT, stars INT, text TEXT, name TEXT, src TEXT)`);
+    try{ this.sql.exec("ALTER TABLE feedback ADD COLUMN premium TEXT"); }catch(e){}
   }
   rows(q, ...a){ return [...this.sql.exec(q, ...a)]; }
   one(q, ...a){ return this.rows(q, ...a)[0] || null; }
@@ -823,10 +824,10 @@ export class Hub {
   }
   feedback(b, ip){
     if(this.limit("avis:" + ip, 6, HOUR)) return json({error:"rate_limited"}, 429, {});
-    const stars = Math.round(+b.stars), text = clean(b.text, 1500), name = clean(b.n, 24), src = clean(b.src, 20).toLowerCase().replace(/[^a-z0-9_-]/g, "");
+    const stars = Math.round(+b.stars), text = clean(b.text, 1500), name = clean(b.n, 24), src = clean(b.src, 20).toLowerCase().replace(/[^a-z0-9_-]/g, ""), premium = ["oui", "peut-etre", "non"].includes(b.premium) ? b.premium : "";
     if(!(stars >= 1 && stars <= 5)) return json({error:"bad_stars"}, 400, {});
-    this.sql.exec("INSERT INTO feedback(t, stars, text, name, src) VALUES(?,?,?,?,?)", NOW(), stars, text, name, src);
-    this.alert(`Nouvel avis ${stars}/5`, `${"⭐".repeat(stars)} ${name || "Un coureur"}${src ? " (via " + src + ")" : ""} : ${text || "pas de commentaire"}`, {tags:"star", priority:stars <= 2 ? "high" : "default", click:DASH_URL});
+    this.sql.exec("INSERT INTO feedback(t, stars, text, name, src, premium) VALUES(?,?,?,?,?,?)", NOW(), stars, text, name, src, premium);
+    this.alert(`Nouvel avis ${stars}/5${premium === "oui" ? " - interesse par Premium" : ""}`, `${"⭐".repeat(stars)} ${name || "Un coureur"}${src ? " (via " + src + ")" : ""} : ${text || "pas de commentaire"}${premium ? `\nPremium : ${{oui:"oui 💎", "peut-etre":"peut-être", non:"non"}[premium]}` : ""}`, {tags:"star", priority:stars <= 2 || premium === "oui" ? "high" : "default", click:DASH_URL});
     return json({ok:true}, 200, {});
   }
   // événements vus dans l'app (le téléphone du visiteur prévient le serveur) : liste fermée, aucun texte libre, plafonds par IP et par jour
