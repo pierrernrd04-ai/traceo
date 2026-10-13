@@ -294,7 +294,7 @@ function wireAuth(root, rerender, after){
         track("ensemble_compte"); done(j, `Bienvenue, ${j.me.first} ! Ton compte est prêt.`, "signup");
       }catch(x){
         q("#efGo").disabled = false; const id = ON[x.message];
-        if(!id){ err.textContent = errTxt(x); return; }
+        if(!id){ err.textContent = /pseudo/.test(x.message) ? "Petit souci à la création de ton identifiant : réessaie dans un instant." : errTxt(x); return; }   // l'identifiant est créé par le serveur
         mark(id, errTxt(x)); q("#" + id).focus();
         // e-mail déjà inscrit : passage direct à la connexion, e-mail prérempli
         if(x.message === "email_taken"){ const s = q("#efMailE"), b = document.createElement("button"); b.type = "button"; b.className = "linkbtn"; b.textContent = "Me connecter"; b.style.marginLeft = "6px";

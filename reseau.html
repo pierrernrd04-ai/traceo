@@ -1,0 +1,656 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Ton réseau · Traceo</title>
+<meta name="description" content="Page privée de Pierre : messages prêts à envoyer à son réseau, sur Instagram, à ses membres, et la pub Instagram pas à pas.">
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#04080B">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="author" content="Pierre Renard">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Figtree:wght@500;600;700;800;900&display=swap">
+<style>
+:root{
+  --bg:#04080B; --surface:#0B171D; --surface-2:#112128; --line:#1B323B;
+  --ink:#E6F2F0; --muted:#8AA4A3; --accent:#2BE39B; --accent-2:#22D3C5; --accent-3:#28B4F0; --accent-ink:#03140D; --warn:#F5C451;
+  --f-title:Anton,Impact,"Arial Narrow",sans-serif; --f-body:"Figtree",system-ui,-apple-system,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
+body{background:var(--bg);color:var(--ink);font:16px/1.55 var(--f-body);overflow-x:hidden;-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}
+button{font:inherit;color:inherit;cursor:pointer}
+.wrap{max-width:720px;margin:0 auto;padding:0 16px}
+.glow{position:fixed;inset:-20% -10% auto;height:60vh;background:radial-gradient(60% 60% at 75% 15%,rgba(43,227,155,.16),transparent 70%),radial-gradient(50% 50% at 10% 60%,rgba(40,180,240,.12),transparent 70%);pointer-events:none;z-index:0}
+.g{background:linear-gradient(95deg,#2BE39B,#22D3C5 50%,#28B4F0);-webkit-background-clip:text;background-clip:text;color:transparent}
+
+header{position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;padding:16px 0 6px}
+.brand{display:flex;align-items:center;gap:9px;font:800 20px var(--f-body);letter-spacing:-.01em}
+.brand svg{width:28px;height:28px}
+.pill{font:800 11px var(--f-body);letter-spacing:.18em;text-transform:uppercase;color:var(--accent-ink);background:linear-gradient(95deg,#2BE39B,#28B4F0);padding:5px 10px;border-radius:999px}
+
+/* Barre de suivi, collée en haut */
+.bar{position:sticky;top:0;z-index:10;background:rgba(4,8,11,.86);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+.bar .wrap{display:flex;align-items:center;gap:12px;min-height:54px;padding-top:8px;padding-bottom:8px}
+.bar .done-n{font:400 26px/1 var(--f-title);letter-spacing:.01em;white-space:nowrap}
+.bar .done-n small{font:700 13px var(--f-body);color:var(--muted)}
+.bar .next{flex:1;font-size:14px;font-weight:700;line-height:1.3;color:var(--muted);cursor:pointer;min-width:0}
+.bar .next b{color:var(--ink)}
+.bar .next.ok b{color:var(--accent)}
+.bar .next.wait b{color:var(--warn)}
+.track{height:3px;background:var(--line)}
+.track i{display:block;height:100%;width:0;background:linear-gradient(90deg,#2BE39B,#28B4F0);transition:width .3s}
+
+main{position:relative;z-index:1}
+.hero{padding:14px 0 8px}
+.kick{font:800 13px var(--f-body);letter-spacing:.18em;text-transform:uppercase;color:#9FD8C8}
+h1{font:400 clamp(54px,15vw,92px)/.92 var(--f-title);text-transform:uppercase;margin:10px 0 14px}
+.lead{font-size:17px;color:#CFE3E0}
+.lead b{color:#fff}
+section{padding:22px 0 6px;scroll-margin-top:60px}
+h2{font:400 30px/1 var(--f-title);text-transform:uppercase;letter-spacing:.01em;margin-bottom:14px}
+h2 small{display:block;font:800 13px var(--f-body);letter-spacing:.14em;color:var(--accent);margin-bottom:6px}
+.box{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:18px}
+.box + .box,.box + .cards,.cards + .box{margin-top:14px}
+.intro{font-size:15px;color:#CFE3E0;margin-bottom:12px}
+.intro b{color:#fff}
+
+.rules{list-style:none;display:grid;gap:10px;counter-reset:r}
+.rules li{counter-increment:r;display:grid;grid-template-columns:34px 1fr;gap:10px;align-items:start;font-size:15px;color:#CFE3E0;min-width:0}
+.rules li > *{min-width:0}
+.rules li::before{content:counter(r);display:grid;place-items:center;width:34px;height:34px;border-radius:12px;background:rgba(43,227,155,.12);border:1px solid rgba(43,227,155,.35);font:400 18px var(--f-title);color:var(--accent)}
+.rules b{color:#fff}
+.rules q{quotes:"« " " »";color:#fff;font-weight:700}
+.note{margin-top:14px;padding:12px 14px;border-radius:14px;background:rgba(245,196,81,.08);border:1px solid rgba(245,196,81,.3);font-size:14px;color:#EADFC2}
+.note b{color:#fff}
+.note.green{background:rgba(43,227,155,.07);border-color:rgba(43,227,155,.3);color:#CFE3E0}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:50px;padding:0 18px;border-radius:14px;font:900 16px var(--f-body);border:1.5px solid var(--line);background:rgba(17,33,40,.7);text-align:center}
+.btn.main{border:0;background:linear-gradient(105deg,#2BE39B,#22D3C5 55%,#28B4F0);color:var(--accent-ink);box-shadow:0 10px 30px rgba(43,227,155,.28)}
+.btn.sm{min-height:40px;padding:0 14px;font-size:14px;border-radius:12px}
+.btn:active{transform:scale(.98)}
+.btn.ok{border-color:var(--accent);color:var(--accent)}
+.btn.main.ok{background:#2BE39B;color:var(--accent-ink)}
+
+/* Offre */
+.offer{display:grid;gap:10px}
+.offer .line{font-size:16px;font-weight:800;color:#fff}
+.offer .line span{color:var(--muted);font-weight:700;text-decoration:line-through}
+.offer .left{font:400 24px/1.1 var(--f-title);letter-spacing:.01em;color:var(--warn)}
+.offer .left.over{color:#FF8A7A}
+.offer p{font-size:14px;color:var(--muted)}
+.offer p b{color:var(--ink)}
+.offer p a{text-decoration:underline;text-underline-offset:3px;color:var(--accent)}
+
+/* Cartes messages */
+.cards{display:grid;gap:16px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:16px;scroll-margin-top:70px}
+.top{display:grid;grid-template-columns:40px 1fr;gap:12px;align-items:start}
+.num{font:400 30px/1 var(--f-title);color:var(--accent)}
+.card h3{font:800 17px/1.25 var(--f-body);overflow-wrap:anywhere}
+.meta{font-size:13.5px;color:var(--muted);margin-top:3px}
+.field{display:grid;gap:5px;margin:14px 0 10px;font-size:13.5px;font-weight:700;color:#CFE3E0}
+.field input{width:100%;min-height:46px;border:1px solid var(--line);border-radius:12px;background:#071016;color:var(--ink);font:600 16px var(--f-body);padding:0 12px}
+.field input:focus{outline:2px solid rgba(43,227,155,.5);outline-offset:1px}
+.field em{font-style:normal;color:var(--muted);font-weight:600}
+.two{display:grid;grid-template-columns:1fr;gap:0 10px}
+textarea.post{display:block;width:100%;min-height:200px;resize:vertical;border:1px solid var(--line);border-radius:14px;background:#071016;color:var(--ink);font:500 15px/1.5 var(--f-body);padding:12px 13px;overflow-wrap:anywhere;overflow:hidden}
+textarea.post:focus{outline:2px solid rgba(43,227,155,.5);outline-offset:1px}
+.sub{display:flex;justify-content:space-between;gap:10px;margin-top:6px;font-size:12.5px;color:var(--muted)}
+.sub button{background:none;border:0;color:var(--muted);text-decoration:underline;text-underline-offset:3px;font-size:12.5px;white-space:nowrap}
+.sub .bad{color:var(--warn)}
+.btns{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.btns .btn{padding:0 10px;font-size:15.5px}
+.btns .wide{grid-column:1 / -1}
+.sent{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px;padding:10px 12px;border-radius:14px;border:1.5px dashed var(--line);font-size:13.5px;font-weight:700;color:var(--muted)}
+.sent .btn{flex:none}
+
+/* Compteur de contacts */
+.tally{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.tally .n{font:400 46px/1 var(--f-title);color:var(--accent)}
+.tally .n small{font:700 15px var(--f-body);color:var(--muted)}
+.tally .lbl{flex:1;min-width:150px;font-size:14px;color:#CFE3E0}
+.tally .ctl{display:flex;gap:8px}
+.meter{height:6px;border-radius:99px;background:var(--line);margin-top:12px;overflow:hidden}
+.meter i{display:block;height:100%;width:0;background:linear-gradient(90deg,#2BE39B,#28B4F0);transition:width .3s}
+
+/* Blocs à copier */
+.fc{margin-top:14px;padding:12px 13px;border-radius:14px;background:var(--surface-2);border:1px dashed var(--line)}
+.fc:first-child{margin-top:0}
+.fc h4{font:800 13px var(--f-body);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.fc p{font-size:14.5px;margin:6px 0 10px;overflow-wrap:anywhere;white-space:pre-line}
+.fc .how{font-size:13px;color:var(--muted);margin:-2px 0 10px;white-space:normal}
+.fc .how b{color:var(--ink)}
+.fc .row{display:flex;flex-wrap:wrap;gap:8px}
+code.url{display:block;font:700 13.5px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--accent);overflow-wrap:anywhere;margin:6px 0 10px}
+
+.done{display:flex;align-items:center;gap:10px;margin-top:14px;padding:12px 14px;border-radius:14px;border:1.5px solid var(--line);font-weight:800;cursor:pointer;user-select:none;-webkit-user-select:none}
+.done input{flex:none;width:22px;height:22px;accent-color:#2BE39B}
+.done .when{margin-left:auto;font-size:13px;font-weight:700;color:var(--muted);white-space:nowrap}
+.done.on{border-color:var(--accent);background:rgba(43,227,155,.08)}
+.done.on .when{color:var(--accent)}
+
+/* Pub */
+.steps li span > small{display:block;font-size:13px;color:var(--muted);margin-top:3px}
+.steps .fc{margin-top:8px}
+.calc{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+.calc .field{margin:0}
+.calc output{grid-column:1 / -1;display:block;padding:12px 14px;border-radius:14px;background:var(--surface-2);font-size:15px;font-weight:700;color:#CFE3E0}
+.calc output b{color:var(--accent);font:400 22px var(--f-title);letter-spacing:.01em}
+
+footer{position:relative;z-index:1;margin-top:34px;border-top:1px solid var(--line);padding:20px 0 calc(36px + env(safe-area-inset-bottom));color:var(--muted);font-size:13px;display:grid;gap:12px}
+footer .btn{width:100%}
+footer p a{text-decoration:underline;text-underline-offset:3px}
+.toast{position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom));transform:translate(-50%,20px);opacity:0;z-index:30;background:#E6F2F0;color:#03140D;font-weight:800;font-size:14px;padding:10px 16px;border-radius:999px;box-shadow:0 10px 30px rgba(0,0,0,.5);transition:.25s;pointer-events:none;max-width:calc(100vw - 32px);text-align:center}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+@media (min-width:640px){ .wrap{padding:0 20px} .card{padding:20px} .two{grid-template-columns:1fr 1fr} }
+</style>
+</head>
+<body>
+<div class="glow"></div>
+
+<div class="bar" id="bar">
+  <div class="wrap">
+    <div class="done-n"><span id="nSent">0</span><small> / 25 contactés</small></div>
+    <div class="next" id="next">Commence par <b>ton réseau</b>.</div>
+  </div>
+  <div class="track"><i id="track"></i></div>
+</div>
+
+<div class="wrap">
+  <header>
+    <a class="brand" href="./"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M7 23c0-8 5.5-14 11.5-14 4.6 0 7.5 2.9 7.5 6.6 0 3.8-3 6.6-6.8 6.6-2.8 0-4.7-1.9-4.7-4.2" fill="none" stroke="#2BE39B" stroke-width="3.4" stroke-linecap="round"/><circle cx="7" cy="23" r="3.6" fill="#E6F2F0"/></svg>Traceo</a>
+    <span class="pill">Privé</span>
+  </header>
+
+  <main>
+    <div class="hero">
+      <p class="kick">Page privée · Pierre</p>
+      <h1>Tes 3 premiers<br><span class="g">clients.</span></h1>
+      <p class="lead">Les premiers clients viennent le plus souvent <b>des gens qui te connaissent</b>, puis de ceux qui les connaissent. Fais les étapes dans l'ordre&nbsp;: ton réseau, Instagram, tes membres, puis une petite pub. Chaque lien est suivi&nbsp;: tu vois d'où viennent les visites dans ton tableau de bord.</p>
+    </div>
+
+    <section id="offre">
+      <div class="box offer">
+        <p class="kick">L'offre à rappeler partout</p>
+        <p class="line">3 mois de Premium pour 9,99 € <span>14,97 €</span></p>
+        <p class="left" id="left">Jusqu'à dimanche 18 octobre, 23h59</p>
+        <p><b>Ne promets rien d'autre</b>&nbsp;: première boucle sans compte, puis 3 boucles offertes avec un compte gratuit, puis Premium à 4,99 € les 31 jours, payé une fois, sans abonnement ni renouvellement automatique.</p>
+        <p>Avant le premier envoi, ouvre <a href="https://traceorun.pages.dev/nouveau?notrack" target="_blank" rel="noopener">traceorun.pages.dev/nouveau?notrack</a> sur ton téléphone&nbsp;: tu vérifies que l'offre s'affiche bien, et le <b>?notrack</b> évite que tes propres visites se mélangent aux chiffres.</p>
+      </div>
+    </section>
+
+    <!-- 1. Réseau -->
+    <section id="reseau">
+      <h2><small>Étape 1</small>Ton réseau d'abord (le plus efficace)</h2>
+      <div class="box">
+        <ol class="rules">
+          <li><span><b>Un par un, jamais de liste de diffusion.</b> Un message perso reçoit une réponse&nbsp;; un message groupé ressemble à de la pub.</span></li>
+          <li><span><b>20 à 30 personnes aujourd'hui</b>, en commençant par celles qui courent. Tape leur prénom dans la carte&nbsp;: la première ligne se met à jour toute seule.</span></li>
+          <li><span><b>Demande un seul transfert</b>&nbsp;: «&nbsp;tu as un ami qui court ? transfère-lui&nbsp;». C'est déjà écrit dans chaque message.</span></li>
+          <li><span><b>Réponds à chaque réponse</b> et aide-les à lancer leur première boucle. Après chaque envoi, touche <q>+1</q>.</span></li>
+        </ol>
+        <div class="meter" aria-hidden="true"><i id="meter"></i></div>
+        <div class="tally" style="margin-top:12px">
+          <div class="n"><span id="nSent2">0</span><small> / 25</small></div>
+          <div class="lbl">personnes contactées une par une</div>
+          <div class="ctl"><button type="button" class="btn sm" id="minus" aria-label="Retirer un contact">−1</button></div>
+        </div>
+      </div>
+      <div class="cards" id="net" style="margin-top:14px"></div>
+    </section>
+
+    <!-- 2. Instagram -->
+    <section id="instagram">
+      <h2><small>Étape 2</small>Instagram</h2>
+      <p class="intro">Trois stories à la suite, la vidéo reprise en Reel, puis tu réponds en message à chaque personne qui réagit. <b>Ceux qui votent au sondage ou répondent à ta story sont les plus chauds</b>&nbsp;: écris-leur en premier.</p>
+      <div class="box" id="stories"></div>
+      <div class="box" id="reel"></div>
+      <div class="box" id="dm"></div>
+    </section>
+
+    <!-- 3. Membres -->
+    <section id="membres">
+      <h2><small>Étape 3</small>Tes membres</h2>
+      <p class="intro">Les gens qui ont déjà créé un compte ont fait la moitié du chemin. La liste est dans ton <a href="https://traceorun.pages.dev/admin" target="_blank" rel="noopener" style="text-decoration:underline;text-underline-offset:3px;color:var(--accent)">espace admin</a> (prénom et e-mail de chacun).</p>
+      <div class="card" id="member"></div>
+      <p class="note"><b>Un par un, depuis ta boîte mail perso, jamais en envoi groupé.</b> Tes mentions légales disent que l'e-mail sert à écrire «&nbsp;au sujet du compte&nbsp;»&nbsp;: garde le message centré sur l'aide et leur avis, l'offre en une ligne, et la phrase de fin pour ceux qui ne veulent plus de message.</p>
+    </section>
+
+    <!-- 4. Pub -->
+    <section id="pub">
+      <h2><small>Étape 4</small>Pub Instagram/Facebook à 10 €/jour</h2>
+      <p class="intro">Tu «&nbsp;boostes&nbsp;» la vidéo de 30 s depuis l'appli Instagram&nbsp;: elle est montrée à des coureurs qui ne te suivent pas, avec un bouton vers Traceo. <b>Dépense maximale&nbsp;: <span id="adMax">40 €</span></b> (10 € × <span id="adDays2">4</span> jours), que des gens achètent ou non. Les intitulés d'Instagram changent souvent&nbsp;: s'il manque un mot exact, cherche le plus proche.</p>
+
+      <div class="box">
+        <h3 style="font:800 17px var(--f-body);margin-bottom:12px">Avant de commencer</h3>
+        <ol class="rules steps">
+          <li><span><b>Le Reel doit être publié sur ton compte.</b> Si ce n'est pas fait, télécharge la vidéo et publie-la en Reel avec la légende de l'étape 2.
+            <small>N'ajoute pas de musique de la bibliothèque Instagram&nbsp;: un Reel avec une musique sous droits ne peut souvent pas être boosté.</small>
+            <a class="btn sm" style="margin-top:8px" href="https://traceorun.pages.dev/media/traceo-reel-premium.mp4" download="traceo-video-30s.mp4">Télécharger la vidéo</a></span></li>
+          <li><span><b>Il faut un compte professionnel (gratuit).</b> Profil → menu ☰ en haut à droite → «&nbsp;Paramètres et activité&nbsp;» → «&nbsp;Type de compte et outils&nbsp;» → «&nbsp;Passer à un compte professionnel&nbsp;» (ou un intitulé proche). Choisis une catégorie, puis «&nbsp;Créateur&nbsp;» ou «&nbsp;Entreprise&nbsp;»&nbsp;: les deux peuvent booster.
+            <small>Un compte professionnel est forcément public. Tu peux revenir à un compte personnel plus tard, au même endroit. Si Instagram propose de relier une Page Facebook, tu peux passer cette étape.</small></span></li>
+          <li><span><b>Mets une des 3 accroches ci-dessous en tout début de légende.</b> Une pub boostée reprend la légende du Reel, et seuls les ~125 premiers caractères s'affichent avant «&nbsp;plus&nbsp;». Sur le Reel&nbsp;: ⋯ → «&nbsp;Modifier&nbsp;», avant de booster.</span></li>
+        </ol>
+        <label class="done" data-step="ad_pro"><input type="checkbox"><span>Compte pro + légende prêts</span><span class="when"></span></label>
+      </div>
+
+      <div class="box" id="adtexts"></div>
+
+      <div class="box">
+        <h3 style="font:800 17px var(--f-body);margin-bottom:12px">Le boost, écran par écran</h3>
+        <ol class="rules steps">
+          <li><span><b>Ouvre le Reel → «&nbsp;Booster le reel&nbsp;»</b> (bouton sous la vidéo, ou dans le menu ⋯, ou un intitulé proche).</span></li>
+          <li><span><b>Objectif&nbsp;: «&nbsp;Plus de visites sur le site web&nbsp;»</b> (ou un intitulé proche).</span></li>
+          <li><span><b>Adresse du site&nbsp;:</b>
+            <span class="fc" style="display:block"><code class="url" id="adUrl">https://traceorun.pages.dev/nouveau?src=ads</code><button type="button" class="btn sm" id="copyAdUrl">Copier l'adresse</button></span>
+            <small>Bouton d'action&nbsp;: <b>«&nbsp;En savoir plus&nbsp;»</b>.</small></span></li>
+          <li><span><b>Audience&nbsp;: «&nbsp;Créer la vôtre&nbsp;»</b> (ou «&nbsp;Créer votre propre audience&nbsp;»). Nom&nbsp;: <b>Coureurs France</b>.
+            <small>Lieux&nbsp;: <b>France</b> (choisis «&nbsp;Régional&nbsp;», ou un intitulé proche, puis tape France, et retire la zone proposée par défaut si elle ne correspond pas). Âge&nbsp;: <b>18 à 55 ans</b>, tous genres. Centres d'intérêt&nbsp;: <b>course à pied, marathon, trail, jogging, Strava, Garmin</b> (si l'un n'apparaît pas, prends le plus proche).</small></span></li>
+          <li><span><b>Budget et durée&nbsp;: 10 € par jour, <span id="adDays">4</span> jours.</b>
+            <small id="adDaysWhy">Instagram affiche le total avant de valider. La pub doit être finie au plus tard dimanche 23h59, puisque le texte parle de l'offre.</small></span></li>
+          <li><span><b>Paiement&nbsp;:</b> «&nbsp;Moyen de paiement&nbsp;» → ajoute ta carte bancaire (ou un autre moyen proposé).
+            <small>Si Meta te demande qui bénéficie de la pub et qui la paie (règle européenne), indique ton nom ou Traceo. S'il demande si la pub concerne le crédit, l'emploi, le logement ou la politique&nbsp;: non.</small></span></li>
+          <li><span><b>Touche «&nbsp;Booster le reel&nbsp;»</b> (ou «&nbsp;Booster la publication&nbsp;»).
+            <small>La pub tourne sur Instagram&nbsp;; si ton compte est relié à une Page Facebook, Meta peut aussi proposer de la montrer sur Facebook.</small>
+            <small>Meta examine chaque pub avant de la diffuser&nbsp;: souvent en quelques heures, parfois jusqu'à 24 h. Tant qu'elle est «&nbsp;En cours d'examen&nbsp;», elle ne tourne pas. Si elle est refusée, Instagram donne la raison&nbsp;: fais une capture et envoie-la à Claude.</small></span></li>
+        </ol>
+        <label class="done" data-step="ad_live"><input type="checkbox"><span>Pub lancée</span><span class="when"></span></label>
+      </div>
+
+      <div class="box">
+        <h3 style="font:800 17px var(--f-body);margin-bottom:12px">Lire les résultats</h3>
+        <ol class="rules steps">
+          <li><span><b>Côté Instagram&nbsp;:</b> sur le Reel, «&nbsp;Voir les statistiques&nbsp;» (ou passe par ton tableau de bord professionnel → publicités). Regarde <b>clics sur le lien</b> et <b>montant dépensé</b>.</span></li>
+          <li><span><b>Coût par clic = montant dépensé ÷ clics sur le lien.</b> S'il n'est pas affiché, calcule-le ici&nbsp;:</span></li>
+        </ol>
+        <div class="calc">
+          <label class="field">Dépensé (€)<input type="number" id="spent" inputmode="decimal" min="0" step="0.01" placeholder="ex. 10"></label>
+          <label class="field">Clics sur le lien<input type="number" id="clicks" inputmode="numeric" min="0" step="1" placeholder="ex. 25"></label>
+          <output id="cpc" for="spent clicks">Entre les deux chiffres pour voir ton coût par clic.</output>
+        </div>
+        <ol class="rules steps" style="margin-top:12px;counter-reset:r 2">
+          <li><span><b>Côté Traceo&nbsp;:</b> dans ton tableau de bord, la ligne <b>Lien «&nbsp;ads&nbsp;»</b> montre les visites et les inscriptions venues de la pub. Les chiffres ne seront jamais identiques à ceux d'Instagram (certains ferment la page avant qu'elle charge)&nbsp;: c'est normal.</span></li>
+        </ol>
+        <p class="note"><b>Quand arrêter&nbsp;:</b> si après 2 jours le tableau de bord montre des visites «&nbsp;ads&nbsp;» mais <b>0 inscription</b>, mets la pub en pause (sur le Reel ou dans les publicités&nbsp;: «&nbsp;Mettre en pause&nbsp;», ou un intitulé proche) et dis-le à Claude. Ce n'est pas un échec&nbsp;: c'est l'information qu'il faut changer la page d'arrivée ou le message avant de remettre de l'argent.</p>
+        <p class="note green" id="checkWhen" hidden></p>
+        <label class="done" data-step="ad_check"><input type="checkbox"><span>Bilan à 2 jours fait</span><span class="when"></span></label>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <a class="btn main" href="https://traceorun.pages.dev/tableau" target="_blank" rel="noopener">Voir les visites par source en direct</a>
+    <a class="btn" href="https://traceorun.pages.dev/lancement" target="_blank" rel="noopener">Le kit des groupes Facebook</a>
+    <p>Dans le tableau de bord, chaque lien apparaît sous sa source&nbsp;: <b>wa_ami</b>, <b>wa_collegue</b>, <b>wa_famille</b>, <b>ig_story</b>, <b>ig_bio</b>, <b>ig_dm</b>, <b>membre</b>, <b>ads</b>. Tu vois tout de suite ce qui ramène du monde.</p>
+    <p>© Traceo · Pierre Renard EI · <a href="legal.html">Mentions légales</a></p>
+  </footer>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function(){
+  "use strict";
+  var SITE = "https://traceorun.pages.dev/nouveau?src=";
+  var GOAL = 25;
+  var DEADLINE = new Date("2026-10-18T23:59:59+02:00").getTime();   // dimanche 18 octobre 2026, 23h59 heure de Paris (heure d'été)
+  var OFFER = "Offre de lancement : 3 mois de Premium à 9,99 € au lieu de 14,97 €, jusqu'à dimanche 18/10 à 23h59.";
+
+  // ---------- 1. Réseau : la première ligne est la salutation, mise à jour avec le prénom ----------
+  var NET = [
+    { slug:"ami", title:"Un ami qui court", meta:"Le plus direct : il court, il peut tester dès sa prochaine sortie.",
+      hi:function(n){ return n ? "Salut " + n + " !" : "Salut !"; },
+      body:"Petite nouvelle perso : je viens de lancer Traceo, une appli de course à pied que j'ai créée.\n\nTu choisis ta distance et, en un clic, elle te dessine une boucle neuve qui part de là où tu es et y revient, loin des grands axes. Une voix te guide rue par rue, plus besoin de sortir le téléphone à chaque carrefour.\n\nÇa marche sur iPhone et Android, directement dans le navigateur, et ta première boucle se fait sans même créer de compte.\n\nTu me rendrais un vrai service en la testant sur ta prochaine sortie et en me disant franchement ce que tu en penses. Et si tu as un pote qui court, transfère-lui ce message 🙏" },
+    { slug:"collegue", title:"Un ou une collègue", meta:"Ton plus posé. Même s'il ne court pas, il connaît des coureurs.",
+      hi:function(n){ return n ? "Bonjour " + n + "," : "Bonjour,"; },
+      body:"Un petit message perso : en dehors du travail, je cours, et je viens de lancer ma propre appli, Traceo.\n\nLe principe : tu choisis une distance et, en un clic, elle trace une boucle neuve au départ de là où tu es, à l'écart des grands axes, avec un guidage vocal rue par rue. Pratique pour un footing le midi ou en déplacement, sans chercher de parcours.\n\nRien à installer : ça s'ouvre dans le navigateur, sur iPhone comme sur Android, et la première boucle se fait sans compte.\n\nSi tu cours, ou si quelqu'un autour de toi court, ton avis ou un simple transfert m'aiderait beaucoup." },
+    { slug:"famille", title:"La famille", meta:"Ils ne courent pas forcément : le but, c'est qu'ils transfèrent.",
+      hi:function(n){ return n ? "Coucou " + n + " !" : "Coucou !"; },
+      body:"Je voulais te partager un projet qui me tient à cœur : je viens de lancer Traceo, une appli de course à pied que j'ai créée moi-même.\n\nOn choisit une distance et, en un clic, elle dessine un parcours en boucle qui part de là où on est et y revient, loin des grands axes, avec une voix qui guide rue par rue.\n\nMême si tu ne cours pas, tu connais sûrement quelqu'un qui court : ça m'aiderait énormément que tu lui transfères ce message. C'est gratuit pour essayer, la première boucle se fait sans compte." }
+  ];
+  NET.forEach(function(v){ v.link = SITE + "wa_" + v.slug; v.fresh = function(n){ return v.hi(n) + "\n" + v.body + "\n\n" + v.link + "\n" + OFFER; }; });
+
+  // ---------- 2. Instagram ----------
+  var STORY_URL = SITE + "ig_story", BIO_URL = SITE + "ig_bio", DM_URL = SITE + "ig_dm";
+  var STORIES = [
+    { h:"Story 1 · l'accroche", text:"Toujours le même tour de quartier quand tu vas courir ? 🙋‍♂️\nMoi aussi. Alors j'ai créé une appli.",
+      how:"Fond : une photo de toi en tenue ou une image de la vidéo. Ajoute un sticker <b>Sondage</b> « Tu cours toujours le même parcours ? » Oui / Non : tu verras qui a voté et tu pourras leur écrire." },
+    { h:"Story 2 · ce que ça fait", text:"TRACEO\nTu choisis ta distance\n→ une boucle neuve qui part de là où tu es et y revient\n→ loin des grands axes\n→ une voix te guide rue par rue\niPhone et Android, rien à installer",
+      how:"Fond : une capture de l'appli avec une boucle tracée, ou repartage le Reel (avion en papier → « Ajouter à ta story »)." },
+    { h:"Story 3 · l'offre + le lien", text:"Ta 1re boucle sans compte 👇\nOffre de lancement : 3 mois de Premium à 9,99 € au lieu de 14,97 €\nJusqu'à dimanche 23h59",
+      how:"Sticker (le carré souriant) → <b>« Lien »</b> → colle l'adresse ci-dessous → « Personnaliser le texte du sticker » (ou un intitulé proche) : <b>Essayer Traceo</b>.", url:STORY_URL }
+  ];
+  var CAPTION = "J'en avais marre de courir toujours le même tour. Alors j'ai créé Traceo 🏃‍♂️\n\nTu choisis ta distance et, en un clic, l'appli te dessine une boucle neuve qui part de là où tu es et y revient, loin des grands axes. Une voix te guide rue par rue.\n\n📱 iPhone et Android, dans le navigateur, rien à installer\n🆓 Ta première boucle sans même créer de compte\n⚡ Offre de lancement : 3 mois de Premium à 9,99 € au lieu de 14,97 €, jusqu'à dimanche 18/10 à 23h59\n\nLien dans ma bio, ou commente « BOUCLE » et je t'envoie le lien en message.\n\n#running #courseapied #coureur #jogging #trail #marathon #runningfrance #strava #garmin";
+  var DMS = [
+    { h:"Première réponse (à quelqu'un qui a réagi ou commenté « BOUCLE »)", text:"Merci pour ton message ! 🙏 Voilà le lien : " + DM_URL + "\nTa première boucle marche sans compte : tu choisis ta distance, tu lances, et la voix te guide. Tu cours combien de km d'habitude ?" },
+    { h:"S'il a testé", text:"Alors, cette première boucle ? Dis-moi franchement ce qui t'a plu et ce qui coince, ça m'aide énormément.\nEt si tu veux continuer : jusqu'à dimanche 23h59, l'offre de lancement donne 3 mois de Premium à 9,99 € au lieu de 14,97 € (boucles illimitées, envoi sur Garmin et Strava, export GPX). Le lien : " + DM_URL },
+    { h:"S'il demande le prix", text:"Tu peux essayer gratuitement : la première boucle sans compte, puis 3 boucles offertes avec un compte gratuit (prénom, e-mail, mot de passe, 30 secondes).\nPremium, c'est 4,99 € pour 31 jours, payé une fois, sans abonnement ni renouvellement automatique. Et jusqu'à dimanche 23h59 : 3 mois pour 9,99 € au lieu de 14,97 €. " + DM_URL }
+  ];
+
+  // ---------- 3. Membres ----------
+  var MEMBER_URL = SITE + "membre";
+  var MEMBER_SUBJECT = "Ta première boucle Traceo";
+  var memberHi = function(n){ return n ? "Bonjour " + n + "," : "Bonjour,"; };
+  var MEMBER_BODY = "\n\nC'est Pierre, le créateur de Traceo. Tu as créé ton compte il y a peu : merci beaucoup 🙏\n\nTu as pu tester une boucle ? Si quelque chose a coincé (la position, le guidage vocal, la distance…), réponds simplement à ce message : je t'aide personnellement.\n\nEt si ça t'a plu : jusqu'à dimanche 18/10 à 23h59, l'offre de lancement te donne 3 mois de Premium à 9,99 € au lieu de 14,97 € (boucles illimitées, envoi sur Garmin et Strava, export GPX).\n" + MEMBER_URL + "\n\nBonne course,\nPierre\n\n(Si tu préfères ne plus recevoir de message de ma part, dis-le-moi simplement.)";
+  var memberFresh = function(n){ return memberHi(n) + MEMBER_BODY; };
+
+  // ---------- 4. Accroches de pub (≤ 125 caractères) ----------
+  var ADS = [
+    "Une boucle de course neuve à chaque sortie, guidée à la voix. Offre de lancement : 3 mois à 9,99 € jusqu'à dimanche.",
+    "Marre du même tour ? Traceo trace une boucle neuve autour de toi, loin des grands axes. 3 mois de Premium à 9,99 €.",
+    "1re boucle sans compte, guidage vocal rue par rue. Offre de lancement : 3 mois de Premium à 9,99 € au lieu de 14,97 €."
+  ];
+
+  // ---------- étapes suivies dans la barre ----------
+  var STEPS = [
+    { id:"net", label:"ton réseau", at:"reseau" },
+    { id:"ig_story", label:"les 3 stories", at:"instagram" },
+    { id:"ig_reel", label:"le Reel", at:"instagram" },
+    { id:"ig_dm", label:"les messages Instagram", at:"instagram" },
+    { id:"members", label:"tes membres", at:"membres" },
+    { id:"ad_pro", label:"préparer la pub", at:"pub" },
+    { id:"ad_live", label:"lancer la pub", at:"pub" },
+    { id:"ad_check", label:"le bilan de la pub", at:"pub" }
+  ];
+
+  // ---------- mémoire locale (facultative : la page marche sans) ----------
+  var KEY = "traceo-reseau-v1";
+  var S = { sent:0, done:{}, text:{} };
+  try{ var raw = localStorage.getItem(KEY); if(raw){ var o = JSON.parse(raw); if(o && typeof o === "object"){ S.sent = Math.max(0, +o.sent || 0); S.done = o.done || {}; S.text = o.text || {}; } } }catch(e){}
+  function save(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){} }
+
+  var $ = function(s, r){ return (r || document).querySelector(s); };
+  function el(tag, attrs, text){
+    var n = document.createElement(tag);
+    if(attrs) for(var k in attrs){ if(k === "class") n.className = attrs[k]; else n.setAttribute(k, attrs[k]); }
+    if(text != null) n.textContent = text;
+    return n;
+  }
+  var pad = function(n){ return (n < 10 ? "0" : "") + n; };
+  var hhmm = function(t){ var d = new Date(t); return pad(d.getHours()) + ":" + pad(d.getMinutes()); };
+  var JOURS = ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"];
+  var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  // iPhone : sms:&body=…  ·  Android : sms:?body=…
+  var smsHref = function(text){ return "sms:" + (isIOS ? "&" : "?") + "body=" + encodeURIComponent(text); };
+  var waHref = function(text){ return "https://wa.me/?text=" + encodeURIComponent(text); };
+  var cleanName = function(s){ return String(s || "").replace(/\s+/g, " ").trim().slice(0, 40); };
+
+  // ---------- copie : presse-papiers, sinon ancienne méthode ----------
+  function fallbackCopy(text){
+    var ta = el("textarea"); ta.value = text; ta.setAttribute("readonly", "");
+    ta.style.cssText = "position:fixed;top:0;left:0;opacity:0;width:1px;height:1px";
+    document.body.appendChild(ta); ta.focus(); ta.select();
+    try{ ta.setSelectionRange(0, text.length); }catch(e){}
+    var ok = false; try{ ok = document.execCommand("copy"); }catch(e){}
+    document.body.removeChild(ta);
+    return ok;
+  }
+  function copy(text){
+    if(navigator.clipboard && window.isSecureContext){
+      return navigator.clipboard.writeText(text).then(function(){ return true; }, function(){ return fallbackCopy(text); });
+    }
+    return Promise.resolve(fallbackCopy(text));
+  }
+  var toastT;
+  function toast(msg){ var t = $("#toast"); t.textContent = msg; t.classList.add("on"); clearTimeout(toastT); toastT = setTimeout(function(){ t.classList.remove("on"); }, 2400); }
+  function flash(btn, label, okMsg){
+    var orig = btn.getAttribute("data-label") || btn.textContent; btn.setAttribute("data-label", orig);
+    btn.textContent = label; btn.classList.add("ok"); toast(okMsg);
+    setTimeout(function(){ btn.textContent = orig; btn.classList.remove("ok"); }, 2000);
+  }
+  function copyBtn(btn, getText, okMsg){
+    btn.addEventListener("click", function(){
+      copy(getText()).then(function(ok){
+        if(ok) flash(btn, "Copié ✓", okMsg || "Texte copié");
+        else toast("Copie impossible : sélectionne le texte à la main");
+      });
+    });
+  }
+  function block(parent, title, text, opts){
+    opts = opts || {};
+    var fc = el("div", { class:"fc" });
+    fc.appendChild(el("h4", null, title));
+    fc.appendChild(el("p", null, text));
+    if(opts.how){ var h = el("p", { class:"how" }); h.innerHTML = opts.how; fc.appendChild(h); }
+    if(opts.url) fc.appendChild(el("code", { class:"url" }, opts.url));
+    var row = el("div", { class:"row" });
+    if(!opts.noCopy){
+      var b = el("button", { type:"button", class:"btn sm" }, opts.label || "Copier le texte");
+      copyBtn(b, function(){ return text; }, opts.ok || "Texte copié");
+      row.appendChild(b);
+    }
+    if(opts.url){
+      var bu = el("button", { type:"button", class:"btn sm" }, opts.urlLabel || "Copier le lien");
+      copyBtn(bu, function(){ return opts.url; }, "Lien copié");
+      row.appendChild(bu);
+    }
+    fc.appendChild(row);
+    parent.appendChild(fc);
+    return fc;
+  }
+  function doneBox(parent, id, label){
+    var d = el("label", { class:"done", "data-step":id });
+    d.appendChild(el("input", { type:"checkbox" }));
+    d.appendChild(el("span", null, label));
+    d.appendChild(el("span", { class:"when" }));
+    parent.appendChild(d);
+    return d;
+  }
+  function autosize(ta){ ta.style.height = "auto"; ta.style.height = (ta.scrollHeight + 2) + "px"; }
+  var sizers = [];
+
+  // ---------- rendu : réseau ----------
+  NET.forEach(function(v, i){
+    var card = el("article", { class:"card", id:"net-" + v.slug });
+    var top = el("div", { class:"top" });
+    top.appendChild(el("span", { class:"num" }, pad(i + 1)));
+    var head = el("div"); head.appendChild(el("h3", null, v.title)); head.appendChild(el("p", { class:"meta" }, v.meta));
+    top.appendChild(head); card.appendChild(top);
+
+    var field = el("label", { class:"field" });
+    var fl = el("span", null, "Prénom de la personne "); fl.appendChild(el("em", null, "(facultatif)")); field.appendChild(fl);
+    var name = el("input", { type:"text", autocomplete:"off", autocapitalize:"words", spellcheck:"false", placeholder:"ex. Julien", "aria-label":"Prénom pour le message " + v.title });
+    field.appendChild(name); card.appendChild(field);
+
+    var ta = el("textarea", { class:"post", spellcheck:"true", "aria-label":"Message " + v.title });
+    ta.value = S.text[v.slug] || v.fresh("");
+    card.appendChild(ta);
+    var sub = el("div", { class:"sub" });
+    var count = el("span"); var reset = el("button", { type:"button" }, "Texte d'origine");
+    sub.appendChild(count); sub.appendChild(reset); card.appendChild(sub);
+
+    var btns = el("div", { class:"btns" });
+    var bWa = el("a", { class:"btn main wide", target:"_blank", rel:"noopener", "data-act":"wa" }, "Envoyer sur WhatsApp");
+    var bSms = el("a", { class:"btn", "data-act":"sms" }, "Envoyer par SMS");
+    var bCopy = el("button", { type:"button", class:"btn", "data-act":"copy" }, "Copier");
+    btns.appendChild(bWa); btns.appendChild(bSms); btns.appendChild(bCopy); card.appendChild(btns);
+
+    var sent = el("div", { class:"sent" });
+    sent.appendChild(el("span", null, "Message envoyé ?"));
+    var bPlus = el("button", { type:"button", class:"btn sm main" }, "+1 envoyé");
+    sent.appendChild(bPlus); card.appendChild(sent);
+    $("#net").appendChild(card);
+
+    function refresh(){
+      var t = ta.value;
+      bWa.setAttribute("href", waHref(t));
+      bSms.setAttribute("href", smsHref(t));
+      count.textContent = t.length + " caractères" + (t.indexOf(v.link) >= 0 ? " · lien inclus" : "");
+      count.className = t.indexOf(v.link) >= 0 ? "" : "bad";
+      if(t.indexOf(v.link) < 0) count.textContent = t.length + " caractères · lien manquant";
+    }
+    function setGreeting(){
+      var lines = ta.value.split("\n");
+      lines[0] = v.hi(cleanName(name.value));
+      ta.value = lines.join("\n");
+      refresh(); autosize(ta);
+    }
+    name.addEventListener("input", setGreeting);
+    ta.addEventListener("input", function(){
+      autosize(ta); refresh();
+      // la salutation dépend du prénom : on garde en mémoire le texte avec la salutation sans prénom
+      var lines = ta.value.split("\n"); var first = lines[0];
+      if(first === v.hi(cleanName(name.value))) lines[0] = v.hi("");
+      var saved = lines.join("\n");
+      if(saved === v.fresh("")) delete S.text[v.slug]; else S.text[v.slug] = saved;
+      save();
+    });
+    reset.addEventListener("click", function(){ delete S.text[v.slug]; save(); ta.value = v.fresh(cleanName(name.value)); refresh(); autosize(ta); });
+    copyBtn(bCopy, function(){ return ta.value; }, "Message copié · colle-le dans la conversation");
+    function after(){ setTimeout(function(){ toast("Envoyé ? Touche « +1 envoyé »"); }, 400); }
+    bWa.addEventListener("click", after);
+    bSms.addEventListener("click", after);
+    bPlus.addEventListener("click", function(){
+      S.sent += 1; save(); refreshBar();
+      name.value = ""; setGreeting();
+      toast(S.sent >= GOAL ? S.sent + " personnes : objectif atteint, bravo" : S.sent + " / " + GOAL + " · au suivant");
+    });
+    // texte gardé en mémoire : on remet la salutation sans prénom
+    setGreeting();
+    sizers.push(function(){ autosize(ta); });
+  });
+  $("#minus").addEventListener("click", function(){ if(S.sent > 0){ S.sent -= 1; save(); refreshBar(); } });
+
+  // ---------- rendu : Instagram ----------
+  var st = $("#stories");
+  st.appendChild(el("h3", { style:"font:800 17px var(--f-body);margin-bottom:12px" }, "3 stories à la suite"));
+  STORIES.forEach(function(s){ block(st, s.h, s.text, { how:s.how, url:s.url, ok:"Texte copié · colle-le dans la story" }); });
+  doneBox(st, "ig_story", "3 stories postées");
+
+  var rl = $("#reel");
+  rl.appendChild(el("h3", { style:"font:800 17px var(--f-body);margin-bottom:12px" }, "Le Reel de 30 s"));
+  block(rl, "Légende à coller", CAPTION, { how:"Publie la vidéo en Reel (pas de musique de la bibliothèque si tu veux pouvoir la booster à l'étape 4). Si un message ne passe pas, réponds avec les messages ci-dessous.", ok:"Légende copiée" });
+  block(rl, "Lien de ta bio", "Profil → « Modifier le profil » → « Liens » → « Ajouter un lien externe » (ou un intitulé proche), avec ce lien :", { url:BIO_URL, noCopy:true });
+  doneBox(rl, "ig_reel", "Reel publié + lien dans la bio");
+
+  var dm = $("#dm");
+  dm.appendChild(el("h3", { style:"font:800 17px var(--f-body);margin-bottom:6px" }, "Répondre en message"));
+  dm.appendChild(el("p", { class:"intro", style:"font-size:14px;margin-bottom:10px" }, "À chaque personne qui répond à une story, vote au sondage, aime le Reel ou commente « BOUCLE ». Ajoute son prénom au début."));
+  DMS.forEach(function(d){ block(dm, d.h, d.text, { ok:"Message copié" }); });
+  doneBox(dm, "ig_dm", "J'ai répondu à tout le monde");
+
+  // ---------- rendu : membres ----------
+  (function(){
+    var card = $("#member");
+    var top = el("div", { class:"top" });
+    top.appendChild(el("span", { class:"num" }, "@"));
+    var head = el("div"); head.appendChild(el("h3", null, "Relance perso, un membre à la fois")); head.appendChild(el("p", { class:"meta" }, "Objet : « " + MEMBER_SUBJECT + " » · demande s'il a testé, propose ton aide, l'offre en une ligne."));
+    top.appendChild(head); card.appendChild(top);
+    var two = el("div", { class:"two" });
+    var f1 = el("label", { class:"field" }, "Prénom");
+    var name = el("input", { type:"text", autocomplete:"off", autocapitalize:"words", spellcheck:"false", placeholder:"ex. Julie" });
+    f1.appendChild(name);
+    var f2 = el("label", { class:"field" });
+    var f2l = el("span", null, "E-mail "); f2l.appendChild(el("em", null, "(copié depuis l'admin)")); f2.appendChild(f2l);
+    var mail = el("input", { type:"email", autocomplete:"off", spellcheck:"false", placeholder:"prenom@exemple.fr", inputmode:"email" });
+    f2.appendChild(mail);
+    two.appendChild(f1); two.appendChild(f2); card.appendChild(two);
+    var ta = el("textarea", { class:"post", spellcheck:"true", "aria-label":"Message pour un membre" });
+    ta.value = memberFresh("");
+    card.appendChild(ta);
+    var btns = el("div", { class:"btns" });
+    var bMail = el("a", { class:"btn main wide" }, "Ouvrir dans ton e-mail");
+    var bCopy = el("button", { type:"button", class:"btn wide" }, "Copier le message");
+    btns.appendChild(bMail); btns.appendChild(bCopy); card.appendChild(btns);
+    function refresh(){
+      var to = mail.value.trim();
+      bMail.setAttribute("href", "mailto:" + (/^[^\s@,;?&]+@[^\s@,;?&]+$/.test(to) ? encodeURIComponent(to).replace(/%40/g, "@") : "") + "?subject=" + encodeURIComponent(MEMBER_SUBJECT) + "&body=" + encodeURIComponent(ta.value));
+    }
+    name.addEventListener("input", function(){
+      var lines = ta.value.split("\n"); lines[0] = memberHi(cleanName(name.value)); ta.value = lines.join("\n"); refresh(); autosize(ta);
+    });
+    mail.addEventListener("input", refresh);
+    ta.addEventListener("input", function(){ refresh(); autosize(ta); });
+    copyBtn(bCopy, function(){ return ta.value; }, "Message copié");
+    refresh();
+    sizers.push(function(){ autosize(ta); });
+    doneBox(card, "members", "Membres relancés");
+  })();
+
+  // ---------- rendu : accroches de pub ----------
+  (function(){
+    var box = $("#adtexts");
+    box.appendChild(el("h3", { style:"font:800 17px var(--f-body);margin-bottom:6px" }, "3 accroches (début de légende)"));
+    box.appendChild(el("p", { class:"intro", style:"font-size:14px;margin-bottom:10px" }, "Choisis-en une seule, colle-la en première ligne de la légende du Reel, puis laisse le reste de la légende en dessous."));
+    ADS.forEach(function(t, i){
+      var fc = block(box, "Accroche " + String.fromCharCode(65 + i) + " · " + Array.from(t).length + " caractères", t, { ok:"Accroche copiée" });
+      fc.setAttribute("data-len", Array.from(t).length);
+    });
+  })();
+  copyBtn($("#copyAdUrl"), function(){ return $("#adUrl").textContent; }, "Adresse copiée");
+
+  // durée conseillée : au plus 4 jours, et la pub doit être finie dimanche 23h59
+  (function(){
+    var left = (DEADLINE - Date.now()) / 864e5;
+    var days = Math.max(1, Math.min(4, Math.floor(left)));
+    $("#adDays").textContent = days; $("#adDays2").textContent = days; $("#adMax").textContent = (days * 10) + " €";
+    if(left < 4 && left > 0) $("#adDaysWhy").textContent = "Aujourd'hui, " + days + " jour" + (days > 1 ? "s" : "") + " suffisent pour finir avant dimanche 23h59 (le texte parle de l'offre). Instagram affiche le total avant de valider.";
+    if(left <= 0) $("#adDaysWhy").textContent = "L'offre de lancement est terminée : ne lance pas de pub avec ces textes, demande d'abord à Claude de les mettre à jour.";
+  })();
+
+  // calcul du coût par clic
+  function cpc(){
+    var s = parseFloat(String($("#spent").value).replace(",", ".")), c = parseInt($("#clicks").value, 10), out = $("#cpc");
+    if(!(s >= 0) || !(c >= 0) || $("#spent").value === "" || $("#clicks").value === ""){ out.textContent = "Entre les deux chiffres pour voir ton coût par clic."; return; }
+    if(c === 0){ out.textContent = "0 clic pour l'instant : vérifie que la pub est bien « Active » et pas « En cours d'examen » ou « Refusée »."; return; }
+    out.innerHTML = "Coût par clic : <b>" + (s / c).toFixed(2).replace(".", ",") + " €</b> · compare avec les visites « ads » du tableau de bord.";
+  }
+  $("#spent").addEventListener("input", cpc); $("#clicks").addEventListener("input", cpc);
+
+  // ---------- cases « fait » ----------
+  Array.prototype.forEach.call(document.querySelectorAll("label.done[data-step]"), function(d){
+    var id = d.getAttribute("data-step"), box = d.querySelector("input"), when = d.querySelector(".when");
+    function paint(){ var t = S.done[id]; box.checked = !!t; d.classList.toggle("on", !!t); when.textContent = t ? "à " + hhmm(t) : ""; }
+    box.addEventListener("change", function(){
+      if(box.checked) S.done[id] = Date.now(); else delete S.done[id];
+      save(); paint(); refreshBar();
+      if(box.checked){ var n = nextStep(); toast(n ? "Bien joué. Ensuite : " + n.label : "Tout est fait !"); }
+    });
+    paint();
+  });
+
+  // ---------- compte à rebours de l'offre ----------
+  function refreshLeft(){
+    var ms = DEADLINE - Date.now(), l = $("#left");
+    if(ms <= 0){ l.textContent = "Offre terminée : retire la ligne de l'offre avant d'envoyer"; l.classList.add("over"); return; }
+    var d = Math.floor(ms / 864e5), h = Math.floor(ms % 864e5 / 36e5), m = Math.floor(ms % 36e5 / 6e4);
+    l.textContent = "Fin dimanche 18 octobre, 23h59 · encore " + (d ? d + " j " + h + " h" : h ? h + " h " + pad(m) + " min" : m + " min");
+  }
+
+  // ---------- barre de suivi ----------
+  function isDone(s){ return s.id === "net" ? S.sent >= 20 : !!S.done[s.id]; }
+  function nextStep(){ for(var i = 0; i < STEPS.length; i++){ if(!isDone(STEPS[i])) return STEPS[i]; } return null; }
+  function refreshBar(){
+    $("#nSent").textContent = S.sent; $("#nSent2").textContent = S.sent;
+    $("#meter").style.width = Math.min(100, S.sent / GOAL * 100) + "%";
+    var nDone = STEPS.filter(isDone).length;
+    $("#track").style.width = (nDone / STEPS.length * 100) + "%";
+    var next = $("#next"), n = nextStep(); next.className = "next";
+    var live = S.done.ad_live, cw = $("#checkWhen");
+    if(live && !S.done.ad_check){
+      var due = live + 2 * 864e5, dd = new Date(due);
+      cw.hidden = false; cw.textContent = "Bilan prévu " + JOURS[dd.getDay()] + " à " + hhmm(due) + " (2 jours après le lancement). La pub peut démarrer un peu plus tard à cause de l'examen par Meta.";
+    } else cw.hidden = true;
+    if(!n){ next.innerHTML = "<b>Tout est fait.</b> Réponds aux messages et regarde le tableau de bord."; next.className = "next ok"; return; }
+    if(n.id === "net" && S.sent < 20){ next.innerHTML = "Ensuite : <b>ton réseau</b> (" + S.sent + " / 20 au moins)"; return; }
+    if(n.id === "ad_check" && live && Date.now() < live + 2 * 864e5){ var d2 = new Date(live + 2 * 864e5); next.className = "next wait"; next.innerHTML = "Bilan de la pub <b>" + JOURS[d2.getDay()] + " " + hhmm(d2) + "</b> · réponds aux messages en attendant"; return; }
+    next.innerHTML = "Ensuite : <b>" + n.label + "</b>";
+  }
+  $("#next").addEventListener("click", function(){ var n = nextStep(); var t = document.getElementById(n ? n.at : "pub"); if(t) t.scrollIntoView({ behavior:"smooth", block:"start" }); });
+
+  function sizeAll(){ sizers.forEach(function(f){ f(); }); }
+  sizeAll();
+  window.addEventListener("resize", sizeAll);
+  if(document.fonts && document.fonts.ready) document.fonts.ready.then(sizeAll);
+  refreshBar(); refreshLeft();
+  setInterval(function(){ refreshBar(); refreshLeft(); }, 30e3);
+})();
+</script>
+<!-- Pas de stats.js ici : page privée de Pierre (comme /tableau et /lancement), ses propres visites et clics ne doivent pas se mélanger aux chiffres des sources. -->
+</body>
+</html>
