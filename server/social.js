@@ -4,7 +4,8 @@
 // Vie privée : la position est arrondie à ~300 m avant d'être enregistrée, n'est montrée qu'en distance arrondie,
 // disparaît après 3 h sans activité, et seulement si la personne a choisi d'être visible. Compte supprimable à tout moment.
 //
-// Comptes : identifiant (pseudo) unique, e-mail, mot de passe, prénom, nom, date de naissance (15 ans minimum).
+// Comptes : prénom, e-mail, mot de passe et case « 15 ans ou plus » suffisent ; l'identifiant (pseudo) unique est créé à partir du prénom s'il n'est pas choisi.
+// Nom, date de naissance et niveau sont facultatifs (anciens comptes : nom et date de naissance déjà remplis ; l'âge minimum reste vérifié si une date est donnée).
 // Le mot de passe est d'abord étiré sur le téléphone (PBKDF2, 150 000 tours), puis salé et haché ici : il n'est jamais
 // stocké ni transmis en clair. Chaque connexion crée une session (jeton aléatoire ; seule son empreinte est gardée).
 // Administration (page admin.html) : en-tête X-Admin-Key = secret ADMIN_KEY du serveur.
@@ -31,6 +32,7 @@ const R = d => d*Math.PI/180;
 function km(a, b){ const dLa = R(b.lat - a.lat), dLo = R(b.lon - a.lon); const h = Math.sin(dLa/2)**2 + Math.cos(R(a.lat))*Math.cos(R(b.lat))*Math.sin(dLo/2)**2; return 12742*Math.asin(Math.sqrt(h)); }
 const shown = d => d < 1 ? "moins de 1 km" : d < 10 ? `${Math.round(d*2)/2} km`.replace(".", ",") : `${Math.round(d)} km`;
 const LEVELS = ["debut", "regulier", "confirme", "expert"];
+const PSEUDO_RE = /^[a-z0-9][a-z0-9_.]{2,19}$/;   // identifiant : choisi (anciens comptes) ou créé à partir du prénom
 const ACT_PUB = {"kty":"EC","crv":"P-256","x":"__6AWyNjAcpIy9E2jeaF-pVNzipouEcuYhBleromdtE","y":"WR7Y2cF2dCOReGhUEk7DEFkf2Bmh5rNc0NveDAggRzQ"};   // clé publique d'activation (la clé privée = secret ACT_KEY)
 const FREE_LOOPS = 3;   // boucles offertes à chaque nouveau compte (version gratuite)
 const REWARD_EVERY = 100, REWARD_EUR = 5;   // un diamant (bon d'achat de 5 €) toutes les 100 courses vérifiées
@@ -170,30 +172,43 @@ export class Hub {
     return token;
   }
   async hashPw(key, salt){ salt = salt || hex(crypto.getRandomValues(new Uint8Array(16))); return salt + ":" + await sha(salt + ":" + key); }
+  // identifiant créé à partir du prénom (« Pierre-Élie » → pierreelie4821) : lettres a-z seulement (14 au plus) + 4 chiffres, nouvel essai si déjà pris
+  newPseudo(first){
+    const base = String(first || "").toLowerCase().replace(/œ/g, "oe").replace(/æ/g, "ae").replace(/ß/g, "ss").normalize("NFD").replace(/[^a-z]/g, "").slice(0, 14) || "coureur";
+    const rnd = n => String(crypto.getRandomValues(new Uint32Array(1))[0] % (9*10**(n - 1)) + 10**(n - 1));
+    for(let i = 0; i < 30; i++){ const p = base + rnd(i < 20 ? 4 : 6); if(PSEUDO_RE.test(p) && !this.one("SELECT 1 AS x FROM users WHERE pseudo = ?", p)) return p; }
+    return "";
+  }
   async signup(b, ip, req){
     // 30 par heure et par adresse IP : un club ou une salle sur le même Wi-Fi peut s'inscrire en même temps (le test de charge bloquait dès la 9e personne)
     if(this.limit("su:" + ip, 30, HOUR)) return json({error:"rate_limited"}, 429, {});
-    const first = clean(b.first, 30), last = clean(b.last, 40), email = clean(b.email, 120).toLowerCase(), pseudo = clean(b.pseudo, 20).toLowerCase(), birth = clean(b.birth, 10);
-    if(!first || !last) return json({error:"name_required"}, 400, {});
-    if(!/^[a-z0-9][a-z0-9_.]{2,19}$/.test(pseudo)) return json({error:"bad_pseudo"}, 400, {});
+    const first = clean(b.first, 30), last = clean(b.last, 40), email = clean(b.email, 120).toLowerCase(), birth = clean(b.birth, 10);
+    let pseudo = clean(b.pseudo, 20).toLowerCase();
+    if(!first) return json({error:"name_required"}, 400, {});
+    if(pseudo && !PSEUDO_RE.test(pseudo)) return json({error:"bad_pseudo"}, 400, {});
     if(!/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(email)) return json({error:"bad_email"}, 400, {});
     if(!/^[a-f0-9]{64}$/.test(String(b.key || ""))) return json({error:"bad_password"}, 400, {});
-    const bd = Date.parse(birth + "T00:00:00Z");
-    if(!/^\d{4}-\d{2}-\d{2}$/.test(birth) || !isFinite(bd) || bd < Date.parse("1900-01-01")) return json({error:"bad_birth"}, 400, {});
-    if((NOW() - bd)/(365.25*864e5) < 15) return json({error:"too_young"}, 400, {});
+    // date de naissance facultative (la case « J'ai 15 ans ou plus » l'atteste) ; si elle est donnée, mêmes contrôles qu'avant
+    if(birth){
+      const bd = Date.parse(birth + "T00:00:00Z");
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(birth) || !isFinite(bd) || bd < Date.parse("1900-01-01")) return json({error:"bad_birth"}, 400, {});
+      if((NOW() - bd)/(365.25*864e5) < 15) return json({error:"too_young"}, 400, {});
+    }
     if(!b.terms) return json({error:"consent_required"}, 400, {});
-    if(this.one("SELECT 1 AS x FROM users WHERE pseudo = ?", pseudo)) return json({error:"pseudo_taken"}, 409, {});
+    const pw = await this.hashPw(b.key);   // avant les vérifications d'unicité : plus aucune attente entre elles et l'enregistrement
+    if(pseudo && this.one("SELECT 1 AS x FROM users WHERE pseudo = ?", pseudo)) return json({error:"pseudo_taken"}, 409, {});
     if(this.one("SELECT 1 AS x FROM users WHERE email = ?", email)) return json({error:"email_taken"}, 409, {});
+    if(!pseudo && !(pseudo = this.newPseudo(first))) return json({error:"pseudo_taken"}, 409, {});
     const id = hex(crypto.getRandomValues(new Uint8Array(8)));
     this.sql.exec("INSERT INTO users(id, pseudo, pw, first, last, email, birth, level, pace, bio, created, seen, visible, premium) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-      id, pseudo, await this.hashPw(b.key), first, last, email, birth, LEVELS.includes(b.level) ? b.level : "regulier", Math.max(150, Math.min(900, +b.pace || 345)), clean(b.bio, 140), NOW(), NOW(), b.visible === false ? 0 : 1, b.premium ? 1 : 0);
+      id, pseudo, pw, first, last, email, birth, LEVELS.includes(b.level) ? b.level : "regulier", Math.max(150, Math.min(900, +b.pace || 345)), clean(b.bio, 140), NOW(), NOW(), b.visible === false ? 0 : 1, b.premium ? 1 : 0);
     const u = this.one("SELECT * FROM users WHERE id = ?", id), token = await this.newSession(u, req);
     {
       // chiffres agrégés du jour seulement : l'inscription n'est jamais reliée à une visite précise
       const day = new Date().toLocaleDateString("sv-SE", {timeZone:"Europe/Paris"});
       const vis = this.one("SELECT COUNT(DISTINCT vid) AS n, COUNT(DISTINCT CASE WHEN src != '' THEN vid END) AS l FROM hits WHERE day = ? AND ev = 'pv'", day);
       const su = this.one("SELECT COUNT(*) AS n FROM users WHERE created >= ?", NOW() - 864e5).n, tot = this.one("SELECT COUNT(*) AS n FROM users").n;
-      this.alert("Nouvel inscrit Traceo", `${first} ${last} (@${pseudo}) vient de créer son compte.\nAujourd'hui : ${vis.n} visiteur${vis.n > 1 ? "s" : ""} (dont ${vis.l} via tes liens) · ${su} inscription${su > 1 ? "s" : ""} en 24 h · ${tot} membres au total.`, {tags:"tada", priority:"high", click:DASH_URL});
+      this.alert("Nouvel inscrit Traceo", `${[first, last].filter(Boolean).join(" ")} (@${pseudo}) vient de créer son compte.\nAujourd'hui : ${vis.n} visiteur${vis.n > 1 ? "s" : ""} (dont ${vis.l} via tes liens) · ${su} inscription${su > 1 ? "s" : ""} en 24 h · ${tot} membres au total.`, {tags:"tada", priority:"high", click:DASH_URL});
     }
     if(this.one("SELECT v FROM kv WHERE k = 'welcome:auto'")?.v === "1") this.state.waitUntil(this.welcome(u).catch(() => {}));
     return json({token, me:this.mine(u)}, 200, {});
@@ -209,7 +224,7 @@ export class Hub {
   async update(me, b){
     const f = {};
     if(b.first != null) f.first = clean(b.first, 30) || me.first;
-    if(b.last != null) f.last = clean(b.last, 40) || me.last;
+    if(b.last != null) f.last = clean(b.last, 40);   // nom facultatif : peut être ajouté ou retiré
     if(b.level != null && LEVELS.includes(b.level)) f.level = b.level;
     if(b.pace != null) f.pace = Math.max(150, Math.min(900, +b.pace || me.pace));
     if(b.bio != null) f.bio = clean(b.bio, 140);
@@ -349,7 +364,7 @@ export class Hub {
     if(ok && count % REWARD_EVERY === 0){
       this.sql.exec("INSERT INTO rewards(uid, milestone, amount, status, created) VALUES(?,?,?,?,?)", me.id, count, REWARD_EUR, "a_reclamer", now);
       reward = {milestone:count, amount:REWARD_EUR};
-      this.alert("Diamant gagné", `${me.first} ${me.last} (@${me.pseudo}) a validé sa ${count}e course et gagne un diamant de ${REWARD_EUR} €.`, {tags:"gem"});
+      this.alert("Diamant gagné", `${[me.first, me.last].filter(Boolean).join(" ")} (@${me.pseudo}) a validé sa ${count}e course et gagne un diamant de ${REWARD_EUR} €.`, {tags:"gem"});
     }
     return json({ok:!!ok, reason, count, every:REWARD_EVERY, reward}, 200, {});
   }

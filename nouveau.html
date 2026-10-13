@@ -55,6 +55,9 @@ h1{font:400 clamp(72px,11vw,128px)/.9 Anton,Impact,sans-serif;text-transform:upp
 .btn.main{background:linear-gradient(105deg,#3BF5A8,#28B4F0);color:var(--accent-ink);box-shadow:0 12px 40px rgba(43,227,155,.35)}
 .btn.ghost{border:1.5px solid var(--line);background:rgba(14,30,37,.6)}
 .fine{margin-top:12px;font-size:14px;color:var(--muted)}
+.cta .fine{flex:1 1 100%;margin:-2px 0 0;font-weight:600;text-wrap:balance}
+.cta .fine span{white-space:nowrap}
+@media (min-width:421px){ .cta .fine{order:3;margin:0} }
 .phone{justify-self:center;width:min(320px,78vw);aspect-ratio:9/16;border-radius:40px;padding:9px;background:#070B0D;box-shadow:0 0 0 2px #2C3B41,0 30px 80px rgba(0,0,0,.6),0 0 70px rgba(43,227,155,.2)}
 .phone video{width:100%;height:100%;object-fit:cover;border-radius:32px;background:#08151C;display:block}
 section{position:relative;z-index:1;padding:20px 0 56px}
@@ -75,7 +78,7 @@ footer{position:relative;z-index:1;border-top:1px solid var(--line);padding:22px
   .phone{order:2}
   .grid{grid-template-columns:1fr 1fr}
 }
-@media (max-width:420px){ .btn{width:100%} .grid{gap:10px} .card{padding:15px} }
+@media (max-width:420px){ .btn{width:100%} .grid{gap:10px} .card{padding:15px} .cta .fine{text-align:center} }
 </style>
 <script type="application/ld+json" id="ld-traceo">
 {
@@ -157,7 +160,7 @@ footer{position:relative;z-index:1;border-top:1px solid var(--line);padding:22px
     {
      "@type": "Offer",
      "name": "Découverte",
-     "description": "3 boucles offertes pour découvrir, sans carte bancaire.",
+     "description": "Ta 1re boucle sans compte, puis 3 boucles offertes avec un compte gratuit, sans carte bancaire.",
      "price": "0",
      "priceCurrency": "EUR",
      "availability": "https://schema.org/InStock",
@@ -202,10 +205,10 @@ footer{position:relative;z-index:1;border-top:1px solid var(--line);padding:22px
       <h1>Nouveau<br><span class="g">départ.</span></h1>
       <p class="lead">Traceo revient, <b>entièrement repensé</b>. Une boucle de course neuve en 2 secondes, dans les vraies rues de ta ville, <b>plus sûre</b> que jamais. Plus malin, plus fort, et maintenant avec un coach et des coureurs autour de toi.</p>
       <div class="cta">
-        <a class="btn main" href="app.html" data-ev="essayer">Essayer gratuitement</a>
+        <a class="btn main" href="/app?go=1" data-ev="essayer">Essayer gratuitement</a>
+        <p class="fine">🎁 <span>1re boucle sans compte</span> · <span>3 offertes ensuite</span> · <span>sans carte bancaire</span>. Partout en France.</p>
         <a class="btn ghost" href="essai-premium.html" data-ev="premium">Voir Premium</a>
       </div>
-      <p class="fine">🎁 3 boucles offertes, sans carte bancaire. Partout en France.</p>
     </div>
     <div class="phone"><video src="https://traceorun.pages.dev/media/traceo-reel-premium.mp4" poster="https://traceorun.pages.dev/media/traceo-reel-premium-couverture.jpg" autoplay muted loop playsinline preload="metadata"></video></div>
   </div>
@@ -226,8 +229,8 @@ footer{position:relative;z-index:1;border-top:1px solid var(--line);padding:22px
 
   <section>
     <div class="price">
-      <div><div class="big">4,99 € <small>/ mois, sans engagement</small></div><p class="fine" style="margin-top:4px">Après tes 3 boucles offertes. Paiement sécurisé par PayPal.</p></div>
-      <a class="btn main" href="app.html" data-ev="essayer">Commencer maintenant</a>
+      <div><div class="big">4,99 € <small>· 31 jours, sans abonnement</small></div><p class="fine" style="margin-top:4px">Après tes boucles offertes. Tu paies une fois, rien ne se renouvelle. Paiement sécurisé par PayPal.</p></div>
+      <a class="btn main" href="/app?go=1" data-ev="essayer">Commencer maintenant</a>
     </div>
     <p class="word">« Traceo repart de zéro avec une seule idée : que chaque sortie te donne envie de lacer tes chaussures. Merci d'être là pour ce nouveau départ. »<span>Pierre Renard, fondateur de Traceo</span></p>
   </section>

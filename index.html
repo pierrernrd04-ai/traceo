@@ -42,6 +42,7 @@
   --r:24px; --max:1120px;
 }
 *{box-sizing:border-box;margin:0;padding:0}
+[hidden]{display:none!important}
 html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
 body{background:var(--bg);color:var(--ink);font:16px/1.55 var(--f-body);overflow-x:hidden;-webkit-font-smoothing:antialiased}
 a{color:inherit;text-decoration:none}
@@ -72,6 +73,8 @@ h1,h2,h3{font-family:var(--f-display);line-height:1.04;letter-spacing:-.02em}
 .intro p.lead{font-size:clamp(18px,4.6vw,21px);color:#C3D6D4;max-width:560px}
 .ctas{display:flex;flex-wrap:wrap;gap:12px;margin-top:28px}
 .ctas .btn{flex:1 1 220px}
+.cta-note{flex:1 1 100%;margin:-4px 0 2px;color:var(--muted);font-size:13.5px;font-weight:600;text-align:center;line-height:1.4;text-wrap:balance}
+.cta-note span{white-space:nowrap}
 .trust{display:flex;flex-wrap:wrap;gap:8px 16px;margin-top:20px;color:var(--muted);font-size:14px;font-weight:600}
 .trust span::before{content:"✓";color:var(--accent);margin-right:6px;font-weight:800}
 .beta{display:inline-flex;align-items:center;gap:8px;margin-top:22px;padding:8px 14px;border-radius:999px;background:rgba(37,201,143,.12);border:1px solid rgba(37,201,143,.35);font-weight:700;font-size:14px}
@@ -129,6 +132,7 @@ section{padding:72px 0}
 .price-card .tag{position:absolute;top:-14px;left:26px;padding:6px 12px;border-radius:999px;background:linear-gradient(105deg,var(--accent),var(--accent-2));color:var(--accent-ink);font:800 12px var(--f-body);letter-spacing:.08em;text-transform:uppercase}
 .price{font:800 64px var(--f-display);letter-spacing:-.03em;margin:8px 0 2px}
 .price small{font:700 18px var(--f-body);color:var(--muted);letter-spacing:0}
+.price-sub{font-weight:700;margin-bottom:6px}
 .checks{list-style:none;display:grid;gap:12px;margin:22px 0 26px}
 .checks li{display:flex;gap:12px;align-items:flex-start;font-weight:600}
 .checks li::before{content:"✓";flex:none;width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:var(--accent);color:var(--accent-ink);font-weight:900;font-size:13px}
@@ -169,6 +173,7 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:12px 24px;justify-content:space-bet
 .reveal.in{opacity:1;transform:none}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.reveal{opacity:1;transform:none}}
 
+@media (min-width:520px){.cta-note{order:3;margin:0;text-align:left;padding-left:6px}}
 @media (min-width:720px){
   .strip .wrap{grid-template-columns:repeat(4,1fr)}
   .steps{grid-template-columns:repeat(3,1fr)}.step{grid-template-columns:1fr}
@@ -273,7 +278,7 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:12px 24px;justify-content:space-bet
     {
      "@type": "Offer",
      "name": "Découverte",
-     "description": "3 boucles offertes pour découvrir, sans carte bancaire.",
+     "description": "Ta 1re boucle sans compte, puis 3 boucles offertes avec un compte gratuit, sans carte bancaire.",
      "price": "0",
      "priceCurrency": "EUR",
      "availability": "https://schema.org/InStock",
@@ -334,15 +339,15 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:12px 24px;justify-content:space-bet
      "name": "Comment se passe le paiement ?",
      "acceptedAnswer": {
       "@type": "Answer",
-      "text": "Par PayPal, avec ton compte PayPal ou une simple carte bancaire. 4,99 € débloquent 31 jours de Premium. Rien ne se renouvelle tout seul."
+      "text": "Par PayPal, avec ton compte PayPal ou une simple carte bancaire. 4,99 € débloquent 31 jours de Premium, sans abonnement : tu paies une fois, rien ne se renouvelle tout seul."
      }
     },
     {
      "@type": "Question",
-     "name": "Et mes données ?",
+     "name": "Faut-il un compte ? Et mes données ?",
      "acceptedAnswer": {
       "@type": "Answer",
-      "text": "Pas de compte à créer. Ta position sert uniquement à dessiner ta boucle et à te guider. Tes boucles restent enregistrées sur ton téléphone."
+      "text": "Ta 1re boucle se crée sans compte. Ensuite, un compte gratuit en 30 s (prénom, e-mail, mot de passe) t'offre 3 boucles, sans carte bancaire. Ta position sert uniquement à dessiner ta boucle et à te guider. Tes boucles restent enregistrées sur ton téléphone."
      }
     },
     {
@@ -366,7 +371,7 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:12px 24px;justify-content:space-bet
     <a class="logo" href="./" aria-label="Traceo">
       <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M7 23c0-8 5.5-14 11.5-14 4.6 0 7.5 2.9 7.5 6.6 0 3.8-3 6.6-6.8 6.6-2.8 0-4.7-1.9-4.7-4.2" fill="none" stroke="currentColor" stroke-width="3.6" stroke-linecap="round"/><circle cx="7" cy="23" r="3.8" fill="#E6F2F0"/></svg>traceo
     </a>
-    <a class="btn hero" href="app.html" data-ev="essayer">Ouvrir l'app</a>
+    <a class="btn hero" href="/app?go=1" data-ev="essayer">Ouvrir l'app</a>
   </div>
 </header>
 
@@ -378,7 +383,8 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:12px 24px;justify-content:space-bet
       <h1>Chaque sortie,<br><span class="grad">de nouvelles rues.</span></h1>
       <p class="lead">Traceo dessine en quelques secondes une boucle de course dans les vraies rues de ta ville, depuis là où tu es. Tu choisis la distance, Traceo te guide à la voix, rue par rue. Et demain, il t'emmène ailleurs.</p>
       <div class="ctas">
-        <a class="btn hero" href="app.html" data-ev="essayer"><svg viewBox="0 0 24 24"><path d="M5 18c0-6 4-11 9-11 3 0 5 2 5 5s-2 5-5 5c-2 0-3.5-1.5-3.5-3"/><circle cx="5" cy="18" r="2"/></svg>Essayer gratuitement</a>
+        <a class="btn hero" href="/app?go=1" data-ev="essayer"><svg viewBox="0 0 24 24"><path d="M5 18c0-6 4-11 9-11 3 0 5 2 5 5s-2 5-5 5c-2 0-3.5-1.5-3.5-3"/><circle cx="5" cy="18" r="2"/></svg>Essayer gratuitement</a>
+        <p class="cta-note"><span>1re boucle sans compte</span> · <span>3 offertes ensuite</span> · <span>sans carte bancaire</span></p>
         <a class="btn" href="#comment">Voir comment ça marche</a>
       </div>
       <p class="beta" id="beta" hidden><i></i><span id="betaTxt">Bêta gratuite en cours</span></p>
@@ -478,11 +484,12 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:12px 24px;justify-content:space-bet
     <div class="sec-h reveal" style="text-align:center;margin-inline:auto">
       <p class="eyebrow">Tarif</p>
       <h2>Un prix, tout compris.</h2>
-      <p>3 boucles offertes pour découvrir, sans carte bancaire. Ensuite, moins cher qu'un gel énergétique par semaine. Et Traceo te récompense : <b>un diamant de 5 € toutes les 100 courses</b>.</p>
+      <p>Ta 1re boucle sans compte, puis 3 boucles offertes avec un compte gratuit, sans carte bancaire. Ensuite, moins cher qu'un gel énergétique par semaine. Et Traceo te récompense : <b>un diamant de 5 € toutes les 100 courses</b>.</p>
     </div>
     <div class="price-card reveal">
       <span class="tag">Traceo Premium</span>
-      <p class="price"><span id="price">4,99 €</span><small> / mois</small></p>
+      <p class="price"><span id="price">4,99 €</span><small> · 31 jours</small></p>
+      <p class="price-sub">Sans abonnement : tu paies une fois, rien ne se renouvelle.</p>
       <p style="color:#C3D6D4">Paiement sécurisé par PayPal, compte PayPal ou carte bancaire.</p>
       <ul class="checks">
         <li>Boucles illimitées, partout en France et en outre-mer</li>
@@ -496,7 +503,7 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:12px 24px;justify-content:space-bet
         <li>Coach nutrition, hydratation et entraînement</li>
         <li>Image de ta boucle à partager</li>
       </ul>
-      <a class="btn hero" href="app.html" data-ev="essayer">Commencer maintenant</a>
+      <a class="btn hero" href="/app?go=1" data-ev="essayer">Commencer maintenant</a>
       <p class="fine">Un paiement = 31 jours de Premium. Sans abonnement, sans engagement : tu reprends quand tu veux. <a href="legal.html#cgv" style="color:var(--muted)">Conditions de vente</a></p>
     </div>
   </div>
@@ -522,8 +529,8 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:12px 24px;justify-content:space-bet
     <details><summary>Faut-il télécharger une application ?</summary><p>Non. Traceo fonctionne directement dans le navigateur de ton téléphone. Tu peux l'ajouter à ton écran d'accueil pour l'ouvrir en un geste, en plein écran.</p></details>
     <details><summary>Ça marche dans ma ville ?</summary><p>Partout en France, dans les grandes villes comme dans les villages, Corse, îles et outre-mer compris. Traceo s'appuie sur la Base Adresse Nationale et OpenStreetMap.</p></details>
     <details><summary>Comment Traceo évite-t-il les mêmes rues ?</summary><p>Traceo garde en mémoire, sur ton téléphone, les rues qu'il t'a déjà proposées. Il compare plusieurs itinéraires et choisit celui qui passe par le plus de rues nouvelles.</p></details>
-    <details><summary>Comment se passe le paiement ?</summary><p>Par PayPal, avec ton compte PayPal ou une simple carte bancaire. 4,99 € débloquent 31 jours de Premium. Rien ne se renouvelle tout seul.</p></details>
-    <details><summary>Et mes données ?</summary><p>Pas de compte à créer. Ta position sert uniquement à dessiner ta boucle et à te guider. Tes boucles restent enregistrées sur ton téléphone.</p></details>
+    <details><summary>Comment se passe le paiement ?</summary><p>Par PayPal, avec ton compte PayPal ou une simple carte bancaire. 4,99 € débloquent 31 jours de Premium, sans abonnement : tu paies une fois, rien ne se renouvelle tout seul.</p></details>
+    <details><summary>Faut-il un compte ? Et mes données ?</summary><p>Ta 1re boucle se crée sans compte. Ensuite, un compte gratuit en 30 s (prénom, e-mail, mot de passe) t'offre 3 boucles, sans carte bancaire. Ta position sert uniquement à dessiner ta boucle et à te guider. Tes boucles restent enregistrées sur ton téléphone.</p></details>
     <details><summary>Il faut du réseau pendant la course ?</summary><p>Oui, une connexion mobile est conseillée : Traceo calcule la boucle et affiche la carte en ligne. Le suivi de ta course, lui, utilise le GPS du téléphone.</p></details>
   </div>
 </section>
@@ -532,7 +539,7 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:12px 24px;justify-content:space-bet
   <div class="wrap">
     <h2>Ta prochaine boucle<br><span class="grad">t'attend dehors.</span></h2>
     <p>Lace tes chaussures, Traceo s'occupe du reste.</p>
-    <a class="btn hero" href="app.html" style="min-width:280px" data-ev="essayer">Lancer Traceo</a>
+    <a class="btn hero" href="/app?go=1" style="min-width:280px" data-ev="essayer">Lancer Traceo</a>
   </div>
 </section>
 </main>
@@ -541,28 +548,32 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:12px 24px;justify-content:space-bet
   <div class="wrap">
     <span class="logo" style="font-size:20px"><svg viewBox="0 0 32 32" aria-hidden="true" style="width:24px;height:24px"><path d="M7 23c0-8 5.5-14 11.5-14 4.6 0 7.5 2.9 7.5 6.6 0 3.8-3 6.6-6.8 6.6-2.8 0-4.7-1.9-4.7-4.2" fill="none" stroke="currentColor" stroke-width="3.6" stroke-linecap="round"/><circle cx="7" cy="23" r="3.8" fill="#E6F2F0"/></svg>traceo</span>
     <span>© 2026 Traceo · Pierre Renard EI · <a href="legal.html" style="color:var(--muted);text-decoration:underline">Mentions légales, CGV et confidentialité</a> · <a href="guides/" style="color:var(--muted);text-decoration:underline" data-ev="guide">Guides running</a> · <a href="parcours/" style="color:var(--muted);text-decoration:underline" data-ev="parcours">Parcours par ville</a></span>
-    <a href="app.html" style="color:var(--accent);font-weight:700" data-ev="essayer">Ouvrir l'app →</a>
+    <a href="/app?go=1" style="color:var(--accent);font-weight:700" data-ev="essayer">Ouvrir l'app →</a>
   </div>
 </footer>
 
-<div class="sticky" id="sticky"><a class="btn hero" href="app.html" data-ev="essayer">Trouver ma boucle · c'est parti</a></div>
+<div class="sticky" id="sticky"><a class="btn hero" href="/app?go=1" data-ev="essayer">Trouver ma boucle · c'est parti</a></div>
 
 <script src="config.js"></script>
-<script>(function(){ const C = window.TRACEO_CONFIG || {}; if(!C.UMAMI_ID) return; const s = document.createElement("script"); s.defer = true; s.src = C.UMAMI_SRC || "https://cloud.umami.is/script.js"; s.dataset.websiteId = C.UMAMI_ID; document.head.appendChild(s);
+<script>(function(){ const C = window.TRACEO_CONFIG || {}; if(!C.UMAMI_ID) return;
+  // ?notrack (mémorisé dans traceoNoTrack, ?notrack=0 l'efface) : aucune mesure sur cet appareil, comme stats.js et l'app
+  const nt = location.search.match(/[?&]notrack(?:=([^&]*))?/), off = nt && /^(0|off|non)$/i.test(nt[1] || "");
+  try{ if(nt){ if(off) localStorage.removeItem("traceoNoTrack"); else localStorage.setItem("traceoNoTrack", "1"); } if(localStorage.getItem("traceoNoTrack") === "1") return; }catch(e){ if(nt && !off) return; }
+  const s = document.createElement("script"); s.defer = true; s.src = C.UMAMI_SRC || "https://cloud.umami.is/script.js"; s.dataset.websiteId = C.UMAMI_ID; document.head.appendChild(s);
   document.addEventListener("click", e => { const a = e.target.closest("a,button"); if(a && window.umami) try{ umami.track("clic_page_vente", {cible:(a.textContent || a.getAttribute("href") || "").trim().slice(0, 40)}); }catch(x){} }); })();</script>
 <script>
 (function(){
   var C = window.TRACEO_CONFIG || {};
   if(C.PRICE_LABEL) document.getElementById("price").textContent = C.PRICE_LABEL;
-  // Bêta gratuite : compte à rebours jusqu'à la fin
-  var end = C.BETA && C.BETA_END ? Date.parse(C.BETA_END) : 0, box = document.getElementById("beta"), txt = document.getElementById("betaTxt");
+  // Bêta gratuite : compte à rebours jusqu'à la fin. Date passée, absente ou illisible : badge masqué pour de bon ([hidden] l'emporte sur .beta)
+  var end = C.BETA && C.BETA_END ? Date.parse(C.BETA_END) : 0, box = document.getElementById("beta"), txt = document.getElementById("betaTxt"), tb = 0;
   function tickBeta(){
-    var left = end - Date.now(); if(!end || left <= 0){ box.hidden = true; return; }
+    var left = end - Date.now(); if(!(left > 0)){ box.hidden = true; clearInterval(tb); return false; }
     var h = Math.floor(left/36e5), m = Math.floor(left%36e5/6e4);
     txt.textContent = "Bêta gratuite : encore " + (h >= 24 ? Math.floor(h/24) + " j " + (h%24) + " h" : h + " h " + String(m).padStart(2, "0") + " min") + " pour tout tester";
-    box.hidden = false;
+    box.hidden = false; return true;
   }
-  tickBeta(); setInterval(tickBeta, 30000);
+  if(tickBeta()) tb = setInterval(tickBeta, 30000);
   // Apparition au défilement
   var io = "IntersectionObserver" in window ? new IntersectionObserver(function(es){ es.forEach(function(e){ if(e.isIntersecting){ e.target.classList.add("in"); io.unobserve(e.target); } }); }, {threshold:.12}) : null;
   document.querySelectorAll(".reveal").forEach(function(el){ io ? io.observe(el) : el.classList.add("in"); });

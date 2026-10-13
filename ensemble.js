@@ -35,7 +35,7 @@ async function pwKey(pw){
   const bits = await crypto.subtle.deriveBits({name:"PBKDF2", salt:new TextEncoder().encode("traceo-ensemble-v1"), iterations:150000, hash:"SHA-256"}, k, 256);
   return [...new Uint8Array(bits)].map(b => b.toString(16).padStart(2, "0")).join("");
 }
-const ERRS = {pseudo_taken:"Cet identifiant est déjà pris, choisis-en un autre.", email_taken:"Un compte existe déjà avec cet e-mail : connecte-toi.", too_young:"Ensemble est réservé aux 15 ans et plus.", bad_pseudo:"Identifiant : 3 à 20 caractères, lettres minuscules, chiffres, point ou tiret bas.", bad_email:"Adresse e-mail invalide.", bad_birth:"Date de naissance invalide.", bad_login:"Identifiant ou mot de passe incorrect.", rate_limited:"Trop d'essais : réessaie dans quelques minutes.", consent_required:"Accepte les règles pour continuer."};
+const ERRS = {pseudo_taken:"Cet identifiant est déjà pris, choisis-en un autre.", email_taken:"Un compte existe déjà avec cet e-mail : connecte-toi.", too_young:"Ensemble est réservé aux 15 ans et plus.", bad_pseudo:"Identifiant : 3 à 20 caractères, lettres minuscules, chiffres, point ou tiret bas.", bad_email:"Adresse e-mail invalide.", bad_birth:"Date de naissance invalide.", bad_login:"Identifiant ou mot de passe incorrect.", rate_limited:"Trop d'essais : réessaie dans quelques minutes.", consent_required:"Coche la case pour continuer.", name_required:"Indique ton prénom.", bad_password:"Mot de passe : 8 caractères minimum."};
 const errTxt = e => ERRS[e.message] || "Connexion au serveur impossible, vérifie ta connexion.";
 const ensHere = () => S.here || (S.start ? [S.start.lat, S.start.lng] : null);
 
@@ -141,20 +141,18 @@ function ensSignup(gate){
     <button class="btn hero block" id="efGo">${EI.people}Me connecter</button>
     <p class="small alt-link" style="text-align:center">Pas encore de compte ? <button type="button" class="linkbtn" data-mode="signup">Créer mon compte</button></p>
     <p class="small" style="text-align:center">Mot de passe oublié ? <a href="mailto:pierre.rnrd04@gmail.com?subject=Traceo%20-%20mot%20de%20passe%20oubli%C3%A9" style="color:var(--accent)">Écris au support</a> depuis l'e-mail de ton compte.</p></form>`;
-  const max = new Date(Date.now() - 15*365.25*864e5).toISOString().slice(0, 10);
+  // Inscription courte : prénom, e-mail, mot de passe et la case « 15 ans ou plus » (elle atteste l'âge : pas de date de naissance).
+  // L'identifiant est créé par le serveur à partir du prénom ; niveau « Régulier » par défaut, modifiable dans « Mon compte ».
+  const fe = id => `<small class="small fe" id="${id}E" style="color:var(--warn)" hidden></small>`;
   return (gate ? "" : ensPitch()) + `<form class="ens-form" id="ensForm" novalidate><p class="title" style="font-size:22px">Crée ton compte Traceo</p>
     <p class="small alt-link" style="margin-top:-2px">Déjà inscrit ? <button type="button" class="linkbtn" data-mode="login">Me connecter</button></p>
-    <div class="row2"><div class="field"><label for="efFirst">Prénom</label><input class="input" id="efFirst" autocomplete="given-name" maxlength="30"></div>
-    <div class="field"><label for="efLast">Nom</label><input class="input" id="efLast" autocomplete="family-name" maxlength="40"></div></div>
-    <div class="field"><label for="efPseudo">Identifiant (visible des autres coureurs)</label><div class="pw"><span class="at">@</span><input class="input" id="efPseudo" autocomplete="username" autocapitalize="none" maxlength="20" placeholder="ex. lea_run"></div><small id="efPs" class="small"></small></div>
-    <div class="field"><label for="efMail">Adresse e-mail</label><input class="input" id="efMail" type="email" autocomplete="email" inputmode="email" maxlength="120"></div>
-    <div class="field"><label for="efPw">Mot de passe (8 caractères minimum)</label><div class="pw"><input class="input" id="efPw" type="password" autocomplete="new-password" maxlength="100"><button type="button" class="linkbtn" data-eye="efPw">Voir</button></div></div>
-    <div class="field"><label for="efBirth">Date de naissance</label><input class="input" id="efBirth" type="date" max="${max}" min="1900-01-01"></div>
-    <div class="field"><label>Niveau</label><div class="seg" id="efLvl">${Object.entries(LVL).map(([k, v]) => `<button type="button" data-lvl="${k}" aria-pressed="${k === "regulier"}">${v}</button>`).join("")}</div></div>
-    <p class="small">Les autres coureurs voient ton identifiant, ton prénom, l'initiale de ton nom, ton niveau, ton allure (${paceTxt(S.pace)}/km) et une distance arrondie. Jamais ton e-mail, ta date de naissance ni ton adresse.</p>
-    <label class="ens-ck"><input type="checkbox" id="efTerms"><span>J'ai 15 ans ou plus et j'accepte les <a href="legal.html#ensemble" target="_blank" rel="noopener">règles de la communauté et la politique de confidentialité</a>.</span></label>
+    <div class="field"><label for="efFirst">Prénom</label><input class="input" id="efFirst" autocomplete="given-name" autocapitalize="words" maxlength="30" aria-describedby="efFirstE">${fe("efFirst")}</div>
+    <div class="field"><label for="efMail">Adresse e-mail</label><input class="input" id="efMail" type="email" autocomplete="email" inputmode="email" autocapitalize="none" maxlength="120" aria-describedby="efMailE">${fe("efMail")}</div>
+    <div class="field"><label for="efPw">Mot de passe (8 caractères minimum)</label><div class="pw"><input class="input" id="efPw" type="password" autocomplete="new-password" maxlength="100" aria-describedby="efPwE"><button type="button" class="linkbtn" data-eye="efPw">Voir</button></div>${fe("efPw")}</div>
+    <label class="ens-ck"><input type="checkbox" id="efTerms" aria-describedby="efTermsE"><span>J'ai 15 ans ou plus et j'accepte les <a href="legal.html#ensemble" target="_blank" rel="noopener">règles de la communauté et la politique de confidentialité</a>.</span></label>${fe("efTerms")}
     <p class="small" id="efErr" style="color:var(--warn)"></p>
-    <button class="btn hero block" id="efGo">${EI.people}Créer mon compte</button></form>`;
+    <button class="btn hero block" id="efGo">${EI.people}Créer mon compte</button>
+    <p class="small">Sur Ensemble, les autres coureurs voient ton prénom, ton identifiant, ton niveau, ton allure et une distance arrondie. Jamais ton e-mail ni ton adresse.</p></form>`;
 }
 function ensThread(peer){
   const u = ENS.users[peer] || (ENS.near?.list || []).find(x => x.id === peer) || {name:"Coureur"}, me = ENS.me?.id;
@@ -266,37 +264,42 @@ function wireAuth(root, rerender, after){
   const q = s => root.querySelector(s);
   root.querySelectorAll("[data-mode]").forEach(b => b.onclick = () => { ENS.mode = b.dataset.mode; rerender(); });
   root.querySelectorAll("[data-eye]").forEach(b => b.onclick = () => { const i = q("#" + b.dataset.eye); i.type = i.type === "password" ? "text" : "password"; b.textContent = i.type === "password" ? "Voir" : "Masquer"; });
-  const done = (j, msg) => { ENS.auth = j.token; ENS.me = j.me; ENS.msgs = []; ENS.last = 0; ENS.first = true; ensSaveAuth(); ensSync(); celebrate(120); toast(msg); ensLoop(); ensPoll(); after(); };
+  const done = (j, msg, kind) => { ENS.auth = j.token; ENS.me = j.me; ENS.msgs = []; ENS.last = 0; ENS.first = true; ensSaveAuth(); ensSync(); celebrate(120); toast(msg); ensLoop(); ensPoll(); after(kind); };
   if(q("#ensLogin")){
     q("#ensLogin").onsubmit = async e => {
       e.preventDefault(); const err = q("#efErr"), id = q("#elId").value.trim(), pw = q("#elPw").value;
       if(!id || !pw) return err.textContent = "Indique ton identifiant et ton mot de passe.";
       q("#efGo").disabled = true; err.textContent = "";
-      try{ const j = await ensCall("login", {login:id, key:await pwKey(pw)}); track("ensemble_connexion"); done(j, `Content de te revoir, ${j.me.first} !`); }
+      try{ const j = await ensCall("login", {login:id, key:await pwKey(pw)}); track("ensemble_connexion"); done(j, `Content de te revoir, ${j.me.first} !`, "login"); }
       catch(x){ q("#efGo").disabled = false; err.textContent = errTxt(x); }
     };
     return;
   }
   if(q("#ensForm")){
-    let lvl = "regulier", psT;
-    root.querySelectorAll("#efLvl [data-lvl]").forEach(b => b.onclick = () => { lvl = b.dataset.lvl; root.querySelectorAll("#efLvl [data-lvl]").forEach(x => x.setAttribute("aria-pressed", x === b)); });
-    q("#efPseudo").oninput = () => { const v = q("#efPseudo").value = q("#efPseudo").value.toLowerCase().replace(/[^a-z0-9_.]/g, ""), ps = q("#efPs"); clearTimeout(psT);
-      if(v.length < 3){ ps.textContent = v ? "3 caractères minimum" : ""; ps.style.color = ""; return; }
-      psT = setTimeout(async () => { try{ const j = await ensCall("pseudo?p=" + encodeURIComponent(v)); if(q("#efPseudo")?.value !== v) return; ps.textContent = j.free ? "✓ Disponible" : "Déjà pris"; ps.style.color = j.free ? "var(--accent)" : "var(--warn)"; }catch(e){} }, 350); };
+    // erreurs affichées sous chaque champ, toutes en même temps
+    const F = ["efFirst", "efMail", "efPw", "efTerms"], ON = {name_required:"efFirst", bad_email:"efMail", email_taken:"efMail", bad_password:"efPw", consent_required:"efTerms"};
+    const mark = (id, msg) => { const i = q("#" + id), s = q("#" + id + "E"); if(!i || !s) return; s.textContent = msg || ""; s.hidden = !msg; if(msg) i.setAttribute("aria-invalid", "true"); else i.removeAttribute("aria-invalid"); if(i.type !== "checkbox") i.style.borderColor = msg ? "var(--warn)" : ""; };
+    F.forEach(id => q("#" + id).addEventListener(id === "efTerms" ? "change" : "input", () => mark(id, "")));
     q("#ensForm").onsubmit = async e => {
-      e.preventDefault(); const err = q("#efErr"), f = q("#efFirst").value.trim(), l = q("#efLast").value.trim(), m = q("#efMail").value.trim(), ps = q("#efPseudo").value.trim(), pw = q("#efPw").value, bd = q("#efBirth").value;
-      if(!f || !l) return err.textContent = "Indique ton prénom et ton nom.";
-      if(!/^[a-z0-9][a-z0-9_.]{2,19}$/.test(ps)) return err.textContent = ERRS.bad_pseudo;
-      if(!/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(m)) return err.textContent = ERRS.bad_email;
-      if(pw.length < 8) return err.textContent = "Mot de passe : 8 caractères minimum.";
-      if(!bd) return err.textContent = "Indique ta date de naissance.";
-      if((Date.now() - Date.parse(bd))/(365.25*864e5) < 15) return err.textContent = ERRS.too_young;
-      if(!q("#efTerms").checked) return err.textContent = ERRS.consent_required;
-      q("#efGo").disabled = true; err.textContent = "";
+      e.preventDefault(); const err = q("#efErr"), f = q("#efFirst").value.trim(), m = q("#efMail").value.trim(), pw = q("#efPw").value, bad = {};
+      if(!f) bad.efFirst = "Indique ton prénom.";
+      if(!/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(m)) bad.efMail = m ? ERRS.bad_email : "Indique ton adresse e-mail.";
+      if(pw.length < 8) bad.efPw = pw ? `8 caractères minimum (encore ${8 - pw.length}).` : "Choisis un mot de passe (8 caractères minimum).";
+      if(!q("#efTerms").checked) bad.efTerms = ERRS.consent_required;
+      F.forEach(id => mark(id, bad[id])); err.textContent = "";
+      const first = F.find(id => bad[id]); if(first){ q("#" + first).focus(); return; }
+      q("#efGo").disabled = true;
       try{
-        const j = await ensCall("signup", {first:f, last:l, email:m, pseudo:ps, key:await pwKey(pw), birth:bd, level:lvl, pace:S.pace, terms:true, premium:paid()});
-        track("ensemble_compte"); done(j, `Bienvenue dans la communauté, ${j.me.first} !`);
-      }catch(x){ q("#efGo").disabled = false; err.textContent = errTxt(x); }
+        const j = await ensCall("signup", {first:f, email:m, key:await pwKey(pw), terms:true, pace:S.pace, premium:paid()});
+        track("ensemble_compte"); done(j, `Bienvenue, ${j.me.first} ! Ton compte est prêt.`, "signup");
+      }catch(x){
+        q("#efGo").disabled = false; const id = ON[x.message];
+        if(!id){ err.textContent = errTxt(x); return; }
+        mark(id, errTxt(x)); q("#" + id).focus();
+        // e-mail déjà inscrit : passage direct à la connexion, e-mail prérempli
+        if(x.message === "email_taken"){ const s = q("#efMailE"), b = document.createElement("button"); b.type = "button"; b.className = "linkbtn"; b.textContent = "Me connecter"; b.style.marginLeft = "6px";
+          b.onclick = () => { ENS.mode = "login"; rerender(); const li = root.querySelector("#elId"); if(li){ li.value = m; root.querySelector("#elPw")?.focus(); } }; s.appendChild(b); }
+      }
     };
     return;
   }
@@ -410,28 +413,31 @@ document.addEventListener("click", async e => {
 });
 if(ensOn() && ENS.auth) setTimeout(() => { ensFlushRuns(false); ensRefreshRew(false); }, 4000);
 
-/* ---------- Écran d'entrée : se connecter ou créer son compte avant d'utiliser l'app ---------- */
-const needAuth = () => ensOn() && !ENS.auth && !PV && !window.TRACEO_TEST && !/[?&](test|noauth)\b/.test(location.search);
+/* ---------- Compte : proposé aux moments utiles (2e boucle, paiement), jamais en mur d'entrée, et toujours refermable ---------- */
+const needAuth = () => ensOn() && !ENS.auth && !ENS.skip && !PV && !window.TRACEO_TEST && !/[?&](test|noauth)\b/.test(location.search);
 function authGate(next, why){
   let el = document.getElementById("authGate");
   if(!el){ el = document.createElement("div"); el.id = "authGate"; el.className = "authgate"; document.body.appendChild(el); }
   document.body.classList.add("auth-on");
+  const close = () => { el.remove(); document.body.classList.remove("auth-on"); };
   const paint = () => {
+    const G = why === "gen", P = why === "pay", L = ENS.mode === "login", n = C.FREE_LOOPS || 3;
     el.innerHTML = `<div class="ag-in"><div class="ag-top"><svg viewBox="0 0 32 32" class="ag-logo"><path d="M7 23c0-8 5.5-14 11.5-14 4.6 0 7.5 2.9 7.5 6.6 0 3.8-3 6.6-6.8 6.6-2.8 0-4.7-1.9-4.7-4.2" fill="none" stroke="#25C98F" stroke-width="3.6" stroke-linecap="round"/><circle cx="7" cy="23" r="3.8" fill="#E6F2F0"/></svg>
-      ${why === "entry" ? "" : `<button class="iconbtn ag-x" id="agX" aria-label="Fermer">${I.x}</button>`}
-      <p class="eyebrow">${why === "gen" ? "Avant ta première boucle" : why === "pay" ? "Abonnement Premium" : "Bienvenue sur Traceo"}</p><p class="ag-h">${ENS.mode === "login" ? "Content de te revoir !" : why === "pay" ? "Crée ton compte pour t'abonner" : "Crée ton compte, c'est gratuit"}</p>
-      ${why !== "pay" && ENS.mode !== "login" ? `<p class="ag-gift">🎁 <b>${C.FREE_LOOPS || 3} boucles offertes</b> pour découvrir Traceo, sans payer.</p>` : ""}
+      <button class="iconbtn ag-x" id="agX" aria-label="Fermer">${I.x}</button>
+      <p class="eyebrow">${G ? "Une autre boucle ?" : P ? "Premium · 31 jours" : "Bienvenue sur Traceo"}</p><p class="ag-h">${L ? "Content de te revoir !" : G ? "Crée ton compte gratuit (30 s)" : P ? "Crée ton compte pour débloquer Premium" : "Crée ton compte, c'est gratuit"}</p>
+      ${!P && !L ? `<p class="ag-gift">🎁 ${G ? `<b>${n} boucles offertes</b> et ta boucle gardée.` : `<b>${n} boucles offertes</b> pour découvrir Traceo, sans payer.`}</p>` : ""}
       <div class="seg ag-seg"><button type="button" data-mode="signup" aria-pressed="${ENS.mode !== "login"}">Créer un compte</button><button type="button" data-mode="login" aria-pressed="${ENS.mode === "login"}">Se connecter</button></div></div>
       ${ensSignup(true)}
       <p class="small ag-why">Ton compte garde tes courses, compte tes diamants 💎 et te connecte aux coureurs autour de toi.</p>
       <button class="linkbtn ag-skip" id="agSkip" hidden>Serveur indisponible : continuer sans compte</button></div>`;
     el.scrollTop = 0;
-    wireAuth(el, paint, () => { el.remove(); document.body.classList.remove("auth-on"); track("entree_compte_ok"); next && next(); });
-    // si le serveur ne répond pas, on ne bloque pas le client
+    wireAuth(el, paint, kind => { close(); track(kind === "login" ? "entree_connexion_ok" : "entree_compte_ok", {raison:why || "?"}); next && next(); });
+    // si le serveur ne répond pas, on ne bloque pas le client (pour le reste de la visite : boucles comptées sur le téléphone)
     const sk = el.querySelector("#agSkip");
     fetch(ensApi() + "/health").then(r => { if(!r.ok) throw 0; }).catch(() => { sk.hidden = false; });
-    sk.onclick = () => { el.remove(); document.body.classList.remove("auth-on"); next && next(); };
-    el.querySelector("#agX") && (el.querySelector("#agX").onclick = () => { el.remove(); document.body.classList.remove("auth-on"); track("entree_compte_fermee"); });
+    sk.onclick = () => { ENS.skip = true; close(); next && next(); };
+    el.querySelector("#agX").onclick = () => { close(); track("entree_compte_fermee", {raison:why || "?"}); };
   };
   paint(); track("entree_compte_vue");
 }
+document.addEventListener("keydown", e => { if(e.key === "Escape") document.querySelector("#authGate #agX")?.click(); });   // Échap referme aussi la fenêtre de compte

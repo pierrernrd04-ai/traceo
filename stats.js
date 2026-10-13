@@ -1,8 +1,10 @@
 // Mesure d'audience Traceo : sans cookie, sans rien stocker sur l'appareil, statistiques agrégées uniquement
 // (visites, pages vues, clics sur les boutons marqués data-ev). Exemptée de consentement selon les règles de la CNIL.
+// Seule exception, voulue par le propriétaire de l'appareil : ?notrack mémorise « ne pas me compter » (traceoNoTrack) ; ?notrack=0 l'efface.
 (function(){
   try{
-    var h = location.hostname;
+    var h = location.hostname, nt = location.search.match(/[?&]notrack(?:=([^&]*))?/), off = nt && /^(0|off|non)$/i.test(nt[1] || "");
+    try{ if(nt){ if(off) localStorage.removeItem("traceoNoTrack"); else localStorage.setItem("traceoNoTrack", "1"); } if(localStorage.getItem("traceoNoTrack") === "1") return; }catch(e){ if(nt && !off) return; }
     if(navigator.webdriver || window.TRACEO_TEST || h === "localhost" || h === "127.0.0.1" || /[?&](test|noauth)\b/.test(location.search) || /admin(\.html)?$/.test(location.pathname)) return;
     var API = "https://traceo-api.pierre-rnrd04.workers.dev/social/hit";
     var q = new URLSearchParams(location.search), src = q.get("src") || q.get("utm_source") || "";
@@ -14,5 +16,7 @@
     send("pv");
     document.addEventListener("click", function(e){ var a = e.target && e.target.closest && e.target.closest("[data-ev]"); if(a) send("clic:" + a.getAttribute("data-ev")); }, true);
     window.traceoTrack = function(what){ send("clic:" + String(what).toLowerCase().replace(/[^a-z0-9_-]/g, "").slice(0, 24)); };
+    // événements de l'app arrivés avant ce fichier (ouverture depuis l'accueil, premier écran)
+    (window.traceoQ || []).splice(0).forEach(window.traceoTrack);
   }catch(e){}
 })();
