@@ -34,7 +34,13 @@ const shown = d => d < 1 ? "moins de 1 km" : d < 10 ? `${Math.round(d*2)/2} km`.
 const LEVELS = ["debut", "regulier", "confirme", "expert"];
 const PSEUDO_RE = /^[a-z0-9][a-z0-9_.]{2,19}$/;   // identifiant : choisi (anciens comptes) ou créé à partir du prénom
 const ACT_PUB = {"kty":"EC","crv":"P-256","x":"__6AWyNjAcpIy9E2jeaF-pVNzipouEcuYhBleromdtE","y":"WR7Y2cF2dCOReGhUEk7DEFkf2Bmh5rNc0NveDAggRzQ"};   // clé publique d'activation (la clé privée = secret ACT_KEY)
-const FREE_LOOPS = 3;   // boucles offertes à chaque nouveau compte (version gratuite)
+const FREE_LOOPS = 3;   // courses offertes à chaque nouveau compte (version gratuite) : décomptées au départ de la course (« Commencer »), jamais en traçant une boucle
+const GUEST_RUNS = 1;   // course sans compte : 1 par appareil (code de l'appareil), ensuite compte gratuit
+const GEN_DAY = 12, GEN_DAY_PREMIUM = 100;   // anti-abus : boucles tracées par jour et par compte (ou par appareil sans compte) ; tracer reste gratuit
+const GUEST_IP_GENS = 120, GUEST_IP_RUNS = 30;   // plafonds larges par adresse IP sans compte (Wi-Fi partagé, réseaux mobiles qui partagent une adresse)
+// Pass Premium payé par PayPal : 9,99 € ou plus = 3 mois (92 jours), 4,99 € ou plus = 31 jours (prix réglables : variables PRICE et PRICE_3M)
+const PLAN_1M = {days:31, label:"31 jours"}, PLAN_3M = {days:92, label:"3 mois"};
+const parisDay = () => new Date().toLocaleDateString("sv-SE", {timeZone:"Europe/Paris"});
 const REWARD_EVERY = 100, REWARD_EUR = 5;   // un diamant (bon d'achat de 5 €) toutes les 100 courses vérifiées
 const DASH_URL = "https://traceorun.pages.dev/tableau";   // ouvert en touchant une alerte
 const SITE = "https://traceorun.pages.dev", API_URL = "https://traceo-api.pierre-rnrd04.workers.dev";
@@ -44,7 +50,7 @@ function welcomeMail(first, u){
   const f = escH(first), P = 'style="margin:0;padding:12px 28px 0;font-size:16px;line-height:1.6;color:#2A3B39;"';
   const btn = (href, label, bg, fg) => `<tr><td align="center" style="padding:20px 28px 4px;"><a href="${escH(href)}" style="display:inline-block;padding:15px 30px;border-radius:999px;background:${bg};color:${fg};font-weight:800;font-size:17px;text-decoration:none;">${label}</a></td></tr>`;
   const html = `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${f}, merci ! Ta première course t'attend</title></head>
-<body style="margin:0;padding:0;background:#EEF3F2;"><div style="display:none;max-height:0;overflow:hidden;opacity:0">Une vidéo de 15 secondes rien que pour toi, et tes 3 boucles offertes.</div>
+<body style="margin:0;padding:0;background:#EEF3F2;"><div style="display:none;max-height:0;overflow:hidden;opacity:0">Une vidéo de 15 secondes rien que pour toi, et tes 3 courses offertes.</div>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#EEF3F2;"><tr><td align="center" style="padding:24px 12px;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:22px;overflow:hidden;font-family:Helvetica,Arial,sans-serif;color:#13201F;">
 <tr><td style="padding:22px 28px 6px;font-weight:800;font-size:18px;color:#0B5F4A;"><img src="${escH(u.logo)}" width="26" height="26" alt="" style="vertical-align:middle;border-radius:7px;margin-right:8px;border:0;">Traceo</td></tr>
@@ -52,14 +58,14 @@ function welcomeMail(first, u){
 <tr><td style="padding:22px 28px 0;font-size:24px;font-weight:800;line-height:1.25;">Salut ${f} 👋</td></tr>
 <tr><td ${P}>Merci pour ton inscription sur Traceo ! Je suis Pierre Renard, coureur et fondateur de Traceo. Je t'ai préparé une vidéo de 15 secondes, rien que pour toi.</td></tr>
 ${btn(u.video, "▶ Voir ma vidéo", "#2BE39B", "#04110D")}
-<tr><td style="padding:20px 28px 0;font-size:16px;line-height:1.6;color:#2A3B39;"><b>Ton défi : ta première course, aujourd'hui.</b> Tu choisis la distance, Traceo te trace en un clic une boucle toute neuve autour de toi, loin des grands axes, et te guide à la voix rue par rue. Tes <b>3 premières boucles sont offertes</b>, sans carte bancaire.</td></tr>
+<tr><td style="padding:20px 28px 0;font-size:16px;line-height:1.6;color:#2A3B39;"><b>Ton défi : ta première course, aujourd'hui.</b> Tu choisis la distance, Traceo te trace en un clic une boucle toute neuve autour de toi, loin des grands axes, et te guide à la voix rue par rue. Tracer et comparer des boucles est gratuit, et tes <b>3 premières courses guidées sont offertes</b>, sans carte bancaire.</td></tr>
 ${btn(u.app, "Lancer ma 1re course →", "#071318", "#ffffff")}
 <tr><td style="padding:22px 28px 0;font-size:16px;line-height:1.6;color:#2A3B39;">Et après ta course, dis-moi ce que tu en as pensé : <a href="${escH(u.avis)}" style="color:#0B8A66;font-weight:700;">30 secondes ici</a>, ou réponds simplement à cet e-mail. Je lis chaque retour. Dis-moi aussi si <b>Premium</b> te serait utile : boucles illimitées, envoi vers Garmin et Strava, export GPX, pour 4,99 €.</td></tr>
 <tr><td style="padding:22px 28px 26px;font-size:16px;line-height:1.6;color:#2A3B39;">Bonne course,<br><b>Pierre Renard</b><br><span style="color:#6B7F7C;font-size:14px;">Fondateur de Traceo</span></td></tr>
 </table>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;"><tr><td style="padding:16px 28px;font-family:Helvetica,Arial,sans-serif;font-size:12px;line-height:1.5;color:#7D8F8C;text-align:center;">Tu reçois cet e-mail parce que tu as créé un compte Traceo. <a href="${escH(u.unsub)}" style="color:#7D8F8C;">Ne plus recevoir ces e-mails</a>.<br>Traceo · Pierre Renard EI · traceorun.pages.dev</td></tr></table>
 </td></tr></table></body></html>`;
-  const text = `Salut ${first} !\n\nMerci pour ton inscription sur Traceo ! Je suis Pierre Renard, coureur et fondateur de Traceo. Je t'ai préparé une vidéo de 15 secondes, rien que pour toi :\n${u.video}\n\nTon défi : ta première course, aujourd'hui. Tu choisis la distance, Traceo te trace en un clic une boucle toute neuve autour de toi, loin des grands axes, et te guide à la voix rue par rue. Tes 3 premières boucles sont offertes, sans carte bancaire :\n${u.app}\n\nEt après ta course, dis-moi ce que tu en as pensé (30 secondes) : ${u.avis}\nou réponds simplement à cet e-mail. Dis-moi aussi si Premium te serait utile : boucles illimitées, Garmin, Strava, GPX, pour 4,99 €.\n\nBonne course,\nPierre Renard, fondateur de Traceo\n\n—\nTu reçois cet e-mail parce que tu as créé un compte Traceo. Ne plus recevoir ces e-mails : ${u.unsub}\nTraceo · Pierre Renard EI`;
+  const text = `Salut ${first} !\n\nMerci pour ton inscription sur Traceo ! Je suis Pierre Renard, coureur et fondateur de Traceo. Je t'ai préparé une vidéo de 15 secondes, rien que pour toi :\n${u.video}\n\nTon défi : ta première course, aujourd'hui. Tu choisis la distance, Traceo te trace en un clic une boucle toute neuve autour de toi, loin des grands axes, et te guide à la voix rue par rue. Tracer et comparer des boucles est gratuit, et tes 3 premières courses guidées sont offertes, sans carte bancaire :\n${u.app}\n\nEt après ta course, dis-moi ce que tu en as pensé (30 secondes) : ${u.avis}\nou réponds simplement à cet e-mail. Dis-moi aussi si Premium te serait utile : boucles illimitées, Garmin, Strava, GPX, pour 4,99 €.\n\nBonne course,\nPierre Renard, fondateur de Traceo\n\n—\nTu reçois cet e-mail parce que tu as créé un compte Traceo. Ne plus recevoir ces e-mails : ${u.unsub}\nTraceo · Pierre Renard EI`;
   return {subject:`${first}, merci ! Ta première course t'attend 🏃`, html, text};
 }
 const SRC_LABEL = {story:"ta story Instagram", bio:"ta bio Instagram", ig:"Instagram", insta:"Instagram", instagram:"Instagram", linkedin:"LinkedIn", whatsapp:"WhatsApp", facebook:"Facebook", fb:"Facebook", tiktok:"TikTok", strava:"Strava", email:"ton e-mail", qr:"ton QR code", reddit:"Reddit", forum:"un forum running", club:"un club contacté", createur:"un créateur partenaire"};
@@ -87,6 +93,16 @@ export class Hub {
     this.sql.exec(`CREATE TABLE IF NOT EXISTS payments(txn TEXT PRIMARY KEY, email TEXT, amount TEXT, currency TEXT, t INT, dev TEXT, until INT, name TEXT)`);
     this.sql.exec(`CREATE TABLE IF NOT EXISTS act_requests(id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT, dev TEXT, t INT, done INT DEFAULT 0)`);
     this.sql.exec(`CREATE TABLE IF NOT EXISTS orders(id TEXT PRIMARY KEY, dev TEXT, t INT, amount TEXT, payer TEXT, until INT)`);
+    // Pass relié au compte du membre (Premium reconnu sur tous ses appareils) et durée du pass (31 ou 92 jours)
+    try{ this.sql.exec("ALTER TABLE payments ADD COLUMN uid TEXT"); }catch(e){}
+    try{ this.sql.exec("ALTER TABLE payments ADD COLUMN days INT"); }catch(e){}
+    try{ this.sql.exec("ALTER TABLE act_requests ADD COLUMN uid TEXT"); }catch(e){}
+    this.sql.exec(`CREATE INDEX IF NOT EXISTS payments_uid ON payments(uid, until)`);
+    this.sql.exec(`CREATE INDEX IF NOT EXISTS payments_dev ON payments(dev, until)`);
+    // Courses offertes décomptées au départ (dernière boucle lancée : pas de double décompte), compteurs du jour (anti-abus), course sans compte (1 par appareil)
+    try{ this.sql.exec("ALTER TABLE users ADD COLUMN last_start TEXT"); }catch(e){}
+    this.sql.exec(`CREATE TABLE IF NOT EXISTS daycount(k TEXT PRIMARY KEY, day TEXT, n INT DEFAULT 0)`);
+    this.sql.exec(`CREATE TABLE IF NOT EXISTS guest_runs(dev TEXT PRIMARY KEY, t INT, loop TEXT)`);
     // Programme « 100 courses = 1 diamant de 5 € » (bon d'achat = 31 jours de Premium) : courses vérifiées et diamants
     this.sql.exec(`CREATE TABLE IF NOT EXISTS runs(id INTEGER PRIMARY KEY AUTOINCREMENT, uid TEXT, t INT, day TEXT, dist INT, time INT, ascent INT, n_pts INT, hash TEXT, ok INT, reason TEXT, premium INT, lat REAL, lon REAL)`);
     this.sql.exec(`CREATE INDEX IF NOT EXISTS runs_uid ON runs(uid, ok, t)`);
@@ -120,7 +136,7 @@ export class Hub {
     try{
       if(path === "vapid") return json({key:(await this.vapid()).pub}, 200, {});
       if(path === "pay") return this.pay(body, ip);
-      if(path === "activate") return this.activateRequest(body, ip);
+      if(path === "activate") return await this.activateRequest(body, ip, req);
       if(path === "signup") return this.signup(body, ip, req);
       if(path === "login") return this.login(body, ip, req);
       if(path === "pseudo") return json({free:!this.one("SELECT 1 AS x FROM users WHERE pseudo = ?", clean(url.searchParams.get("p"), 20).toLowerCase())}, 200, {});
@@ -131,11 +147,18 @@ export class Hub {
       if(path === "evt") return this.evtAlert(body, ip);
       if(path === "avis") return req.method === "POST" ? this.feedback(body, ip) : json({error:"method"}, 405, {});
       if(path === "unsub") return await this.unsub(url, req);
+      // courses offertes (start), boucles tracées (gen) et état (quota) : avec un compte (jeton) ou sans compte (code de l'appareil « dev »)
+      if(path === "start" || path === "gen" || path === "quota"){
+        const who = await this.auth(req);
+        if(!who && this.tok(req)) return json({error:"auth"}, 401, {});   // session expirée : l'app se déconnecte, comme ailleurs
+        if(who) this.sql.exec("UPDATE users SET seen = ? WHERE id = ?", NOW(), who.id);
+        return path === "start" ? await this.start(who, body, ip) : await this.quota(who, body, path === "gen", ip);
+      }
       const me = await this.auth(req);
       if(!me) return json({error:"auth"}, 401, {});
       this.sql.exec("UPDATE users SET seen = ? WHERE id = ?", NOW(), me.id);
       switch(path){
-        case "me": return this.update(me, body);
+        case "me": return await this.update(me, body);
         case "delete": return this.remove(me);
         case "logout": this.sql.exec("DELETE FROM sessions WHERE tok = ?", await sha(this.tok(req))); return json({ok:true}, 200, {});
         case "pos": return this.pos(me, body);
@@ -145,10 +168,8 @@ export class Hub {
         case "inbox": return this.inbox(me, +url.searchParams.get("since") || 0);
         case "block": return this.block(me, body);
         case "run": return this.run(me, body);
-        case "quota": return this.quota(me, body, false);
         case "phone/start": return this.phoneStart(me, body, ip, await this.isAdmin(req));
         case "phone/check": return this.phoneCheck(me, body);
-        case "gen": return this.quota(me, body, true);
         case "runs": return this.runsInfo(me);
         case "claim": return this.claim(me, body);
         case "report": return this.report(me, body);
@@ -218,9 +239,13 @@ export class Hub {
     if(this.limit("li:" + ip, 20, 15*MIN) || this.limit("lu:" + who, 8, 15*MIN)) return json({error:"rate_limited"}, 429, {});
     const u = this.one("SELECT * FROM users WHERE email = ? OR pseudo = ?", who, who);
     if(!u || !/^[a-f0-9]{64}$/.test(String(b.key || "")) || await this.hashPw(b.key, u.pw.split(":")[0]) !== u.pw) return json({error:"bad_login"}, 401, {});
-    return json({token:await this.newSession(u, req), me:this.mine(u)}, 200, {});
+    // pass payé relié au compte : Premium reconnu sur ce nouveau téléphone ou navigateur (activation signée pour le code d'appareil « dev » envoyé)
+    const token = await this.newSession(u, req), prem = await this.accountPremium(u, b.dev);
+    return json({token, me:this.mine(u), ...(prem ? {premium:prem} : {})}, 200, {});
   }
-  mine(u){ return {...this.pub(u), last:u.last, email:u.email, birth:u.birth, phone_ok:!!u.phone_ok, visible:!!u.visible, notif:!!u.notif, push:!!u.push, avail_until:u.avail_until || 0}; }
+  // free_left : courses offertes restantes ; premium_until : fin du pass payé relié au compte (0 sans pass actif)
+  mine(u){ const p = this.accountPay(u.id); return {...this.pub(u), last:u.last, email:u.email, birth:u.birth, phone_ok:!!u.phone_ok, visible:!!u.visible, notif:!!u.notif, push:!!u.push, avail_until:u.avail_until || 0,
+    free:FREE_LOOPS, free_left:Math.max(0, FREE_LOOPS - (u.free_used || 0)), premium_until:p ? p.until : 0}; }
   async update(me, b){
     const f = {};
     if(b.first != null) f.first = clean(b.first, 30) || me.first;
@@ -232,7 +257,7 @@ export class Hub {
     if(b.notif != null) f.notif = b.notif ? 1 : 0;
     if(b.push !== undefined) f.push = b.push && typeof b.push === "object" && /^https:\/\//.test(b.push.endpoint || "") ? JSON.stringify({endpoint:String(b.push.endpoint).slice(0, 600)}) : null;
     if(b.avail === false) f.avail_until = 0;
-    if(b.premium != null) f.premium = b.premium ? 1 : 0;
+    if(b.premium != null) f.premium = b.premium || this.accountPay(me.id) ? 1 : 0;   // pass relié au compte : reste Premium même si ce téléphone n'est pas encore activé
     if(b.place != null) f.place = clean(b.place, 60);
     if(b.key != null && /^[a-f0-9]{64}$/.test(String(b.key)) && /^[a-f0-9]{64}$/.test(String(b.oldKey || ""))){
       if(await this.hashPw(b.oldKey, me.pw.split(":")[0]) !== me.pw) return json({error:"bad_login"}, 401, {});
@@ -240,7 +265,10 @@ export class Hub {
     }
     const keys = Object.keys(f);
     if(keys.length) this.sql.exec(`UPDATE users SET ${keys.map(k => k + " = ?").join(", ")} WHERE id = ?`, ...keys.map(k => f[k]), me.id);
-    return json({me:this.mine(this.one("SELECT * FROM users WHERE id = ?", me.id))}, 200, {});
+    // avec le code d'appareil (dev) : Premium du compte renvoyé pour CE téléphone (activation signée)
+    const out = {}, dev = this.devOf(b);
+    if(dev){ const pr = await this.premiumOf(me, b); if(pr.extra.code) out.premium = pr.extra; }
+    return json({me:this.mine(this.one("SELECT * FROM users WHERE id = ?", me.id)), ...out}, 200, {});
   }
   remove(me){
     if(!me) return json({ok:true}, 200, {});
@@ -379,23 +407,98 @@ export class Hub {
     return json({ok:true}, 200, {});
   }
 
-  /* ---------- Version gratuite : 3 boucles offertes par compte ----------
-     Premium (activation signée valide) : illimité. Sinon on compte les boucles générées côté serveur,
-     pour qu'effacer les données du téléphone ou réinstaller l'app ne redonne pas de boucles gratuites. */
-  async premiumOk(code){
+  /* ---------- Version gratuite : 1 course sans compte, puis 3 courses offertes par compte ----------
+     Une course offerte est décomptée quand la course démarre (POST /social/start, bouton « Commencer »), jamais en traçant :
+     tracer, « Une autre boucle » ou changer de distance restent gratuits (POST /social/gen), dans la limite anti-abus du jour.
+     Premium (activation signée valide pour ce téléphone, ou pass payé relié au compte) : illimité. Tout est compté côté serveur,
+     pour qu'effacer les données du téléphone ou réinstaller l'app ne redonne pas de courses gratuites.
+     Ancienne app en cache : elle appelle encore « quota » avant de tracer et « gen » après ; mêmes champs qu'avant (premium, left, used, free). */
+  async premiumOk(code, dev){
     try{
       const [p64, s64] = String(code || "").split("."); if(!p64 || !s64) return false;
       const dec = s => Uint8Array.from(atob(s.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((s.length + 3) % 4)), c => c.charCodeAt(0));
       const key = this._pk || (this._pk = await crypto.subtle.importKey("jwk", ACT_PUB, {name:"ECDSA", namedCurve:"P-256"}, false, ["verify"]));
       const raw = dec(p64); if(!await crypto.subtle.verify({name:"ECDSA", hash:"SHA-256"}, key, dec(s64), raw)) return false;
-      return +new TextDecoder().decode(raw).split("|")[1] > NOW();
+      const [cdev, until] = new TextDecoder().decode(raw).split("|");
+      return +until > NOW() && (!dev || cdev === dev);   // code d'appareil donné : l'activation doit être celle de CE téléphone
     }catch(e){ return false; }
   }
-  async quota(me, b, use){
-    if(await this.premiumOk(b.code)){ if(!me.premium) this.sql.exec("UPDATE users SET premium = 1 WHERE id = ?", me.id); return json({premium:true, left:999, used:me.free_used || 0, free:FREE_LOOPS}, 200, {}); }
-    let used = me.free_used || 0;
-    if(use){ if(used >= FREE_LOOPS) return json({premium:false, left:0, used, free:FREE_LOOPS, error:"quota"}, 402, {}); used++; this.sql.exec("UPDATE users SET free_used = ? WHERE id = ?", used, me.id); }
-    return json({premium:false, left:Math.max(0, FREE_LOOPS - used), used, free:FREE_LOOPS}, 200, {});
+  devOf(b){ const d = clean(b && b.dev, 16).toLowerCase(); return /^[a-f0-9]{16}$/.test(d) ? d : ""; }
+  // pass payé encore actif relié au compte (le plus long), ou au téléphone / au compte
+  accountPay(uid){ return uid ? this.one("SELECT * FROM payments WHERE uid = ? AND until > ? ORDER BY until DESC LIMIT 1", uid, NOW()) : null; }
+  bestPay(dev, uid){ return this.one("SELECT * FROM payments WHERE until > ? AND (dev = ? OR (? != '' AND uid = ?)) ORDER BY until DESC LIMIT 1", NOW(), dev, uid || "", uid || ""); }
+  // paiement fait sur ce téléphone (sans compte, ou avant la connexion) : relié au compte du membre qui s'y connecte avec l'activation de ce téléphone
+  linkPay(uid, dev){ this.sql.exec("UPDATE payments SET uid = ? WHERE dev = ? AND uid IS NULL AND until > ? AND txn NOT LIKE 'TEST-%'", uid, dev, NOW()); }
+  // Premium du compte sur un autre appareil : fin du pass, reçu et activation signée pour le code d'appareil donné
+  async accountPremium(u, dev){
+    const p = u && this.accountPay(u.id); if(!p) return null;
+    dev = this.devOf({dev});
+    return {until:p.until, receipt:this.receipt(p), ...(dev && this.env.ACT_KEY ? {code:await this.signAct(dev, p.until, "paiement")} : {})};
+  }
+  async premiumOf(me, b){
+    const dev = this.devOf(b), sig = await this.premiumOk(b.code, dev);
+    if(me && sig && dev) this.linkPay(me.id, dev);
+    const acc = me ? await this.accountPremium(me, dev) : null, premium = sig || !!acc;
+    if(premium && me && !me.premium) this.sql.exec("UPDATE users SET premium = 1 WHERE id = ?", me.id);
+    return {premium, extra:acc || {}};
+  }
+  // compteurs du jour (heure de Paris), remis à zéro chaque jour
+  dayGet(k){ const r = this.one("SELECT day, n FROM daycount WHERE k = ?", k); return r && r.day === parisDay() ? r.n : 0; }
+  dayAdd(k){
+    const day = parisDay();
+    if(this._dcDay !== day){ this._dcDay = day; this.sql.exec("DELETE FROM daycount WHERE day != ?", day); this.sql.exec("DELETE FROM guest_runs WHERE t < ?", NOW() - 120*864e5); }
+    return this.one("INSERT INTO daycount(k, day, n) VALUES(?, ?, 1) ON CONFLICT(k) DO UPDATE SET n = CASE WHEN day = excluded.day THEN n + 1 ELSE 1 END, day = excluded.day RETURNING n", k, day).n;
+  }
+  async ipKey(ip){ return (await sha("ip|" + ip + "|" + (this.env.ADMIN_KEY || this.env.ACT_KEY || "traceo"))).slice(0, 16); }   // adresse IP jamais gardée en clair
+  // état (quota) ou boucle tracée (gen, use = true) : ne décompte jamais de course offerte ; gen refusé (429 gen_limit) au-delà de la limite du jour
+  async quota(me, b, use, ip){
+    if(!me) return await this.guestQuota(b, use, ip);
+    const pr = await this.premiumOf(me, b), k = "gen:u:" + me.id, max = pr.premium ? GEN_DAY_PREMIUM : GEN_DAY;
+    const used = this.one("SELECT free_used FROM users WHERE id = ?", me.id)?.free_used || 0;
+    let gens = this.dayGet(k);
+    const res = () => ({premium:pr.premium, left:pr.premium ? 999 : Math.max(0, FREE_LOOPS - used), used, free:FREE_LOOPS, gens, genMax:max, genLeft:Math.max(0, max - gens), ...pr.extra});
+    if(use){ if(gens >= max) return json({...res(), error:"gen_limit"}, 429, {}); gens = this.dayAdd(k); }
+    return json(res(), 200, {});
+  }
+  // sans compte : 1 course offerte par appareil, boucles tracées plafonnées par appareil et (largement) par adresse IP
+  async guestQuota(b, use, ip){
+    const dev = this.devOf(b); if(!dev) return json({error:"auth"}, 401, {});
+    const prem = await this.premiumOk(b.code, dev), ipk = "gen:ip:" + await this.ipKey(ip), k = "gen:d:" + dev, max = prem ? GEN_DAY_PREMIUM : GEN_DAY;
+    const ran = !!this.one("SELECT 1 AS x FROM guest_runs WHERE dev = ?", dev);
+    let gens = this.dayGet(k);
+    const res = () => ({guest:true, premium:prem, left:prem ? 999 : ran ? 0 : GUEST_RUNS, used:ran ? GUEST_RUNS : 0, free:GUEST_RUNS, gens, genMax:max, genLeft:Math.max(0, max - gens)});
+    if(use){
+      if(gens >= max || (!prem && this.dayGet(ipk) >= GUEST_IP_GENS)) return json({...res(), genLeft:0, error:"gen_limit"}, 429, {});
+      gens = this.dayAdd(k); this.dayAdd(ipk);
+    }
+    return json(res(), 200, {});
+  }
+  // « Commencer » : décompte une course offerte (compte : 3 ; sans compte : 1 par appareil). Premium : illimité.
+  // Même boucle relancée dans les 6 h (champ « loop », identifiant de la boucle) : rien n'est décompté une seconde fois.
+  // Réponses : 200 {ok, premium, left, used, free} ; 402 {error:"quota"} (plus de course offerte : mur Premium) ; 403 {error:"account_required"} (sans compte)
+  async start(me, b, ip){
+    if(this.limit("st:" + ip, 120, HOUR)) return json({error:"rate_limited"}, 429, {});
+    const loop = clean(b.loop, 64);
+    if(!me) return await this.guestStart(b, loop, ip);
+    const pr = await this.premiumOf(me, b);
+    const u = this.one("SELECT free_used, last_start FROM users WHERE id = ?", me.id) || {}, used = u.free_used || 0;
+    if(pr.premium) return json({ok:true, premium:true, left:999, used, free:FREE_LOOPS, ...pr.extra}, 200, {});
+    const res = n => ({ok:true, premium:false, left:Math.max(0, FREE_LOOPS - n), used:n, free:FREE_LOOPS});
+    const [lastLoop, lastT] = String(u.last_start || "").split("|");
+    if(loop && loop === lastLoop && NOW() - (+lastT || 0) < 6*HOUR) return json({...res(used), again:true}, 200, {});
+    if(used >= FREE_LOOPS) return json({...res(used), ok:false, error:"quota"}, 402, {});
+    this.sql.exec("UPDATE users SET free_used = ?, last_start = ? WHERE id = ?", used + 1, loop ? loop + "|" + NOW() : null, me.id);
+    return json(res(used + 1), 200, {});
+  }
+  async guestStart(b, loop, ip){
+    const dev = this.devOf(b); if(!dev) return json({error:"auth"}, 401, {});
+    if(await this.premiumOk(b.code, dev)) return json({ok:true, guest:true, premium:true, left:999, used:0, free:GUEST_RUNS}, 200, {});
+    const ipk = "run:ip:" + await this.ipKey(ip), row = this.one("SELECT * FROM guest_runs WHERE dev = ?", dev);
+    const res = x => ({guest:true, premium:false, left:0, used:GUEST_RUNS, free:GUEST_RUNS, ...x});
+    if(row) return loop && row.loop === loop && NOW() - row.t < 6*HOUR ? json(res({ok:true, again:true}), 200, {}) : json(res({ok:false, error:"account_required"}), 403, {});
+    if(this.dayGet(ipk) >= GUEST_IP_RUNS) return json(res({ok:false, error:"account_required"}), 403, {});
+    this.sql.exec("INSERT OR IGNORE INTO guest_runs(dev, t, loop) VALUES(?,?,?)", dev, NOW(), loop || null); this.dayAdd(ipk);
+    return json(res({ok:true}), 200, {});
   }
 
   /* ---------- Vérification du numéro de téléphone (code à 6 chiffres par SMS, service Twilio Verify) ----------
@@ -434,14 +537,24 @@ export class Hub {
     else if(this.smsReady()){ const j = await this.twilio("/VerificationCheck", {To:me.phone, Code:code}); ok = j.status === "approved"; }
     if(!ok) return json({error:"bad_code"}, 400, {});
     this.sql.exec("UPDATE users SET phone_ok = 1, phone_code = NULL WHERE id = ?", me.id);
-    return json({ok:true, verified:true}, 200, {});
+    // numéro ajouté APRÈS le paiement (jamais obligatoire) : le reçu du pass en cours part par SMS
+    const p = this.accountPay(me.id);
+    if(p && !p.txn.startsWith("TEST-")) this.state.waitUntil(this.smsReceipt({...me, phone_ok:1}, p));
+    return json({ok:true, verified:true, receipt:!!p}, 200, {});
   }
 
   /* ---------- Paiement automatique par notification PayPal (IPN), sans compte développeur ----------
      1. PayPal envoie chaque paiement reçu à /paypal/ipn ; le serveur renvoie le message à PayPal qui confirme « VERIFIED ».
      2. Le client, de retour dans l'app, donne l'e-mail utilisé pour payer : si un paiement de 4,99 € avec cet e-mail est
         arrivé (et n'a jamais servi), Premium est activé tout de suite sur son téléphone (activation signée).
-     3. Si le client fait sa demande avant que PayPal ne prévienne, l'activation part dès l'arrivée du paiement. */
+     3. Si le client fait sa demande avant que PayPal ne prévienne, l'activation part dès l'arrivée du paiement.
+     Durée selon le montant reçu : 9,99 € ou plus = pass 3 mois (92 jours), 4,99 € ou plus = 31 jours (planOf), dans tous les chemins.
+     Membre connecté (identifiant du compte dans « custom », ou jeton à la demande d'activation) : le paiement est relié à son compte,
+     et Premium est reconnu sur ses autres téléphones et navigateurs dès qu'il s'y connecte. Sans compte : Premium sur ce téléphone seulement. */
+  planOf(amount){
+    const a = parseFloat(amount) || 0;
+    return a >= parseFloat(this.env.PRICE_3M || "9.99") - .001 ? PLAN_3M : a >= parseFloat(this.env.PRICE || "4.99") - .001 ? PLAN_1M : null;
+  }
   async ipn(raw){
     try{
       const r = await fetch(this.env.PAYPAL_IPN_URL || "https://ipnpb.paypal.com/cgi-bin/webscr", {method:"POST", headers:{"Content-Type":"application/x-www-form-urlencoded", "User-Agent":"Traceo-IPN"}, body:"cmd=_notify-validate&" + raw});
@@ -454,62 +567,79 @@ export class Hub {
       if(this.env.PAYPAL_EMAIL && clean(f.get("receiver_email"), 120).toLowerCase() !== this.env.PAYPAL_EMAIL.toLowerCase()) return new Response("other receiver", {status:200});
       if(!txn || status !== "Completed" || cur !== "EUR" || parseFloat(amount) < parseFloat(this.env.PRICE || "4.99") - .001) return new Response("not eligible", {status:200});
       if(this.one("SELECT 1 AS x FROM payments WHERE txn = ?", txn)) return new Response("dup", {status:200});
-      const name = clean([f.get("first_name"), f.get("last_name")].filter(Boolean).join(" "), 80);
-      this.sql.exec("INSERT INTO payments(txn, email, amount, currency, t, name) VALUES(?,?,?,?,?,?)", txn, email, amount, cur, NOW(), name);
-      this.alert("Paiement PayPal reçu", `${amount} € reçus de ${name || email} (${email}). Activation automatique dès sa demande dans l'app.`, {tags:"moneybag", priority:"high"});
-      // paiement lancé depuis l'app : le code du téléphone voyage avec le paiement (champ « custom ») → activation immédiate
+      const name = clean([f.get("first_name"), f.get("last_name")].filter(Boolean).join(" "), 80), plan = this.planOf(amount) || PLAN_1M;
+      // paiement lancé depuis l'app : le code du téléphone (et l'identifiant du compte si le membre est connecté) voyagent avec le paiement (champ « custom »)
       const [cdev0, cuid] = (f.get("custom") || "").split("."), cdev = (cdev0 || "").toLowerCase();
+      const u = cuid ? this.one("SELECT * FROM users WHERE id = ?", clean(cuid, 32)) : null;
+      this.sql.exec("INSERT INTO payments(txn, email, amount, currency, t, name, days, uid) VALUES(?,?,?,?,?,?,?,?)", txn, email, amount, cur, NOW(), name, plan.days, u ? u.id : null);
+      this.alert("Paiement PayPal reçu", `${amount} € reçus de ${name || email} (${email}) : Premium ${plan.label}${u ? ` pour @${u.pseudo} (sur tous ses appareils)` : ""}. Activation automatique dès sa demande dans l'app.`, {tags:"moneybag", priority:"high"});
       if(/^[a-f0-9]{16}$/.test(cdev)){
-        await this.grant(txn, cdev, 0);
+        await this.grant(txn, cdev, 0, u ? u.id : null);   // activation immédiate sur ce téléphone
         // reçu par SMS au numéro vérifié du client, avec le mot du fondateur
-        const u = cuid && this.one("SELECT * FROM users WHERE id = ?", clean(cuid, 32)), pay = this.one("SELECT * FROM payments WHERE txn = ?", txn);
+        const pay = this.one("SELECT * FROM payments WHERE txn = ?", txn);
         if(u && pay) this.state.waitUntil(this.smsReceipt(u, pay));
         return new Response("ok", {status:200});
       }
       // demande déjà faite par le client ? on active tout de suite
       const req = this.one("SELECT * FROM act_requests WHERE (email = ? OR email = ?) AND done = 0 AND t > ? ORDER BY id DESC", email, name.toLowerCase(), NOW() - 7*864e5);
-      if(req) await this.grant(txn, req.dev, req.id);
+      if(req) await this.grant(txn, req.dev, req.id, req.uid);
     }catch(e){}
     return new Response("ok", {status:200});
   }
-  receipt(p){ return p ? {txn:p.txn, amount:p.amount, currency:p.currency || "EUR", date:p.t, until:p.until} : null; }
+  // reçu : montant, date, fin du Premium et offre (« 31 jours » ou « 3 mois », « essai » pour un paiement simulé)
+  receipt(p){
+    if(!p) return null;
+    const plan = p.days ? (p.days >= PLAN_3M.days ? PLAN_3M : PLAN_1M) : this.planOf(p.amount), label = plan ? plan.label : "essai";
+    return {txn:p.txn, amount:p.amount, currency:p.currency || "EUR", date:p.t, until:p.until, days:plan ? plan.days : 0, plan:label, label:"Traceo Premium · " + label};
+  }
   async smsReceipt(u, p){
     if(!u.phone || !u.phone_ok || !this.env.TWILIO_ACCOUNT_SID || !this.env.TWILIO_AUTH_TOKEN) return;
     const fin = new Date(p.until).toLocaleDateString("fr-FR", {day:"numeric", month:"long", year:"numeric", timeZone:"Europe/Paris"});
-    const body = `Traceo : paiement de ${String(p.amount).replace(".", ",")} € confirmé (réf. ${p.txn}). Premium actif jusqu'au ${fin}. Merci pour ta confiance et ta fidélité, bonne course ! Pierre Renard, fondateur de Traceo`;
+    const body = `Traceo : paiement de ${String(p.amount).replace(".", ",")} € confirmé (réf. ${p.txn}). Premium ${this.receipt(p).plan} actif jusqu'au ${fin}. Merci pour ta confiance et ta fidélité, bonne course ! Pierre Renard, fondateur de Traceo`;
     try{
       await fetch(`https://api.twilio.com/2010-04-01/Accounts/${this.env.TWILIO_ACCOUNT_SID}/Messages.json`, {method:"POST", headers:{Authorization:"Basic " + btoa(this.env.TWILIO_ACCOUNT_SID + ":" + this.env.TWILIO_AUTH_TOKEN), "Content-Type":"application/x-www-form-urlencoded"}, body:new URLSearchParams({To:u.phone, From:this.env.TWILIO_SMS_FROM || "Traceo", Body:body}).toString()});
     }catch(e){}
   }
-  async grant(txn, dev, reqId){
-    const until = NOW() + 31*864e5, code = await this.signAct(dev, until, "paiement");
-    this.sql.exec("UPDATE payments SET dev = ?, until = ? WHERE txn = ?", dev, until, txn);
+  // active un paiement reçu sur ce téléphone (et le relie au compte du membre s'il est connu) : 31 ou 92 jours selon le montant.
+  // Renouvellement avant la fin : on prolonge à partir de la fin du pass en cours (ce téléphone ou ce compte), aucun jour perdu.
+  async grant(txn, dev, reqId, uid){
+    const p = this.one("SELECT * FROM payments WHERE txn = ?", txn) || {}, plan = this.planOf(p.amount) || PLAN_1M;
+    uid = uid || p.uid || null;
+    const cur = this.one("SELECT MAX(until) AS u FROM payments WHERE txn != ? AND until > ? AND txn NOT LIKE 'TEST-%' AND (dev = ? OR (? != '' AND uid = ?))", txn, NOW(), dev, uid || "", uid || "")?.u || 0;
+    const until = Math.max(NOW(), cur) + plan.days*864e5;
+    this.sql.exec("UPDATE payments SET dev = ?, until = ?, days = ?, uid = ? WHERE txn = ?", dev, until, plan.days, uid, txn);   // avant toute attente : un paiement ne sert qu'une fois
     if(reqId) this.sql.exec("UPDATE act_requests SET done = 1 WHERE id = ?", reqId);
+    const code = await this.signAct(dev, until, "paiement");
     await fetch("https://ntfy.sh/traceo-act-" + dev, {method:"POST", body:code}).catch(() => {});
     return code;
   }
-  async activateRequest(b, ip){
-    if(this.limit("act:" + ip, 12, HOUR)) return json({error:"rate_limited"}, 429, {});
+  async activateRequest(b, ip, req){
     const email = clean(b.email, 120).toLowerCase(), dev = clean(b.dev, 16).toLowerCase();
+    // recherche par e-mail : limite stricte (protège les paiements pas encore activés) ; par code d'appareil seul (attente au retour de PayPal, toutes les 3 s) : plus large
+    if(email.length >= 3 ? this.limit("act:" + ip, 12, HOUR) : this.limit("actd:" + ip, 120, HOUR)) return json({error:"rate_limited"}, 429, {});
     if(!/^[a-f0-9]{16}$/.test(dev)) return json({error:"bad_request"}, 400, {});
     if(!this.env.ACT_KEY) return json({status:"pending"}, 200, {});
-    // paiement déjà reçu pour ce téléphone (bouton de paiement de l'app) : on renvoie l'activation
-    const mine = this.one("SELECT * FROM payments WHERE dev = ? AND until > ? ORDER BY t DESC", dev, NOW());
+    const me = req ? await this.auth(req) : null;   // membre connecté (en-tête Authorization facultatif) : le paiement est relié à son compte
+    // pass actif pour ce téléphone (bouton de paiement de l'app) ou pour le compte connecté (payé sur un autre appareil) : on renvoie l'activation
+    // (un paiement fait sans compte n'est pas relié ici sur le seul code d'appareil, qui se montre au support : il l'est quand le membre présente l'activation de ce téléphone, voir premiumOf)
+    const mine = this.bestPay(dev, me && me.id);
     if(mine) return json({status:"active", code:await this.signAct(dev, mine.until, mine.txn.startsWith("TEST-") ? "test" : "paiement"), receipt:this.receipt(mine)}, 200, {});
     if(email.length < 3) return json({status:"pending"}, 200, {});
     // paiement déjà reçu avec cet e-mail (ou ce nom) et jamais utilisé : activation immédiate
     const pay = this.one("SELECT * FROM payments WHERE (email = ? OR lower(name) = ?) AND dev IS NULL AND t > ? ORDER BY t DESC", email, email, NOW() - 30*864e5);
-    if(pay) return json({status:"active", code:await this.grant(pay.txn, dev, 0)}, 200, {});
+    if(pay){ const code = await this.grant(pay.txn, dev, 0, me && me.id); return json({status:"active", code, receipt:this.receipt(this.one("SELECT * FROM payments WHERE txn = ?", pay.txn))}, 200, {}); }
     const again = this.one("SELECT * FROM payments WHERE (email = ? OR lower(name) = ?) AND dev = ? AND until > ?", email, email, dev, NOW());
-    if(again) return json({status:"active", code:await this.signAct(dev, again.until, "paiement")}, 200, {});
-    if(!this.one("SELECT 1 AS x FROM act_requests WHERE email = ? AND dev = ? AND done = 0", email, dev)) this.sql.exec("INSERT INTO act_requests(email, dev, t) VALUES(?,?,?)", email, dev, NOW());
+    if(again) return json({status:"active", code:await this.signAct(dev, again.until, "paiement"), receipt:this.receipt(again)}, 200, {});
+    const open = this.one("SELECT id FROM act_requests WHERE email = ? AND dev = ? AND done = 0", email, dev);
+    if(!open) this.sql.exec("INSERT INTO act_requests(email, dev, t, uid) VALUES(?,?,?,?)", email, dev, NOW(), me ? me.id : null);
+    else if(me) this.sql.exec("UPDATE act_requests SET uid = ? WHERE id = ?", me.id, open.id);
     return json({status:"pending"}, 200, {});
   }
 
   /* ---------- Paiement PayPal automatique ----------
-     L'app paie avec les boutons PayPal (commande de 4,99 € liée au code de l'appareil), puis envoie le numéro de commande.
+     L'app paie avec les boutons PayPal (commande de 4,99 € ou 9,99 € liée au code de l'appareil), puis envoie le numéro de commande.
      Le serveur demande la commande à PayPal avec la clé secrète : payée, bon montant, bon appareil, jamais utilisée.
-     Si tout est bon, il signe l'activation de 31 jours (même clé que la page admin) : aucune intervention manuelle. */
+     Si tout est bon, il signe l'activation de 31 jours (ou 92 jours pour le pass 3 mois, même clé que la page admin) : aucune intervention manuelle. */
   async pay(b, ip){
     if(this.limit("pay:" + ip, 20, HOUR)) return json({error:"rate_limited"}, 429, {});
     const order = clean(b.order, 40).toUpperCase(), dev = clean(b.dev, 16).toLowerCase();
@@ -522,13 +652,14 @@ export class Hub {
     try{ o = await this.paypalGet(`/v2/checkout/orders/${encodeURIComponent(order)}`); }catch(e){ return json({error:"paypal_unreachable"}, 502, {}); }
     if(!o) return json({error:"order_not_found"}, 404, {});
     const pu = (o.purchase_units || [])[0] || {}, cap = ((pu.payments || {}).captures || [])[0] || {};
-    const price = this.env.PRICE || "4.99";
+    // deux offres : 4,99 € (31 jours) ou pass 3 mois à 9,99 € (92 jours)
+    const value = pu.amount?.value, price = [this.env.PRICE || "4.99", this.env.PRICE_3M || "9.99"].includes(value) ? value : "";
     if(o.status !== "COMPLETED" || cap.status !== "COMPLETED") return json({error:"not_paid", status:o.status}, 402, {});
-    if(pu.amount?.currency_code !== "EUR" || pu.amount?.value !== price) return json({error:"bad_amount"}, 402, {});
+    if(pu.amount?.currency_code !== "EUR" || !price) return json({error:"bad_amount"}, 402, {});
     if(pu.custom_id !== dev) return json({error:"other_device"}, 403, {});
-    const from = Math.max(NOW(), Math.min(+b.from || 0, NOW() + 62*864e5)), until = from + 31*864e5;
+    const plan = this.planOf(price) || PLAN_1M, from = Math.max(NOW(), Math.min(+b.from || 0, NOW() + 2*PLAN_3M.days*864e5)), until = from + plan.days*864e5;
     this.sql.exec("INSERT INTO orders(id, dev, t, amount, payer, until) VALUES(?,?,?,?,?,?)", order, dev, NOW(), price, clean(o.payer?.email_address, 120), until);
-    this.alert("Nouvel abonné Premium (automatique)", `${price} € reçus de ${o.payer?.email_address || "?"} : Premium activé automatiquement (31 jours).`, {tags:"moneybag", priority:"high"});
+    this.alert("Nouvel abonné Premium (automatique)", `${price} € reçus de ${o.payer?.email_address || "?"} : Premium activé automatiquement (${plan.label}).`, {tags:"moneybag", priority:"high"});
     return json({code:await this.signAct(dev, until, "paiement")}, 200, {});
   }
   async signAct(dev, until, kind){
@@ -645,7 +776,7 @@ export class Hub {
     const parisMs = d => { const [y, m, dd] = d.split("-").map(Number); const guess = Date.UTC(y, m - 1, dd); const off = new Date(guess).toLocaleString("en-US", {timeZone:"Europe/Paris", hour:"2-digit", hour12:false}); return guess - (+off % 24)*HOUR; };   // minuit à Paris
     const from = dayBack(days - 1), to = dayBack(0), pFrom = dayBack(2*days - 1), pTo = dayBack(days);
     const msFrom = parisMs(from), msPFrom = parisMs(pFrom);
-    const one = (q, ...a) => this.one(q, ...a) || {};
+    const one = (q, ...a) => this.one(q, ...a) || {}, p3 = parseFloat(this.env.PRICE_3M || "9.99") - .001;
     const period = (a, b, ma, mb) => ({
       visits:one("SELECT COUNT(DISTINCT day || vid) AS n FROM hits WHERE day BETWEEN ? AND ? AND ev = 'pv'", a, b).n || 0,
       views:one("SELECT COUNT(*) AS n FROM hits WHERE day BETWEEN ? AND ? AND ev = 'pv'", a, b).n || 0,
@@ -658,6 +789,7 @@ export class Hub {
       coach:one("SELECT COUNT(*) AS n FROM hits WHERE day BETWEEN ? AND ? AND ev = 'clic:coach'", a, b).n || 0,
       signups:one("SELECT COUNT(*) AS n FROM users WHERE created >= ? AND created < ?", ma, mb).n || 0,
       payments:one("SELECT COUNT(*) AS n FROM payments WHERE t >= ? AND t < ? AND txn NOT LIKE 'TEST-%'", ma, mb).n || 0,
+      passes3m:one("SELECT COUNT(*) AS n FROM payments WHERE t >= ? AND t < ? AND txn NOT LIKE 'TEST-%' AND CAST(amount AS REAL) >= ?", ma, mb, p3).n || 0,
       revenue:Math.round(100*(one("SELECT SUM(CAST(amount AS REAL)) AS s FROM payments WHERE t >= ? AND t < ? AND txn NOT LIKE 'TEST-%'", ma, mb).s || 0))/100,
       runs:one("SELECT COUNT(*) AS n FROM runs WHERE ok = 1 AND t >= ? AND t < ?", ma, mb).n || 0
     });
@@ -681,8 +813,23 @@ export class Hub {
       FROM (SELECT MIN(id) AS fid FROM hits WHERE day >= ? AND ev = 'pv' GROUP BY day, vid) x JOIN hits h ON h.id = x.fid GROUP BY source ORDER BY visits DESC LIMIT 12`, from);
     const vis = (col, extra = "") => this.rows(`SELECT ${col} AS k, COUNT(DISTINCT day || vid) AS n FROM hits WHERE day >= ? AND ev = 'pv' ${extra} GROUP BY k ORDER BY n DESC LIMIT 10`, from);
     const hourNow = Math.floor(now/HOUR)*HOUR;
+    // Parcours (entonnoir) par source : chaque visiteur du jour est attribué à la source de sa première page vue ce jour-là ;
+    // une étape compte s'il a fait l'action le même jour (visiteurs uniques par jour, comme les autres chiffres). Paiements : tous canaux (jamais reliés à une visite).
+    const STEPS = [["visites", "Visites"], ["essai", "Clic « essayer » (accueil ou lien ?go)"], ["depart", "Écran de départ"], ["boucle", "1re boucle tracée (sans compte)"], ["compte_vu", "Écran de compte"],
+      ["compte_ok", "Compte créé ou connecté"], ["course", "Course lancée"], ["mur", "Mur Premium vu"], ["payer", "Clic paiement"], ["paiements", "Paiements reçus"]];
+    const EV = {essai:"IN ('clic:essayer', 'clic:accueil_go')", depart:"= 'clic:ecran_depart'", boucle:"= 'clic:boucle_invite'", compte_vu:"= 'clic:ecran_compte'", compte_ok:"= 'clic:compte_ok'", course:"= 'clic:course'", mur:"= 'clic:mur_gratuit'", payer:"= 'clic:payer'"};
+    const K = Object.keys(EV);
+    const fRows = this.rows(`SELECT f.source AS source, COUNT(*) AS visites, ${K.map(k => `SUM(s.${k}) AS ${k}`).join(", ")}
+      FROM (SELECT h.day, h.vid, CASE WHEN h.src != '' THEN 'lien:' || h.src WHEN h.ref != '' THEN h.ref ELSE 'direct' END AS source FROM (SELECT MIN(id) AS fid FROM hits WHERE day BETWEEN ? AND ? AND ev = 'pv' GROUP BY day, vid) x JOIN hits h ON h.id = x.fid) f
+      JOIN (SELECT day, vid, ${K.map(k => `MAX(ev ${EV[k]}) AS ${k}`).join(", ")} FROM hits WHERE day BETWEEN ? AND ? GROUP BY day, vid) s ON s.day = f.day AND s.vid = f.vid
+      GROUP BY f.source ORDER BY visites DESC`, from, to, from, to).map(r => Object.fromEntries(["source", "visites", ...K].map(k => [k, k === "source" ? r[k] : +r[k] || 0])));
+    const add = (acc, r) => { for(const k of ["visites", ...K]) acc[k] = (acc[k] || 0) + r[k]; return acc; };
+    const fTop = fRows.slice(0, 12), fRest = fRows.slice(12);
+    if(fRest.length) fTop.push(fRest.reduce(add, {source:"autres"}));
+    const parcours = {steps:STEPS.map(([k, label]) => ({k, label})), total:{...fRows.reduce(add, {source:"toutes"}), paiements:cur.payments}, sources:fTop, paiements:cur.payments, passes3m:cur.passes3m,
+      note:"Visiteurs uniques comptés par jour (identifiant anonyme renouvelé chaque nuit) : une personne qui revient le lendemain compte deux fois, et ses étapes ne s'additionnent pas d'un jour à l'autre. Les paiements ne sont jamais reliés à une visite : ils sont donnés tous canaux confondus. Avec moins de 30 visites, un pourcentage change beaucoup pour une seule personne : à lire comme une tendance."};
     return {
-      days, from, to, cur, prev, daily, hours, sources,
+      days, from, to, cur, prev, daily, hours, sources, parcours,
       pages:this.rows("SELECT path AS k, COUNT(*) AS views, COUNT(DISTINCT day || vid) AS n FROM hits WHERE day >= ? AND ev = 'pv' GROUP BY path ORDER BY views DESC LIMIT 10", from),
       devices:vis("dev"), countries:vis("country"), regions:vis("region", "AND region != '' AND country = 'FR'"),
       live:{hour:one("SELECT COUNT(DISTINCT vid) AS n FROM hits WHERE t = ? AND ev = 'pv'", hourNow).n || 0, today:dv[to] || 0},
@@ -690,6 +837,7 @@ export class Hub {
         total:one("SELECT COUNT(*) AS n FROM users").n || 0,
         active7:one("SELECT COUNT(*) AS n FROM users WHERE seen > ?", now - 7*864e5).n || 0,
         premium:one("SELECT COUNT(*) AS n FROM users WHERE premium = 1").n || 0,
+        passes:one("SELECT COUNT(DISTINCT COALESCE(uid, dev)) AS n FROM payments WHERE until > ? AND txn NOT LIKE 'TEST-%'", now).n || 0,   // pass payés en cours (compte ou téléphone)
         revenueAll:Math.round(100*(one("SELECT SUM(CAST(amount AS REAL)) AS s FROM payments WHERE txn NOT LIKE 'TEST-%'").s || 0))/100
       }
     };

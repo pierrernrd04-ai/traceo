@@ -31,6 +31,7 @@
   (function(){ var q = location.search, sa = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
     if(sa || /[?&](source=app|paiement=|test|finbeta|raster)/.test(q)) location.replace("app.html" + q + location.hash); })();
 </script>
+<link rel="preload" as="image" href="site/hero-boucle.webp" fetchpriority="high">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=Figtree:wght@400;500;600;700;800&display=swap">
@@ -64,31 +65,42 @@ h1,h2,h3{font-family:var(--f-display);line-height:1.04;letter-spacing:-.02em}
 .logo{display:flex;align-items:center;gap:9px;font:800 24px var(--f-display);letter-spacing:-.02em}
 .logo svg{width:30px;height:30px;color:var(--accent)}
 .nav .btn{min-height:42px;padding:0 18px;font-size:15px}
+.nav-r{display:flex;align-items:center;gap:18px}
+.login{color:var(--muted);font-weight:700;font-size:15px;padding:10px 2px;text-decoration:underline;text-decoration-color:rgba(138,164,163,.4);text-underline-offset:4px}
+.login:hover{color:var(--ink)}
+.nav .btn.hero{display:none}
+
+/* Offre de lancement (affichée seulement pendant l'offre, lien PayPal 3 mois renseigné) */
+.offre-bar{display:block;padding:9px 16px;text-align:center;font-size:13.5px;font-weight:700;line-height:1.35;color:var(--accent-ink);background:linear-gradient(100deg,#2BE39B,#22D3C5 55%,#1EA6D0)}
+.offre-bar b{font-weight:900}
+.offre-bar u{text-underline-offset:3px;white-space:nowrap}
 
 /* Hero */
-.intro{position:relative;padding:48px 0 30px;overflow:hidden}
+.intro{position:relative;padding:22px 0 30px;overflow:hidden}
 .intro::before{content:"";position:absolute;inset:-20% -30% auto;height:120%;background:radial-gradient(50% 45% at 75% 25%,rgba(37,201,143,.22),transparent 70%),radial-gradient(40% 40% at 10% 60%,rgba(30,166,208,.16),transparent 70%);pointer-events:none}
-.intro .wrap{position:relative;display:grid;gap:40px;align-items:center}
-.intro h1{font-size:clamp(44px,11vw,84px);font-weight:800;margin:14px 0 18px}
-.intro p.lead{font-size:clamp(18px,4.6vw,21px);color:#C3D6D4;max-width:560px}
-.ctas{display:flex;flex-wrap:wrap;gap:12px;margin-top:28px}
+.intro .wrap{position:relative;display:grid;gap:22px;align-items:center}
+.intro h1{font-size:clamp(36px,9.8vw,64px);font-weight:800;margin:0 0 14px;text-wrap:balance}
+.intro p.lead{font-size:clamp(17px,4.4vw,21px);line-height:1.5;color:#C3D6D4;max-width:560px}
+.ctas{display:flex;flex-wrap:wrap;gap:10px;margin-top:20px}
 .ctas .btn{flex:1 1 220px}
-.cta-note{flex:1 1 100%;margin:-4px 0 2px;color:var(--muted);font-size:13.5px;font-weight:600;text-align:center;line-height:1.4;text-wrap:balance}
+.cta-note{flex:1 1 100%;margin:0;color:var(--muted);font-size:13.5px;font-weight:600;text-align:center;line-height:1.4;text-wrap:balance}
 .cta-note span{white-space:nowrap}
-.trust{display:flex;flex-wrap:wrap;gap:8px 16px;margin-top:20px;color:var(--muted);font-size:14px;font-weight:600}
-.trust span::before{content:"✓";color:var(--accent);margin-right:6px;font-weight:800}
+/* Le produit dès le premier écran : une vraie boucle néon sur la carte (vidéo muette de 200 Ko, image fixe en attendant) */
+.visual{position:relative;margin:0;width:100%;aspect-ratio:600/588;max-height:min(370px,46vh);min-height:240px;border-radius:26px;overflow:hidden;background:#08151C url(site/hero-boucle.webp) center/cover;border:1px solid var(--line);box-shadow:0 30px 70px rgba(0,0,0,.5),0 0 60px rgba(37,201,143,.14)}
+.visual video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+.visual .chip{position:absolute;display:inline-flex;align-items:center;gap:8px;padding:7px 12px;border-radius:999px;background:rgba(5,15,21,.78);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border:1px solid rgba(37,201,143,.35);font-size:13px;font-weight:700;color:var(--ink);line-height:1.2}
+.visual .chip.top{top:12px;left:12px}
+.visual .chip.bot{left:12px;right:12px;bottom:12px;justify-content:center;border-radius:16px;padding:9px 12px}
+.visual .chip i{width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 10px var(--accent)}
+.visual .chip svg{width:18px;height:18px;flex:none;fill:none;stroke:var(--accent);stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.visual small{position:absolute;right:14px;bottom:60px;font-size:10px;color:rgba(230,242,240,.5)}
 .beta{display:inline-flex;align-items:center;gap:8px;margin-top:22px;padding:8px 14px;border-radius:999px;background:rgba(37,201,143,.12);border:1px solid rgba(37,201,143,.35);font-weight:700;font-size:14px}
 .beta i{width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 0 rgba(37,201,143,.6);animation:pulse 1.8s infinite}
 @keyframes pulse{70%{box-shadow:0 0 0 10px rgba(37,201,143,0)}100%{box-shadow:0 0 0 0 rgba(37,201,143,0)}}
 
-/* Téléphones */
-.phones{position:relative;height:560px;display:flex;justify-content:center}
+/* Téléphones (galerie) */
 .phone{position:absolute;width:250px;aspect-ratio:390/844;border-radius:38px;padding:9px;background:linear-gradient(160deg,#22343C,#0A161C);box-shadow:0 40px 80px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.06) inset}
 .phone img{width:100%;height:100%;object-fit:cover;border-radius:30px}
-.phone.p1{transform:translateX(-58%) rotate(-7deg) translateY(30px);opacity:.92}
-.phone.p2{z-index:2;transform:translateX(0)}
-.phone.p3{transform:translateX(58%) rotate(7deg) translateY(30px);opacity:.92}
-.phone.p2::after{content:"";position:absolute;inset:-30px;z-index:-1;border-radius:60px;background:radial-gradient(closest-side,rgba(37,201,143,.35),transparent);filter:blur(20px)}
 
 /* Bandeau chiffres */
 .strip{border-block:1px solid var(--line);background:var(--bg2)}
@@ -138,6 +150,18 @@ section{padding:72px 0}
 .checks li::before{content:"✓";flex:none;width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:var(--accent);color:var(--accent-ink);font-weight:900;font-size:13px}
 .price-card .btn{width:100%}
 .fine{color:var(--muted);font-size:13.5px;margin-top:14px;text-align:center}
+.offre{margin:18px 0 4px;padding:16px 18px;border-radius:18px;background:rgba(37,201,143,.1);border:1px dashed rgba(37,201,143,.6)}
+.offre .o-k{font:800 12px var(--f-body);letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}
+.offre .o-p{font:800 30px var(--f-display);letter-spacing:-.02em;margin:4px 0 2px}
+.offre .o-p small{font:700 16px var(--f-body);color:var(--muted);letter-spacing:0}
+.offre p{color:#C3D6D4;font-size:14.5px}
+
+/* Fondateur (texte seul) */
+.founder{max-width:640px;margin:0 auto;padding:26px 24px;border-radius:var(--r);background:var(--surface);border:1px solid var(--line)}
+.founder h2{font-size:clamp(24px,5.6vw,32px);margin:10px 0 12px}
+.founder p{color:#C3D6D4;font-size:17px}
+.founder p + p{margin-top:12px}
+.founder a{color:var(--accent);font-weight:700;text-decoration:underline;text-underline-offset:3px;white-space:nowrap}
 
 /* Installer */
 .install{display:grid;gap:14px}
@@ -173,18 +197,19 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:12px 24px;justify-content:space-bet
 .reveal.in{opacity:1;transform:none}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.reveal{opacity:1;transform:none}}
 
-@media (min-width:520px){.cta-note{order:3;margin:0;text-align:left;padding-left:6px}}
+@media (min-width:520px){.cta-note{text-align:left;padding-left:6px}}
 @media (min-width:720px){
+  .nav .btn.hero{display:inline-flex}
   .strip .wrap{grid-template-columns:repeat(4,1fr)}
   .steps{grid-template-columns:repeat(3,1fr)}.step{grid-template-columns:1fr}
   .feats{grid-template-columns:repeat(2,1fr)}
   .install{grid-template-columns:1fr 1fr}
 }
 @media (min-width:980px){
-  .intro{padding:80px 0 60px}
-  .intro .wrap{grid-template-columns:1.05fr 1fr}
+  .intro{padding:72px 0 60px}
+  .intro .wrap{grid-template-columns:1.05fr 1fr;gap:48px}
   .ctas .btn{flex:0 0 auto}
-  .phones{height:640px}
+  .visual{max-height:none;aspect-ratio:auto;height:560px}
   .phone{width:280px}
   .feats{grid-template-columns:repeat(3,1fr)}
   .feat.big{grid-column:span 2;grid-template-columns:1fr 1fr}.feat.big img{height:100%;border-top:0;border-left:1px solid var(--line)}
@@ -278,7 +303,7 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:12px 24px;justify-content:space-bet
     {
      "@type": "Offer",
      "name": "Découverte",
-     "description": "Ta 1re boucle sans compte, puis 3 boucles offertes avec un compte gratuit, sans carte bancaire.",
+     "description": "Tracer des boucles est gratuit. Ta 1re course sans compte, puis 3 courses offertes avec un compte gratuit, sans carte bancaire.",
      "price": "0",
      "priceCurrency": "EUR",
      "availability": "https://schema.org/InStock",
@@ -339,7 +364,7 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:12px 24px;justify-content:space-bet
      "name": "Comment se passe le paiement ?",
      "acceptedAnswer": {
       "@type": "Answer",
-      "text": "Par PayPal, avec ton compte PayPal ou une simple carte bancaire. 4,99 € débloquent 31 jours de Premium, sans abonnement : tu paies une fois, rien ne se renouvelle tout seul."
+      "text": "Par PayPal, avec ton compte PayPal ou une simple carte bancaire. 4,99 € débloquent 31 jours de Premium, sans abonnement : tu paies une fois, rien ne se renouvelle tout seul. Premium suit ton compte : connecte-toi sur un autre téléphone, il y est actif aussi."
      }
     },
     {
@@ -347,7 +372,7 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:12px 24px;justify-content:space-bet
      "name": "Faut-il un compte ? Et mes données ?",
      "acceptedAnswer": {
       "@type": "Answer",
-      "text": "Ta 1re boucle se crée sans compte. Ensuite, un compte gratuit en 30 s (prénom, e-mail, mot de passe) t'offre 3 boucles, sans carte bancaire. Ta position sert uniquement à dessiner ta boucle et à te guider. Tes boucles restent enregistrées sur ton téléphone."
+      "text": "Pas pour commencer : tracer des boucles est gratuit et ta 1re course se fait sans compte. Ensuite, un compte gratuit en 30 s (prénom, e-mail, mot de passe) t'offre 3 courses, sans carte bancaire. Ta position sert uniquement à dessiner ta boucle et à te guider. Tes boucles restent enregistrées sur ton téléphone."
      }
     },
     {
@@ -366,12 +391,17 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:12px 24px;justify-content:space-bet
 </head>
 <body>
 
+<a class="offre-bar" href="#prix" data-offre hidden data-ev="offre_3m">Offre de lancement : <b>3 mois de Premium à 9,99 €</b> au lieu de 14,97 €, jusqu'au <span data-offre-fin>dimanche 18 octobre</span>. <u>Voir l'offre</u></a>
+
 <header class="nav">
   <div class="wrap">
     <a class="logo" href="./" aria-label="Traceo">
       <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M7 23c0-8 5.5-14 11.5-14 4.6 0 7.5 2.9 7.5 6.6 0 3.8-3 6.6-6.8 6.6-2.8 0-4.7-1.9-4.7-4.2" fill="none" stroke="currentColor" stroke-width="3.6" stroke-linecap="round"/><circle cx="7" cy="23" r="3.8" fill="#E6F2F0"/></svg>traceo
     </a>
-    <a class="btn hero" href="/app?go=1" data-ev="essayer">Ouvrir l'app</a>
+    <div class="nav-r">
+      <a class="login" href="/app?connexion=1" data-ev="connexion">Se connecter</a>
+      <a class="btn hero" href="/app?go=1" data-ev="essayer">Tracer ma boucle gratuite</a>
+    </div>
   </div>
 </header>
 
@@ -379,22 +409,20 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:12px 24px;justify-content:space-bet
 <section class="intro">
   <div class="wrap">
     <div>
-      <p class="eyebrow">L'app de running qui change de parcours</p>
-      <h1>Chaque sortie,<br><span class="grad">de nouvelles rues.</span></h1>
-      <p class="lead">Traceo dessine en quelques secondes une boucle de course dans les vraies rues de ta ville, depuis là où tu es. Tu choisis la distance, Traceo te guide à la voix, rue par rue. Et demain, il t'emmène ailleurs.</p>
+      <h1>Marre de toujours courir au <span class="grad">même endroit&nbsp;?</span></h1>
+      <p class="lead">Choisis ta distance&nbsp;: Traceo trace une boucle neuve qui part de chez toi et t'y ramène, loin des grands axes, avec guidage vocal.</p>
       <div class="ctas">
-        <a class="btn hero" href="/app?go=1" data-ev="essayer"><svg viewBox="0 0 24 24"><path d="M5 18c0-6 4-11 9-11 3 0 5 2 5 5s-2 5-5 5c-2 0-3.5-1.5-3.5-3"/><circle cx="5" cy="18" r="2"/></svg>Essayer gratuitement</a>
-        <p class="cta-note"><span>1re boucle sans compte</span> · <span>3 offertes ensuite</span> · <span>sans carte bancaire</span></p>
-        <a class="btn" href="#comment">Voir comment ça marche</a>
+        <a class="btn hero" href="/app?go=1" data-ev="essayer"><svg viewBox="0 0 24 24"><path d="M5 18c0-6 4-11 9-11 3 0 5 2 5 5s-2 5-5 5c-2 0-3.5-1.5-3.5-3"/><circle cx="5" cy="18" r="2"/></svg>Tracer ma boucle gratuite</a>
+        <p class="cta-note"><span>1re boucle sans compte</span> · <span>iPhone et Android</span> · <span>sans téléchargement</span></p>
       </div>
       <p class="beta" id="beta" hidden><i></i><span id="betaTxt">Bêta gratuite en cours</span></p>
-      <div class="trust"><span>Sans téléchargement</span><span>iPhone et Android</span><span>Toute la France, outre-mer compris</span></div>
     </div>
-    <div class="phones" aria-hidden="true">
-      <div class="phone p1"><img src="site/accueil.webp" alt="" loading="eager"></div>
-      <div class="phone p3"><img src="site/course.webp" alt="" loading="eager"></div>
-      <div class="phone p2"><img src="site/carte.webp" alt="Une boucle Traceo sur la carte de Paris" loading="eager"></div>
-    </div>
+    <figure class="visual" role="img" aria-label="Exemple : une boucle Traceo en néon sur la carte de Lyon, avec guidage vocal">
+      <video id="heroVid" muted loop playsinline disablepictureinpicture preload="none" poster="site/hero-boucle.webp" aria-hidden="true"><source src="site/hero-boucle.mp4" type='video/mp4; codecs="avc1.4D401F"'><source src="site/hero-boucle.webm" type='video/webm; codecs="vp9"'></video>
+      <span class="chip top"><i></i>Une boucle neuve, retour au départ</span>
+      <small>© OpenStreetMap</small>
+      <span class="chip bot"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5L6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 010 7M18.5 5.5a9 9 0 010 13"/></svg>« Dans 100 mètres, tourne à droite »</span>
+    </figure>
   </div>
 </section>
 
@@ -484,13 +512,18 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:12px 24px;justify-content:space-bet
     <div class="sec-h reveal" style="text-align:center;margin-inline:auto">
       <p class="eyebrow">Tarif</p>
       <h2>Un prix, tout compris.</h2>
-      <p>Ta 1re boucle sans compte, puis 3 boucles offertes avec un compte gratuit, sans carte bancaire. Ensuite, moins cher qu'un gel énergétique par semaine. Et Traceo te récompense : <b>un diamant de 5 € toutes les 100 courses</b>.</p>
+      <p>Tracer des boucles est gratuit. Ta 1re course se fait sans compte, puis 3 courses offertes avec un compte gratuit, sans carte bancaire. Ensuite, moins cher qu'un gel énergétique par semaine. Et Traceo te récompense : <b>un diamant de 5 € toutes les 100 courses</b>.</p>
     </div>
     <div class="price-card reveal">
       <span class="tag">Traceo Premium</span>
       <p class="price"><span id="price">4,99 €</span><small> · 31 jours</small></p>
       <p class="price-sub">Sans abonnement : tu paies une fois, rien ne se renouvelle.</p>
       <p style="color:#C3D6D4">Paiement sécurisé par PayPal, compte PayPal ou carte bancaire.</p>
+      <div class="offre" data-offre hidden>
+        <p class="o-k">Offre de lancement</p>
+        <p class="o-p">9,99 €<small> · 3 mois</small></p>
+        <p>Au lieu de 14,97 € (3 × 4,99 €). Un seul paiement, sans abonnement. Jusqu'au <span data-offre-fin>dimanche 18 octobre</span> à 23 h 59 (heure de Paris), au choix au moment de passer Premium dans l'app.</p>
+      </div>
       <ul class="checks">
         <li>Boucles illimitées, partout en France et en outre-mer</li>
         <li>Guidage vocal et nom des rues en direct</li>
@@ -503,8 +536,8 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:12px 24px;justify-content:space-bet
         <li>Coach nutrition, hydratation et entraînement</li>
         <li>Image de ta boucle à partager</li>
       </ul>
-      <a class="btn hero" href="/app?go=1" data-ev="essayer">Commencer maintenant</a>
-      <p class="fine">Un paiement = 31 jours de Premium. Sans abonnement, sans engagement : tu reprends quand tu veux. <a href="legal.html#cgv" style="color:var(--muted)">Conditions de vente</a></p>
+      <a class="btn hero" href="/app?go=1" data-ev="essayer">Tracer ma boucle gratuite</a>
+      <p class="fine">Un paiement = 31 jours de Premium<span data-offre hidden> (ou 3 mois avec l'offre de lancement)</span>. Sans abonnement, sans engagement : tu reprends quand tu veux. <a href="legal.html#cgv" style="color:var(--muted)">Conditions de vente</a></p>
     </div>
   </div>
 </section>
@@ -523,14 +556,25 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:12px 24px;justify-content:space-bet
   </div>
 </section>
 
+<section style="padding-top:20px" id="createur">
+  <div class="wrap">
+    <div class="founder reveal">
+      <p class="eyebrow">Qui est derrière Traceo</p>
+      <h2>Créé par Pierre, coureur, en France</h2>
+      <p>Je cours, et j'en avais assez de refaire toujours les mêmes tours. J'ai créé Traceo pour que chaque sortie passe par des rues que je ne connaissais pas encore, et je l'améliore au fil de vos retours.</p>
+      <p>Une question, une idée, un souci&nbsp;? Écris-moi à <a href="mailto:pierre.rnrd04@gmail.com" data-ev="contact">pierre.rnrd04@gmail.com</a>, je lis chaque message.</p>
+    </div>
+  </div>
+</section>
+
 <section style="padding-top:20px">
   <div class="wrap faq">
     <div class="sec-h reveal"><p class="eyebrow">Questions</p><h2>Bon à savoir</h2></div>
     <details><summary>Faut-il télécharger une application ?</summary><p>Non. Traceo fonctionne directement dans le navigateur de ton téléphone. Tu peux l'ajouter à ton écran d'accueil pour l'ouvrir en un geste, en plein écran.</p></details>
     <details><summary>Ça marche dans ma ville ?</summary><p>Partout en France, dans les grandes villes comme dans les villages, Corse, îles et outre-mer compris. Traceo s'appuie sur la Base Adresse Nationale et OpenStreetMap.</p></details>
     <details><summary>Comment Traceo évite-t-il les mêmes rues ?</summary><p>Traceo garde en mémoire, sur ton téléphone, les rues qu'il t'a déjà proposées. Il compare plusieurs itinéraires et choisit celui qui passe par le plus de rues nouvelles.</p></details>
-    <details><summary>Comment se passe le paiement ?</summary><p>Par PayPal, avec ton compte PayPal ou une simple carte bancaire. 4,99 € débloquent 31 jours de Premium, sans abonnement : tu paies une fois, rien ne se renouvelle tout seul.</p></details>
-    <details><summary>Faut-il un compte ? Et mes données ?</summary><p>Ta 1re boucle se crée sans compte. Ensuite, un compte gratuit en 30 s (prénom, e-mail, mot de passe) t'offre 3 boucles, sans carte bancaire. Ta position sert uniquement à dessiner ta boucle et à te guider. Tes boucles restent enregistrées sur ton téléphone.</p></details>
+    <details><summary>Comment se passe le paiement ?</summary><p>Par PayPal, avec ton compte PayPal ou une simple carte bancaire. 4,99 € débloquent 31 jours de Premium, sans abonnement : tu paies une fois, rien ne se renouvelle tout seul. Premium suit ton compte : connecte-toi sur un autre téléphone, il y est actif aussi.</p></details>
+    <details><summary>Faut-il un compte ? Et mes données ?</summary><p>Pas pour commencer : tracer des boucles est gratuit et ta 1re course se fait sans compte. Ensuite, un compte gratuit en 30 s (prénom, e-mail, mot de passe) t'offre 3 courses, sans carte bancaire. Ta position sert uniquement à dessiner ta boucle et à te guider. Tes boucles restent enregistrées sur ton téléphone.</p></details>
     <details><summary>Il faut du réseau pendant la course ?</summary><p>Oui, une connexion mobile est conseillée : Traceo calcule la boucle et affiche la carte en ligne. Le suivi de ta course, lui, utilise le GPS du téléphone.</p></details>
   </div>
 </section>
@@ -539,7 +583,8 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:12px 24px;justify-content:space-bet
   <div class="wrap">
     <h2>Ta prochaine boucle<br><span class="grad">t'attend dehors.</span></h2>
     <p>Lace tes chaussures, Traceo s'occupe du reste.</p>
-    <a class="btn hero" href="/app?go=1" style="min-width:280px" data-ev="essayer">Lancer Traceo</a>
+    <a class="btn hero" href="/app?go=1" style="min-width:280px" data-ev="essayer">Tracer ma boucle gratuite</a>
+    <p class="cta-note" style="margin-top:14px;text-align:center;padding:0"><span>1re boucle sans compte</span> · <span>iPhone et Android</span> · <span>sans téléchargement</span></p>
   </div>
 </section>
 </main>
@@ -548,11 +593,11 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:12px 24px;justify-content:space-bet
   <div class="wrap">
     <span class="logo" style="font-size:20px"><svg viewBox="0 0 32 32" aria-hidden="true" style="width:24px;height:24px"><path d="M7 23c0-8 5.5-14 11.5-14 4.6 0 7.5 2.9 7.5 6.6 0 3.8-3 6.6-6.8 6.6-2.8 0-4.7-1.9-4.7-4.2" fill="none" stroke="currentColor" stroke-width="3.6" stroke-linecap="round"/><circle cx="7" cy="23" r="3.8" fill="#E6F2F0"/></svg>traceo</span>
     <span>© 2026 Traceo · Pierre Renard EI · <a href="legal.html" style="color:var(--muted);text-decoration:underline">Mentions légales, CGV et confidentialité</a> · <a href="guides/" style="color:var(--muted);text-decoration:underline" data-ev="guide">Guides running</a> · <a href="parcours/" style="color:var(--muted);text-decoration:underline" data-ev="parcours">Parcours par ville</a></span>
-    <a href="/app?go=1" style="color:var(--accent);font-weight:700" data-ev="essayer">Ouvrir l'app →</a>
+    <a href="/app?go=1" style="color:var(--accent);font-weight:700" data-ev="essayer">Tracer ma boucle gratuite →</a>
   </div>
 </footer>
 
-<div class="sticky" id="sticky"><a class="btn hero" href="/app?go=1" data-ev="essayer">Trouver ma boucle · c'est parti</a></div>
+<div class="sticky" id="sticky"><a class="btn hero" href="/app?go=1" data-ev="essayer">Tracer ma boucle gratuite</a></div>
 
 <script src="config.js"></script>
 <script>(function(){ const C = window.TRACEO_CONFIG || {}; if(!C.UMAMI_ID) return;
@@ -565,6 +610,23 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:12px 24px;justify-content:space-bet
 (function(){
   var C = window.TRACEO_CONFIG || {};
   if(C.PRICE_LABEL) document.getElementById("price").textContent = C.PRICE_LABEL;
+  // Offre de lancement 3 mois : visible seulement si le lien PayPal 3 mois est renseigné et jusqu'à la vraie date de fin (heure de Paris), puis disparaît seule
+  var oEnd = Date.parse(C.OFFER_3M_END || "2026-10-18T23:59:59+02:00"), oEls = document.querySelectorAll("[data-offre]");
+  function offre(){ var on = !!C.PAYPAL_PAYMENT_LINK_3M && oEnd > Date.now(); oEls.forEach(function(el){ el.hidden = !on; }); return on; }
+  if(offre()){
+    try{ var fin = new Intl.DateTimeFormat("fr-FR", {weekday:"long", day:"numeric", month:"long", timeZone:"Europe/Paris"}).format(oEnd); document.querySelectorAll("[data-offre-fin]").forEach(function(el){ el.textContent = fin; }); }catch(e){}
+    if(oEnd - Date.now() < 2147e6) setTimeout(offre, oEnd - Date.now() + 500);
+  }
+  // Les boutons vers l'app emportent la source de la visite (?src=…, utm_…) : le parcours reste attribué au bon lien
+  var fw = []; new URLSearchParams(location.search).forEach(function(v, k){ if(v && /^(src|utm_(source|medium|campaign|content|term))$/.test(k)) fw.push([k, v.slice(0, 60)]); });
+  if(fw.length) ["click", "auxclick", "contextmenu"].forEach(function(t){ document.addEventListener(t, function(e){
+    var a = e.target && e.target.closest && e.target.closest('a[href^="/app"]'); if(!a) return;
+    try{ var u = new URL(a.getAttribute("href"), location.href); fw.forEach(function(p){ if(!u.searchParams.has(p[0])) u.searchParams.set(p[0], p[1]); }); a.setAttribute("href", u.pathname + u.search + u.hash); }catch(x){}
+  }, true); });
+  // Vidéo du haut de page : chargée après la page (l'image fixe s'affiche tout de suite), jamais si l'appareil demande moins d'animations ou d'économiser les données
+  var hv = document.getElementById("heroVid");
+  function heroVid(){ try{ if(matchMedia("(prefers-reduced-motion: reduce)").matches || (navigator.connection && navigator.connection.saveData)) return; hv.muted = true; hv.preload = "auto"; var pr = hv.play(); if(pr && pr.catch) pr.catch(function(){}); }catch(e){} }
+  if(hv){ if(document.readyState === "complete") setTimeout(heroVid, 200); else addEventListener("load", function(){ setTimeout(heroVid, 200); }); }
   // Bêta gratuite : compte à rebours jusqu'à la fin. Date passée, absente ou illisible : badge masqué pour de bon ([hidden] l'emporte sur .beta)
   var end = C.BETA && C.BETA_END ? Date.parse(C.BETA_END) : 0, box = document.getElementById("beta"), txt = document.getElementById("betaTxt"), tb = 0;
   function tickBeta(){

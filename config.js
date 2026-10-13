@@ -29,6 +29,10 @@ window.TRACEO_CONFIG = {
   PAYPAL_PLAN_ID: "",
   // Option 2, la plus rapide : un lien de paiement PayPal à 4,99 € (Premium débloqué 31 jours).
   PAYPAL_PAYMENT_LINK: "https://www.paypal.com/ncp/payment/423Z9M8RCJPF2",
+  // Offre de lancement : lien de paiement PayPal à 9,99 € (Premium débloqué 3 mois, au lieu de 14,97 €).
+  // Vide : l'offre 3 mois reste cachée partout. Elle disparaît toute seule après OFFER_3M_END (heure de Paris).
+  PAYPAL_PAYMENT_LINK_3M: "",
+  OFFER_3M_END: "2026-10-18T23:59:59+02:00",
   // Paiement automatique : identifiant marchand sécurisé PayPal (le code du téléphone voyage avec le paiement, Premium s'active seul)
   PAYPAL_MERCHANT_ID: "7AR8HKPQ9RGH2",
   PAYPAL_MANAGE_URL: "https://www.paypal.com/myaccount/autopay/",
@@ -53,7 +57,7 @@ window.TRACEO_CONFIG = {
   GARMIN_IMPORT_ACTIVITY_URL: "https://connect.garmin.com/modern/import-data",
   GARMIN_COURSES_URL: "https://connect.garmin.com/modern/courses",
 
-  FREE_LOOPS: 3,                // boucles offertes (version gratuite), ensuite Premium
+  FREE_LOOPS: 3,                // courses offertes avec le compte gratuit (la 1re course sans compte en plus), ensuite Premium ; générer reste gratuit
   DEFAULT_PACE_S_PER_KM: 345,   // 5'45"/km
   DEFAULT_WEIGHT_KG: 70
 };

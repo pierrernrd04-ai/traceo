@@ -117,6 +117,46 @@ h2{font:800 17px "Bricolage Grotesque",sans-serif;letter-spacing:-.01em;margin-b
 .push .msg{grid-column:1 / -1;font-size:13.5px;font-weight:700;color:var(--ink)}
 @media (max-width:560px){ .push{grid-template-columns:1fr} .push .acts{justify-content:stretch} .push .acts > *{flex:1} }
 </style>
+<style>
+/* 🛤️ Parcours : entonnoir étape par étape, par source */
+.pc-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px 16px;flex-wrap:wrap;margin-bottom:12px}
+.pc-head h2{margin-bottom:2px}
+.pc-head .cap{margin-top:0}
+.pc-src{display:flex;flex-direction:column;gap:4px;font-weight:700;font-size:12.5px;color:var(--muted);min-width:0;max-width:100%}
+.pc-src select{appearance:none;-webkit-appearance:none;font:800 14px Figtree,system-ui,sans-serif;color:var(--ink);background:var(--surface-2) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5 6 6.5 11 1.5' fill='none' stroke='%238AA4A3' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 12px center/12px 8px;border:1px solid var(--line);border-radius:999px;padding:9px 34px 9px 14px;min-height:42px;max-width:100%;cursor:pointer}
+.pc-src select:focus-visible,.pc-cmp button:focus-visible{outline:2px solid var(--data);outline-offset:2px}
+.pc-warn{display:flex;gap:9px;align-items:flex-start;background:var(--surface-2);border-radius:12px;padding:10px 12px;font-size:13px;color:var(--muted);margin-bottom:14px}
+.pc-warn b{color:var(--ink)}
+.pc-body{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:14px 26px;align-items:start}
+.pc-steps{list-style:none;display:grid;gap:11px}
+.pc-st{display:grid;grid-template-columns:24px minmax(0,1fr) auto;gap:3px 10px;align-items:center}
+.pc-st .ix{grid-row:span 3;align-self:start;width:24px;height:24px;border-radius:50%;background:var(--surface-2);color:var(--muted);font-weight:900;font-size:12.5px;display:grid;place-items:center}
+.pc-st .nm{font-weight:700;font-size:14.5px;line-height:1.25;min-width:0}
+.pc-st .nm small{display:block;font-weight:600;font-size:12px;color:var(--muted);margin-top:1px}
+.pc-st .n{font:800 18px/1.1 "Bricolage Grotesque",sans-serif;text-align:right;align-self:start}
+.pc-st .tr{grid-column:2 / -1;height:10px;background:var(--surface-2);border-radius:5px;overflow:hidden}
+.pc-st .tr i{display:block;height:100%;background:var(--data);border-radius:5px}
+.pc-st .cv{grid-column:2 / -1;font-size:12.5px;color:var(--muted)}
+.pc-st .cv b{color:var(--ink)}
+.pc-st.loss .ix{background:var(--bad-bg);color:var(--bad)}
+.pc-st.loss .cv b{color:var(--bad)}
+.pc-flag{display:inline-block;margin-left:6px;font-weight:800;font-size:11.5px;padding:1px 7px;border-radius:999px;background:var(--bad-bg);color:var(--bad);vertical-align:1px}
+.pc-sum{font-size:13.5px;color:var(--muted);margin-top:12px}
+.pc-sum b{color:var(--ink)}
+.pc-side h3{font:800 14.5px Figtree,system-ui,sans-serif;margin-bottom:8px}
+.pc-cmp{list-style:none;display:grid;gap:8px}
+.pc-cmp button{display:grid;grid-template-columns:24px minmax(0,1fr) auto;gap:2px 8px;align-items:center;width:100%;text-align:left;background:var(--surface-2);border:1px solid transparent;border-radius:14px;padding:10px 12px;cursor:pointer}
+.pc-cmp button[aria-pressed="true"]{border-color:var(--data);background:rgba(37,201,143,.08)}
+.pc-cmp .ic{font-size:17px;text-align:center}
+.pc-cmp .nm{font-weight:700;font-size:14px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pc-cmp .vv{font:800 15px "Bricolage Grotesque",sans-serif;text-align:right}
+.pc-cmp .ex{grid-column:2 / -1;font-size:12px;color:var(--muted)}
+.pc details{margin-top:12px;font-size:12.5px;color:var(--muted)}
+.pc summary{cursor:pointer;font-weight:700;padding:4px 0}
+.pc details p{margin-top:4px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap}
+@media (max-width:720px){ .pc-body{grid-template-columns:1fr} .pc-src{flex:1 1 100%} .pc-src select{width:100%} }
+</style>
 </head>
 <body>
 <div class="wrap" id="app"></div>
@@ -223,6 +263,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 const $ = s => document.querySelector(s);
 const API = (window.TRACEO_CONFIG?.SOCIAL_API || window.TRACEO_CONFIG?.CHAT_API || "").replace(/\/$/, "");
 let KEY = sessionStorage.getItem("traceoAdmin") || localStorage.getItem("traceoAdmin") || "", DAYS = +(localStorage.getItem("traceoDashDays") || 7), D = null;
+let PSRC = ""; try{ PSRC = localStorage.getItem("traceoDashSrc") || ""; }catch(e){}   // source choisie dans « Parcours » ("" = toutes)
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;"})[c]);
 const nf = n => Number(n || 0).toLocaleString("fr-FR");
 const eur = n => { n = Number(n || 0); const f = n % 1 ? 2 : 0; return n.toLocaleString("fr-FR", {style:"currency", currency:"EUR", minimumFractionDigits:f, maximumFractionDigits:f}); };
@@ -280,8 +321,8 @@ function insights(){
     const ev = p.visits ? Math.round(100*(v - p.visits)/p.visits) : null;
     out.push(["👀", `<b>${nf(v)} visite${v > 1 ? "s" : ""}</b> ${now}` + (ev === null ? ", première période mesurée." : ev > 0 ? `, <b>${ev} % de plus</b> que ${before}.` : ev < 0 ? `, ${-ev} % de moins que ${before}.` : `, autant que ${before}.`)]);
     const best = D.sources.find(s => s.source !== "direct") || D.sources[0];
-    if(best){ const [ic, nm] = SRC(best.source); out.push([ic, `Ta meilleure source : <b>${esc(nm)}</b>, avec ${nf(best.visits)} visite${best.visits > 1 ? "s" : ""}${best.tried ? ` (${pc(best.tried, best.visits)} % ont cliqué sur « Essayer »)` : ""}.`]); }
-    out.push(["🎯", `<b>${pc(c.tried, v)} %</b> des visiteurs cliquent sur « Essayer gratuitement »` + (c.app ? `, et ${nf(c.app)} ont ouvert l'application.` : ".")]);
+    if(best){ const [ic, nm] = SRC(best.source); out.push([ic, `Ta meilleure source : <b>${esc(nm)}</b>, avec ${nf(best.visits)} visite${best.visits > 1 ? "s" : ""}${best.tried ? ` (${pc(best.tried, best.visits)} % ont cliqué pour essayer)` : ""}.`]); }
+    out.push(["🎯", `<b>${pc(c.tried, v)} %</b> des visiteurs cliquent sur le bouton pour essayer` + (c.app ? `, et ${nf(c.app)} ont ouvert l'application.` : ".")]);
   }
   if(c.signups || c.payments) out.push(["🙌", `<b>${nf(c.signups)} compte${c.signups > 1 ? "s" : ""} créé${c.signups > 1 ? "s" : ""}</b>` + (c.payments ? ` et <b>${nf(c.payments)} paiement${c.payments > 1 ? "s" : ""}</b>, soit ${eur(c.revenue)}.` : ", aucun paiement pour l'instant.")]);
   const tot = D.hours.reduce((a, b) => a + b, 0);
@@ -294,10 +335,89 @@ function insights(){
   if(v >= 5) out.push(["📱", `<b>${pc(c.mobile, v)} %</b> des visites se font sur téléphone.`]);
   if(c.loops || c.runsStarted) out.push(["🏃", `Dans l'app : <b>${nf(c.loops)} boucle${c.loops > 1 ? "s" : ""} générée${c.loops > 1 ? "s" : ""}</b> et ${nf(c.runsStarted)} course${c.runsStarted > 1 ? "s" : ""} lancée${c.runsStarted > 1 ? "s" : ""}.`]);
   // conseil
-  if(v >= 20 && pc(c.tried, v) < 8) out.push(["💡", `Conseil : peu de visiteurs cliquent sur « Essayer ». Mets le bouton plus haut et parle des 3 boucles offertes dès la première ligne.`]);
-  else if(c.tried >= 10 && c.signups < c.tried*0.15) out.push(["💡", `Conseil : beaucoup essaient, peu créent un compte. Montre dès l'écran de compte ce qu'on gagne (3 boucles offertes, sans carte).`]);
+  if(v >= 20 && pc(c.tried, v) < 8) out.push(["💡", `Conseil : peu de visiteurs cliquent sur le bouton principal. Mets le bouton plus haut et dis dès la première ligne que la 1re boucle se fait sans compte.`]);
+  else if(c.tried >= 10 && c.signups < c.tried*0.15) out.push(["💡", `Conseil : beaucoup essaient, peu créent un compte. Montre dès l'écran de compte ce qu'on gagne (3 courses offertes, sans carte).`]);
   else if(c.payClicks > c.payments*2 && c.payClicks >= 3) out.push(["💡", `Conseil : ${nf(c.payClicks)} personnes ont ouvert le paiement, ${nf(c.payments)} ont payé. Relance-les avec une offre ou rassure sur le paiement sécurisé.`]);
   return out;
+}
+
+// 🛤️ Parcours : du premier clic au paiement, étape par étape, pour toutes les sources ou une seule.
+// Données du serveur : D.parcours {steps:[{k, label}], total:{k:n}, sources:[{source, k:n}], paiements, passes3m, note} ; la forme D.funnel {steps:[{key, label, n}], bySource:{source:[{key, n}]}} est acceptée aussi.
+const PC_ALIAS = {visits:"visites", essayer:"essai", accueil_go:"essai", ecran_depart:"depart", boucle_invite:"boucle", ecran_compte:"compte_vu", mur_gratuit:"mur", payments:"paiements"};
+const PC_STEP = {
+  visites:["Visites", "arrivées sur le site ou l'app"],
+  essai:["Veulent essayer", "bouton de l'accueil ou lien direct ?go"],
+  depart:["Écran de départ", "1er écran de l'app affiché"],
+  boucle:["1re boucle tracée", "sans compte, en invité"],
+  compte_vu:["Écran de compte", "invités à créer un compte"],
+  compte_ok:["Compte créé ou connecté", "inscription ou connexion réussie"],
+  course:["Course lancée", "« Commencer » touché, invité ou membre"],
+  mur:["Mur Premium vu", "« Commencer » sans course offerte restante"],
+  payer:["Ouvrent le paiement", "lien PayPal touché"],
+  paiements:["Paiements reçus", "PayPal, toutes sources confondues"]
+};
+const pcKey = k => PC_ALIAS[k] || k;
+const pcSrc = s => s === "autres" ? ["➕", "Autres sources"] : SRC(s);
+const pcPct = (a, b) => { if(!b) return "0"; const r = 100*a/b; return r > 0 && r < 1 ? "< 1" : String(Math.round(r)); };
+function pcData(){
+  const P = D.parcours, F = D.funnel;
+  if(P && Array.isArray(P.steps) && P.steps.length && P.total){
+    const steps = P.steps.map(s => ({k:pcKey(s.k ?? s.key), label:s.label})).filter(s => s.k);
+    const vals = r => Object.fromEntries(P.steps.map(s => [pcKey(s.k ?? s.key), r?.[s.k ?? s.key] == null ? undefined : Number(r[s.k ?? s.key]) || 0]));   // absent ≠ zéro
+    return {steps, total:{...vals(P.total), paiements:Number(P.total.paiements ?? P.paiements) || 0}, sources:(Array.isArray(P.sources) ? P.sources : []).map(r => ({source:String(r.source || "direct"), v:vals(r)})),
+      pay:Number(P.paiements ?? P.total.paiements) || 0, m3:Number(P.passes3m) || 0, note:P.note || ""};
+  }
+  if(F && Array.isArray(F.steps) && F.steps.length){
+    const steps = F.steps.map(s => ({k:pcKey(s.key ?? s.k), label:s.label})).filter(s => s.k);
+    const vals = arr => Object.fromEntries((Array.isArray(arr) ? arr : []).map(x => [pcKey(x.key ?? x.k), Number(x.n) || 0]));
+    const total = vals(F.steps), k0 = steps[0].k;
+    const sources = Object.entries(F.bySource || {}).map(([source, arr]) => ({source, v:vals(arr)})).sort((a, b) => (b.v[k0] || 0) - (a.v[k0] || 0));
+    return {steps, total, sources, pay:total.paiements || 0, m3:Number(F.passes3m) || 0, note:F.note || ""};
+  }
+  return null;
+}
+function pcCard(){
+  const X = pcData(), [now] = PER[DAYS] || PER[7];
+  const head = sel => `<div class="pc-head"><div><h2>🛤️ Parcours</h2><p class="cap">Du premier clic au paiement, ${now}.</p></div>${sel}</div>`;
+  if(!X) return `<div class="card pc" id="pcCard">${head("")}<p class="empty">Le parcours détaillé s'affichera ici dès que le serveur enverra ces chiffres.</p></div>`;
+  const k0 = X.steps[0].k, all = {source:"", v:X.total};
+  const cur = (PSRC && X.sources.find(s => s.source === PSRC)) || all, one = cur !== all;
+  // étape non fournie pour cette source (ex. paiements, jamais reliés à une visite) : hors de l'entonnoir, les paiements passent en ligne à part
+  const steps = X.steps.filter((s, i) => !i || cur.v[s.k] != null), v = k => cur.v[k] || 0, base = v(k0);
+  const opts = [all, ...X.sources].map(s => `<option value="${esc(s.source)}" ${s === cur ? "selected" : ""}>${s.source ? esc(pcSrc(s.source)[1]) : "Toutes les sources"} (${nf(s.v[k0])})</option>`).join("");
+  const sel = X.sources.length ? `<label class="pc-src">Source des visiteurs<select id="pcSrc">${opts}</select></label>` : "";
+  if(!base && !v("paiements")) return `<div class="card pc" id="pcCard">${head(sel)}<p class="empty">${one ? "Aucune visite de cette source" : "Pas encore de visite"} ${now} : le parcours s'affichera ici.</p></div>`;
+  // plus forte perte entre deux étapes (au moins 10 personnes à l'étape d'avant ; le mur Premium n'est pas une perte : il ne concerne que les courses offertes épuisées)
+  let loss = -1, lr = 1;
+  steps.forEach((s, i) => { if(!i || s.k === "mur" || s.k === "paiements") return; const a = v(steps[i - 1].k), n = v(s.k); if(a >= 10 && n <= a && n/a < lr){ lr = n/a; loss = i; } });
+  const rows = steps.map((s, i) => {
+    const n = v(s.k), a = i ? v(steps[i - 1].k) : 0, [lab, hint] = PC_STEP[s.k] || [s.label || s.k, ""];
+    const hint2 = s.k === "paiements" && X.m3 ? `${hint}, dont ${nf(X.m3)} pass 3 mois` : hint;
+    const cv = !i ? (one ? `${pcPct(base, X.total[k0])} % de toutes les visites` : "")
+      : !a && !n ? "" : !a || n > a ? "Plus qu'à l'étape d'avant : on peut aussi arriver ici par un autre chemin."
+      : `<b>${pcPct(n, a)} %</b> de l'étape d'avant${i > 1 && base ? ` · ${pcPct(n, base)} % des visites` : ""}`;
+    return `<li class="pc-st ${i === loss ? "loss" : ""}"><span class="ix" aria-hidden="true">${i + 1}</span><span class="nm">${esc(lab)}${i === loss ? `<span class="pc-flag">plus forte perte</span>` : ""}${hint2 ? `<small>${esc(hint2)}</small>` : ""}</span><span class="n">${nf(n)}</span>
+      <span class="tr" aria-hidden="true"><i style="width:${n ? Math.max(1.5, Math.min(100, 100*n/Math.max(1, base))) : 0}%"></i></span>${cv ? `<span class="cv">${cv}</span>` : ""}</li>`;
+  }).join("");
+  const lossTxt = loss > 0 ? `Plus forte perte entre « ${esc((PC_STEP[steps[loss - 1].k] || [steps[loss - 1].label])[0])} » et « ${esc((PC_STEP[steps[loss].k] || [steps[loss].label])[0])} » : <b>${pcPct(v(steps[loss].k), v(steps[loss - 1].k))} %</b> seulement passent à l'étape suivante.` : "";
+  const has = k => X.steps.some(s => s.k === k);
+  const payTxt = one && cur.v.paiements == null && has("paiements") ? `💶 <b>${nf(X.pay)} paiement${X.pay > 1 ? "s" : ""}</b> reçu${X.pay > 1 ? "s" : ""} ${now}, toutes sources confondues${X.m3 ? `, dont ${nf(X.m3)} pass 3 mois` : ""} : un paiement n'est jamais relié à une visite.` : "";
+  const warn = base < 30 ? `<p class="pc-warn"><span aria-hidden="true">⚠️</span><span><b>Peu de données (${nf(base)} visite${base > 1 ? "s" : ""})</b> : une seule personne fait bouger un pourcentage de plusieurs points. À lire comme une tendance, pas comme un verdict.</span></p>` : "";
+  // comparaison des sources : part des visites qui tracent une boucle, créent un compte, lancent une course
+  const CMP = [["boucle", "1re boucle"], ["compte_ok", "compte"], ["course", "course"]].filter(([k]) => has(k));
+  const cmp = X.sources.length > 1 ? `<div class="pc-side"><h3>Comparer les sources</h3><ul class="pc-cmp">${[all, ...X.sources].map(s => { const b = s.v[k0] || 0, [ic, nm] = s.source ? pcSrc(s.source) : ["🌍", "Toutes les sources"];
+      return `<li><button type="button" data-pcs="${esc(s.source)}" aria-pressed="${s === cur}"><span class="ic" aria-hidden="true">${ic}</span><span class="nm">${esc(nm)}</span><span class="vv">${nf(b)}<span class="sr"> visite${b > 1 ? "s" : ""}</span></span>
+        <span class="ex">${b ? CMP.map(([k, l]) => `${l} ${pcPct(s.v[k] || 0, b)} %`).join(" · ") : "aucune visite"}${b && b < 30 ? " · peu de données" : ""}</span></button></li>`; }).join("")}</ul></div>` : "";
+  const note = X.note || "Visiteurs uniques comptés par jour : une personne qui revient le lendemain compte deux fois. Les paiements ne sont jamais reliés à une visite. Avec moins de 30 visites, un pourcentage change beaucoup pour une seule personne.";
+  return `<div class="card pc" id="pcCard">${head(sel)}${warn}
+    <div class="pc-body"><div><ol class="pc-steps" aria-label="Étapes du parcours${one ? " : " + esc(pcSrc(cur.source)[1]) : ""}">${rows}</ol>
+      <p class="pc-sum" aria-live="polite">${[lossTxt, payTxt].filter(Boolean).join("<br>") || (one ? `Visiteurs venus de <b>${esc(pcSrc(cur.source)[1])}</b>.` : "Toutes sources confondues.")}</p></div>${cmp}</div>
+    <details><summary>Comment c'est compté</summary><p>${esc(note)}</p><p>Chaque visiteur est rattaché à la source de sa première page vue du jour. Une étape compte s'il a fait l'action le même jour, quel que soit l'ordre.</p></details></div>`;
+}
+function pcWire(){
+  const pick = (s, focus) => { PSRC = s; try{ localStorage.setItem("traceoDashSrc", s); }catch(e){} const el = document.getElementById("pcCard"); if(!el) return; el.outerHTML = pcCard(); pcWire(); document.querySelector(focus)?.focus(); };
+  const sel = document.getElementById("pcSrc"); if(sel) sel.onchange = () => pick(sel.value, "#pcSrc");
+  document.querySelectorAll("[data-pcs]").forEach(b => b.onclick = () => pick(b.dataset.pcs, `[data-pcs="${CSS.escape(b.dataset.pcs)}"]`));
 }
 
 function view(){
@@ -305,7 +425,7 @@ function view(){
   const c = D.cur, p = D.prev, [now] = PER[DAYS] || PER[7];
   const series = k => D.daily.map(x => x[k]);
   const kpi = (lab, val, cv, pv, key, sub) => `<div class="kpi"><span class="lab">${lab}</span><span class="val">${val}</span>${delta(cv, pv)}${DAYS > 1 ? spark(series(key)) : ""}${sub ? `<span class="sub">${sub}</span>` : ""}</div>`;
-  const F = [["Visiteurs", c.visits], ["Ont cliqué « Essayer »", c.tried], ["Ont ouvert l'app", c.app], ["Ont créé un compte", c.signups], ["Ont payé", c.payments]];
+  const F = [["Visiteurs", c.visits], ["Ont cliqué pour essayer", c.tried], ["Ont ouvert l'app", c.app], ["Ont créé un compte", c.signups], ["Ont payé", c.payments]];
   const fmax = Math.max(1, ...F.map(f => f[1]));
   // graphique principal
   const main = DAYS === 1
@@ -342,8 +462,10 @@ function view(){
         ${F.map(([l, n], i) => `<div class="step"><span class="name">${l}</span><span class="num">${nf(n)}</span><div class="track"><div class="fill" style="width:${Math.min(100, Math.max(n ? 2 : 0, 100*n/fmax))}%"></div></div>${i && F[i - 1][1] && n <= F[i - 1][1] ? `<span class="conv">${pc(n, F[i - 1][1])} % de l'étape précédente</span>` : ""}</div>`).join("")}
         <p class="note">Comptes et paiements : tous ceux de la période, même arrivés directement par l'app.</p></div>
       <div class="card"><h2>🚪 D'où viennent tes visiteurs</h2>
-        ${list(D.sources, r => SRC(r.source)[0], r => SRC(r.source)[1], r => nf(r.visits), r => `${pc(r.visits, c.visits)} % des visites${r.tried ? ` · ${pc(r.tried, r.visits)} % cliquent « Essayer »` : ""}${r.signed ? ` · ${nf(r.signed)} inscription${r.signed > 1 ? "s" : ""}` : ""}`, srcMax)}</div>
+        ${list(D.sources, r => SRC(r.source)[0], r => SRC(r.source)[1], r => nf(r.visits), r => `${pc(r.visits, c.visits)} % des visites${r.tried ? ` · ${pc(r.tried, r.visits)} % cliquent pour essayer` : ""}${r.signed ? ` · ${nf(r.signed)} inscription${r.signed > 1 ? "s" : ""}` : ""}`, srcMax)}</div>
     </div>
+
+    ${pcCard()}
 
     <div class="grid2">
       <div class="card"><h2>⏰ À quelle heure</h2>${bars(D.hours.map((v, h) => ({v, lab:h + "h", hi:v && v === hmax, tip:`${h} h – ${h + 1} h|${nf(v)} visite${v > 1 ? "s" : ""}`})), {labels:6, h:130})}
@@ -375,7 +497,7 @@ function view(){
   document.querySelectorAll("[data-d]").forEach(b => b.onclick = async () => { DAYS = +b.dataset.d; localStorage.setItem("traceoDashDays", DAYS); $("#app").classList.add("skel"); try{ await load(); }catch(e){ alert("Erreur : " + e.message); } $("#app").classList.remove("skel"); });
   $("#rf").onclick = () => load().catch(e => alert("Erreur : " + e.message));
   document.querySelectorAll("[data-copy]").forEach(b => b.onclick = () => navigator.clipboard?.writeText(b.dataset.copy).then(() => { b.textContent = "Copié ✓"; setTimeout(() => b.textContent = "Copier", 1500); }));
-  wirePush();
+  wirePush(); pcWire();
   let tip = null;
   const showTip = (col, e) => { tip?.remove(); document.querySelectorAll(".col.sel").forEach(x => x.classList.remove("sel")); col.classList.add("sel"); const [a, b] = col.dataset.tip.split("|"); tip = document.createElement("div"); tip.className = "tip"; tip.innerHTML = `<b>${esc(a)}</b>${esc(b)}`; document.body.appendChild(tip);
     const r = col.getBoundingClientRect(); tip.style.left = Math.max(8, Math.min(innerWidth - tip.offsetWidth - 8, r.left + r.width/2 - tip.offsetWidth/2)) + "px"; tip.style.top = Math.max(8, r.top + r.height - (col.firstElementChild.offsetHeight) - tip.offsetHeight - 10) + "px"; };

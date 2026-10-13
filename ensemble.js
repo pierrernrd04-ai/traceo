@@ -39,8 +39,10 @@ const ERRS = {pseudo_taken:"Cet identifiant est déjà pris, choisis-en un autre
 const errTxt = e => ERRS[e.message] || "Connexion au serveur impossible, vérifie ta connexion.";
 const ensHere = () => S.here || (S.start ? [S.start.lat, S.start.lng] : null);
 
-async function ensCall(path, body, method){
-  const r = await fetch(ensApi() + "/social/" + path, {method:method || (body ? "POST" : "GET"), headers:{"Content-Type":"application/json", ...(ENS.auth ? {Authorization:"Bearer " + ENS.auth} : {})}, body:body ? JSON.stringify(body) : undefined});
+// ms (facultatif) : délai maximum, au-delà la requête est abandonnée (l'app se fie alors au téléphone)
+async function ensCall(path, body, method, ms){
+  const ac = ms ? new AbortController() : null, t = ac && setTimeout(() => ac.abort(), ms);
+  let r; try{ r = await fetch(ensApi() + "/social/" + path, {method:method || (body ? "POST" : "GET"), headers:{"Content-Type":"application/json", ...(ENS.auth ? {Authorization:"Bearer " + ENS.auth} : {})}, body:body ? JSON.stringify(body) : undefined, ...(ac ? {signal:ac.signal} : {})}); }finally{ clearTimeout(t); }
   let j = {}; try{ j = await r.json(); }catch(e){}
   if(r.status === 401 && ENS.auth){ ensLogout(); throw new Error("auth"); }
   if(!r.ok) throw new Error(j.error || "http " + r.status);
@@ -51,7 +53,10 @@ function ensSaveAuth(){
   // le service worker lit ces infos pour afficher le texte des notifications
   try{ caches.open("traceo-social").then(c => c.put("auth", new Response(JSON.stringify({api:ensApi(), auth:ENS.auth, since:Math.max(0, ENS.last - 5)})))); }catch(e){}
 }
-function ensLogout(){ ENS.auth = null; ENS.me = null; ENS.msgs = []; ENS.users = {}; ENS.last = 0; ENS.near = null; ENS.thread = null; ["ensAuth", "ensMe", "ensMsgs", "ensUsers", "ensRead"].forEach(k => store.set(k, null)); ENS.read = {}; try{ caches.delete("traceo-social"); }catch(e){} ensBadge(); }
+function ensLogout(){
+  // Premium retrouvé grâce au compte (pas payé sur ce téléphone) : il part avec le compte
+  if(S.premium?.acct){ S.premium = null; store.set("premium", null); try{ updateCrown(); }catch(e){} }
+  ENS.auth = null; ENS.me = null; ENS.msgs = []; ENS.users = {}; ENS.last = 0; ENS.near = null; ENS.thread = null; ["ensAuth", "ensMe", "ensMsgs", "ensUsers", "ensRead"].forEach(k => store.set(k, null)); ENS.read = {}; try{ caches.delete("traceo-social"); }catch(e){} ensBadge(); }
 
 /* ---------- Conversations ---------- */
 function ensConvs(){
@@ -264,13 +269,17 @@ function wireAuth(root, rerender, after){
   const q = s => root.querySelector(s);
   root.querySelectorAll("[data-mode]").forEach(b => b.onclick = () => { ENS.mode = b.dataset.mode; rerender(); });
   root.querySelectorAll("[data-eye]").forEach(b => b.onclick = () => { const i = q("#" + b.dataset.eye); i.type = i.type === "password" ? "text" : "password"; b.textContent = i.type === "password" ? "Voir" : "Masquer"; });
-  const done = (j, msg, kind) => { ENS.auth = j.token; ENS.me = j.me; ENS.msgs = []; ENS.last = 0; ENS.first = true; ensSaveAuth(); ensSync(); celebrate(120); toast(msg); ensLoop(); ensPoll(); after(kind); };
+  const done = (j, msg, kind) => { ENS.auth = j.token; ENS.me = j.me; ENS.msgs = []; ENS.last = 0; ENS.first = true; ensSaveAuth(); ensSync(); celebrate(120); toast(msg); ensLoop(); ensPoll();
+    // Premium payé avec ce compte (sur un autre appareil) : reconnu ici tout de suite ; compteur de courses offertes du compte
+    if(typeof j.me?.free_left === "number") store.set("freeUsed", Math.max(0, (j.me.free || C.FREE_LOOPS || 3) - j.me.free_left));
+    Promise.resolve(j.premium && quotaSeen(j.premium)).catch(() => {}).then(() => acctPremium());
+    after(kind); };
   if(q("#ensLogin")){
     q("#ensLogin").onsubmit = async e => {
       e.preventDefault(); const err = q("#efErr"), id = q("#elId").value.trim(), pw = q("#elPw").value;
       if(!id || !pw) return err.textContent = "Indique ton identifiant et ton mot de passe.";
       q("#efGo").disabled = true; err.textContent = "";
-      try{ const j = await ensCall("login", {login:id, key:await pwKey(pw)}); track("ensemble_connexion"); done(j, `Content de te revoir, ${j.me.first} !`, "login"); }
+      try{ const j = await ensCall("login", {login:id, key:await pwKey(pw), dev:devId()}); track("ensemble_connexion"); done(j, `Content de te revoir, ${j.me.first} !`, "login"); }
       catch(x){ q("#efGo").disabled = false; err.textContent = errTxt(x); }
     };
     return;
@@ -412,8 +421,11 @@ document.addEventListener("click", async e => {
   }catch(x){ b.disabled = false; toast("Impossible pour l'instant, réessaie."); }
 });
 if(ensOn() && ENS.auth) setTimeout(() => { ensFlushRuns(false); ensRefreshRew(false); }, 4000);
+// Premium suit le compte : un paiement actif du compte (fait sur un autre appareil) est reconnu ici à chaque ouverture
+// (pas au retour de PayPal : ce téléphone s'active lui-même, avec la fenêtre de bienvenue et le reçu)
+if(ensOn() && ENS.auth && !PV && !(typeof fromPay !== "undefined" && fromPay)) setTimeout(acctPremium, 1500);
 
-/* ---------- Compte : proposé aux moments utiles (2e boucle, paiement), jamais en mur d'entrée, et toujours refermable ---------- */
+/* ---------- Compte : proposé aux moments utiles (2e course, paiement), jamais en mur d'entrée, et toujours refermable ---------- */
 const needAuth = () => ensOn() && !ENS.auth && !ENS.skip && !PV && !window.TRACEO_TEST && !/[?&](test|noauth)\b/.test(location.search);
 function authGate(next, why){
   let el = document.getElementById("authGate");
@@ -421,14 +433,15 @@ function authGate(next, why){
   document.body.classList.add("auth-on");
   const close = () => { el.remove(); document.body.classList.remove("auth-on"); };
   const paint = () => {
-    const G = why === "gen", P = why === "pay", L = ENS.mode === "login", n = C.FREE_LOOPS || 3;
+    // « run » : 2e course (la 1re est offerte sans compte) ; « pay » / « pay3m » : avant le paiement Premium (31 jours ou 3 mois)
+    const G = why === "run" || why === "gen", P = why === "pay" || why === "pay3m", L = ENS.mode === "login", n = C.FREE_LOOPS || 3;
     el.innerHTML = `<div class="ag-in"><div class="ag-top"><svg viewBox="0 0 32 32" class="ag-logo"><path d="M7 23c0-8 5.5-14 11.5-14 4.6 0 7.5 2.9 7.5 6.6 0 3.8-3 6.6-6.8 6.6-2.8 0-4.7-1.9-4.7-4.2" fill="none" stroke="#25C98F" stroke-width="3.6" stroke-linecap="round"/><circle cx="7" cy="23" r="3.8" fill="#E6F2F0"/></svg>
       <button class="iconbtn ag-x" id="agX" aria-label="Fermer">${I.x}</button>
-      <p class="eyebrow">${G ? "Une autre boucle ?" : P ? "Premium · 31 jours" : "Bienvenue sur Traceo"}</p><p class="ag-h">${L ? "Content de te revoir !" : G ? "Crée ton compte gratuit (30 s)" : P ? "Crée ton compte pour débloquer Premium" : "Crée ton compte, c'est gratuit"}</p>
-      ${!P && !L ? `<p class="ag-gift">🎁 ${G ? `<b>${n} boucles offertes</b> et ta boucle gardée.` : `<b>${n} boucles offertes</b> pour découvrir Traceo, sans payer.`}</p>` : ""}
+      <p class="eyebrow">${G ? "Une autre course ?" : P ? `Premium · ${why === "pay3m" ? "3 mois" : "31 jours"}` : "Bienvenue sur Traceo"}</p><p class="ag-h">${L ? "Content de te revoir !" : G ? "Crée ton compte gratuit (30 s)" : P ? "Crée ton compte pour débloquer Premium" : "Crée ton compte, c'est gratuit"}</p>
+      ${!P && !L ? `<p class="ag-gift">🎁 ${G ? `<b>${n} courses offertes</b> et ta boucle gardée.` : `<b>${n} courses offertes</b> pour découvrir Traceo, sans payer.`}</p>` : ""}
       <div class="seg ag-seg"><button type="button" data-mode="signup" aria-pressed="${ENS.mode !== "login"}">Créer un compte</button><button type="button" data-mode="login" aria-pressed="${ENS.mode === "login"}">Se connecter</button></div></div>
       ${ensSignup(true)}
-      <p class="small ag-why">Ton compte garde tes courses, compte tes diamants 💎 et te connecte aux coureurs autour de toi.</p>
+      <p class="small ag-why">${P ? "Premium suit ton compte : connecte-toi sur un autre téléphone ou navigateur, il y est aussi actif." : "Ton compte garde tes courses, compte tes diamants 💎 et te connecte aux coureurs autour de toi."}</p>
       <button class="linkbtn ag-skip" id="agSkip" hidden>Serveur indisponible : continuer sans compte</button></div>`;
     el.scrollTop = 0;
     wireAuth(el, paint, kind => { close(); track(kind === "login" ? "entree_connexion_ok" : "entree_compte_ok", {raison:why || "?"}); next && next(); });
