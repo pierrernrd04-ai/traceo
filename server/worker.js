@@ -275,11 +275,17 @@ async function seo(env){
     if(!keyOk){ last.error = `fichier-clé IndexNow ${kf && kf.ok ? "différent de la clé" : "introuvable (" + (kf ? "HTTP " + kf.status : "injoignable") + ")"} : rien n'est envoyé`; await kf?.body?.cancel().catch(() => {}); return; }
     if(!changed.length){ save = fresh; return; }   // rien de neuf : on ne dérange pas les moteurs
     // 5. envoi groupé à IndexNow (relayé à tous les moteurs participants)
-    const r = await fetch(env.INDEXNOW_URL || "https://api.indexnow.org/indexnow", {method:"POST", headers:{"Content-Type":"application/json; charset=utf-8", "User-Agent":"Traceo-SEO/1.0"},
-      body:JSON.stringify({host, key:INDEXNOW_KEY, keyLocation, urlList:changed}), signal:AbortSignal.timeout(30000)});
-    last.status = r.status; await r.body?.cancel();
-    if(r.status === 200 || r.status === 202){ save = fresh; last.submitted = changed; last.lastSubmit = last.t; }
-    else last.error = `IndexNow a répondu HTTP ${r.status}` + ({400:" (requête invalide)", 403:" (clé refusée)", 422:" (adresses refusées)", 429:" (trop d'envois)"}[r.status] || "") + " : nouvel essai dans une heure";
+    // plusieurs portes d'entrée : l'adresse partagée des serveurs Cloudflare est parfois refusée (HTTP 429) par l'une, rarement par toutes
+    let r = null;
+    for(const ep of env.INDEXNOW_URL ? [env.INDEXNOW_URL] : ["https://api.indexnow.org/indexnow", "https://www.bing.com/indexnow", "https://search.seznam.cz/indexnow", "https://yandex.com/indexnow"]){
+      r = await fetch(ep, {method:"POST", headers:{"Content-Type":"application/json; charset=utf-8", "User-Agent":"Traceo-SEO/1.0"},
+        body:JSON.stringify({host, key:INDEXNOW_KEY, keyLocation, urlList:changed}), signal:AbortSignal.timeout(20000)}).catch(() => null);
+      await r?.body?.cancel().catch(() => {});
+      if(r && (r.status === 200 || r.status === 202)){ last.via = ep.split("/")[2]; break; }
+    }
+    last.status = r ? r.status : 0;
+    if(r && (r.status === 200 || r.status === 202)){ save = fresh; last.submitted = changed; last.lastSubmit = last.t; }
+    else last.error = `les moteurs ont répondu HTTP ${last.status || "injoignable"}` + ({400:" (requête invalide)", 403:" (clé refusée)", 422:" (adresses refusées)", 429:" (trop d'envois)"}[last.status] || "") + " : nouvel essai dans une heure";
   }catch(e){ last.error = "erreur : " + String(e.message || e).slice(0, 160); }
   finally{
     if(save) last.pages = Object.keys(save).length;
