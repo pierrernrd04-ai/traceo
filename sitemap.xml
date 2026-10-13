@@ -15,4 +15,21 @@
   <url>
     <loc>https://traceorun.pages.dev/legal</loc>
   </url>
+  <url>
+    <loc>https://traceorun.pages.dev/guides/</loc>
+    <lastmod>2026-10-13</lastmod>
+  </url>
+  <url>
+    <loc>https://traceorun.pages.dev/guides/trouver-parcours-course-a-pied</loc>
+    <lastmod>2026-10-13</lastmod>
+    <image:image><image:loc>https://traceorun.pages.dev/site/carte.webp</image:loc></image:image>
+  </url>
+  <url>
+    <loc>https://traceorun.pages.dev/guides/reprendre-course-a-pied-debutant</loc>
+    <lastmod>2026-10-13</lastmod>
+  </url>
+  <url>
+    <loc>https://traceorun.pages.dev/guides/courir-en-securite-le-soir</loc>
+    <lastmod>2026-10-13</lastmod>
+  </url>
 </urlset>
