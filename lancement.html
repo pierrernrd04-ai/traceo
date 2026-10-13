@@ -1,0 +1,484 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Lancement Facebook · Traceo</title>
+<meta name="description" content="Page privée de Pierre : les textes prêts à poster dans les groupes Facebook de course à pied, un groupe à la fois.">
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#04080B">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="canonical" href="https://traceorun.pages.dev/lancement">
+<meta name="author" content="Pierre Renard">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Traceo">
+<meta property="og:locale" content="fr_FR">
+<meta property="og:title" content="Lancement Facebook · Traceo">
+<meta property="og:description" content="Page privée : textes prêts à poster, un groupe à la fois.">
+<meta property="og:image" content="https://traceorun.pages.dev/site/og.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Figtree:wght@500;600;700;800;900&display=swap">
+<style>
+:root{
+  --bg:#04080B; --surface:#0B171D; --surface-2:#112128; --line:#1B323B;
+  --ink:#E6F2F0; --muted:#8AA4A3; --accent:#2BE39B; --accent-2:#22D3C5; --accent-3:#28B4F0; --accent-ink:#03140D; --warn:#F5C451;
+  --f-title:Anton,Impact,"Arial Narrow",sans-serif; --f-body:"Figtree",system-ui,-apple-system,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
+body{background:var(--bg);color:var(--ink);font:16px/1.55 var(--f-body);overflow-x:hidden;-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}
+button{font:inherit;color:inherit;cursor:pointer}
+.wrap{max-width:720px;margin:0 auto;padding:0 16px}
+.glow{position:fixed;inset:-20% -10% auto;height:60vh;background:radial-gradient(60% 60% at 75% 15%,rgba(43,227,155,.16),transparent 70%),radial-gradient(50% 50% at 10% 60%,rgba(40,180,240,.12),transparent 70%);pointer-events:none;z-index:0}
+.g{background:linear-gradient(95deg,#2BE39B,#22D3C5 50%,#28B4F0);-webkit-background-clip:text;background-clip:text;color:transparent}
+
+header{position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;padding:16px 0 6px}
+.brand{display:flex;align-items:center;gap:9px;font:800 20px var(--f-body);letter-spacing:-.01em}
+.brand svg{width:28px;height:28px}
+.pill{font:800 11px var(--f-body);letter-spacing:.18em;text-transform:uppercase;color:var(--accent-ink);background:linear-gradient(95deg,#2BE39B,#28B4F0);padding:5px 10px;border-radius:999px}
+
+/* Barre de suivi, collée en haut */
+.bar{position:sticky;top:0;z-index:10;background:rgba(4,8,11,.86);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+.bar .wrap{display:flex;align-items:center;gap:12px;min-height:54px;padding-top:8px;padding-bottom:8px}
+.bar .done-n{font:400 26px/1 var(--f-title);letter-spacing:.01em;white-space:nowrap}
+.bar .done-n small{font:700 13px var(--f-body);color:var(--muted)}
+.bar .next{flex:1;font-size:14px;font-weight:700;line-height:1.3;color:var(--muted)}
+.bar .next b{color:var(--ink)}
+.bar .next.ok b{color:var(--accent)}
+.bar .next.wait b{color:var(--warn)}
+.track{height:3px;background:var(--line)}
+.track i{display:block;height:100%;width:0;background:linear-gradient(90deg,#2BE39B,#28B4F0);transition:width .3s}
+
+main{position:relative;z-index:1}
+.hero{padding:14px 0 8px}
+.kick{font:800 13px var(--f-body);letter-spacing:.18em;text-transform:uppercase;color:#9FD8C8}
+h1{font:400 clamp(54px,15vw,92px)/.92 var(--f-title);text-transform:uppercase;margin:10px 0 14px}
+.lead{font-size:17px;color:#CFE3E0}
+.lead b{color:#fff}
+section{padding:22px 0 6px}
+h2{font:400 30px/1 var(--f-title);text-transform:uppercase;letter-spacing:.01em;margin-bottom:14px}
+.box{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:18px}
+
+.rules{list-style:none;display:grid;gap:10px;counter-reset:r}
+.rules li{counter-increment:r;display:grid;grid-template-columns:34px 1fr;gap:10px;align-items:start;font-size:15px;color:#CFE3E0}
+.rules li::before{content:counter(r);display:grid;place-items:center;width:34px;height:34px;border-radius:12px;background:rgba(43,227,155,.12);border:1px solid rgba(43,227,155,.35);font:400 18px var(--f-title);color:var(--accent)}
+.rules b{color:#fff}
+.note{margin-top:14px;padding:12px 14px;border-radius:14px;background:rgba(245,196,81,.08);border:1px solid rgba(245,196,81,.3);font-size:14px;color:#EADFC2}
+.note b{color:#fff}
+details.join{margin-top:12px}
+details.join summary{cursor:pointer;font-weight:800;font-size:15px;color:var(--accent);list-style:none}
+details.join summary::-webkit-details-marker{display:none}
+details.join summary::before{content:"+ "}
+details.join[open] summary::before{content:"− "}
+.joinlist{display:grid;gap:6px;margin-top:10px}
+.joinlist a{display:flex;justify-content:space-between;gap:10px;padding:10px 12px;border-radius:12px;background:var(--surface-2);font-size:14px;font-weight:700}
+.joinlist a span{color:var(--muted);font-weight:600;white-space:nowrap}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:50px;padding:0 18px;border-radius:14px;font:900 16px var(--f-body);border:1.5px solid var(--line);background:rgba(17,33,40,.7);text-align:center}
+.btn.main{border:0;background:linear-gradient(105deg,#2BE39B,#22D3C5 55%,#28B4F0);color:var(--accent-ink);box-shadow:0 10px 30px rgba(43,227,155,.28)}
+.btn.sm{min-height:40px;padding:0 14px;font-size:14px;border-radius:12px}
+.btn:active{transform:scale(.98)}
+.btn.ok{border-color:var(--accent);color:var(--accent)}
+.btn.main.ok{background:#2BE39B;color:var(--accent-ink)}
+
+.video{display:grid;grid-template-columns:84px 1fr;gap:14px;align-items:center}
+.video img{width:84px;aspect-ratio:9/16;object-fit:cover;border-radius:12px;background:var(--surface-2);border:1px solid var(--line)}
+.video p{font-size:14px;color:var(--muted);margin-top:8px}
+.video p b{color:var(--ink)}
+.video .btn{width:100%}
+.video .alt{display:inline-block;margin-top:8px;font-size:13px;font-weight:700;color:var(--accent);text-decoration:underline;text-underline-offset:3px}
+
+/* Cartes groupes */
+.groups{display:grid;gap:16px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:16px;scroll-margin-top:70px;transition:border-color .2s,opacity .2s}
+.card.posted{border-color:rgba(43,227,155,.45)}
+.card.posted .body{opacity:.55}
+.top{display:grid;grid-template-columns:40px 1fr;gap:12px;align-items:start}
+.num{font:400 30px/1 var(--f-title);color:var(--accent)}
+.card h3{font:800 17px/1.25 var(--f-body);overflow-wrap:anywhere}
+.meta{font-size:13.5px;color:var(--muted);margin-top:3px}
+.mode{display:flex;align-items:flex-start;gap:9px;margin:14px 0 8px;font-size:13.5px;line-height:1.4;font-weight:700;color:#CFE3E0;cursor:pointer}
+.mode input{flex:none;width:18px;height:18px;margin-top:1px;accent-color:#2BE39B}
+.mode em{font-style:normal;color:var(--muted);font-weight:600}
+textarea.post{display:block;width:100%;min-height:200px;resize:vertical;border:1px solid var(--line);border-radius:14px;background:#071016;color:var(--ink);font:500 15px/1.5 var(--f-body);padding:12px 13px;overflow-wrap:anywhere;overflow:hidden}
+textarea.post:focus{outline:2px solid rgba(43,227,155,.5);outline-offset:1px}
+.sub{display:flex;justify-content:space-between;gap:10px;margin-top:6px;font-size:12.5px;color:var(--muted)}
+.sub button{background:none;border:0;color:var(--muted);text-decoration:underline;text-underline-offset:3px;font-size:12.5px}
+.sub .bad{color:var(--warn)}
+.btns{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.btns .btn{padding:0 10px;font-size:15.5px}
+.fc{margin-top:14px;padding:12px 13px;border-radius:14px;background:var(--surface-2);border:1px dashed var(--line)}
+.fc h4{font:800 13px var(--f-body);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.fc p{font-size:14.5px;margin:6px 0 10px;overflow-wrap:anywhere;white-space:pre-line}
+.done{display:flex;align-items:center;gap:10px;margin-top:14px;padding:12px 14px;border-radius:14px;border:1.5px solid var(--line);font-weight:800;cursor:pointer;user-select:none}
+.done input{width:22px;height:22px;accent-color:#2BE39B}
+.done .when{margin-left:auto;font-size:13px;font-weight:700;color:var(--muted)}
+.card.posted .done{border-color:var(--accent);background:rgba(43,227,155,.08)}
+.card.posted .done .when{color:var(--accent)}
+
+.replies{display:grid;gap:10px}
+.reply{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:14px 15px}
+.reply h3{font:800 15px var(--f-body);color:var(--accent)}
+.reply p{font-size:14.5px;color:#CFE3E0;margin:6px 0 10px;overflow-wrap:anywhere}
+
+footer{position:relative;z-index:1;margin-top:34px;border-top:1px solid var(--line);padding:20px 0 calc(36px + env(safe-area-inset-bottom));color:var(--muted);font-size:13px;display:grid;gap:12px}
+footer .btn{width:100%}
+footer p a{text-decoration:underline;text-underline-offset:3px}
+.toast{position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom));transform:translate(-50%,20px);opacity:0;z-index:30;background:#E6F2F0;color:#03140D;font-weight:800;font-size:14px;padding:10px 16px;border-radius:999px;box-shadow:0 10px 30px rgba(0,0,0,.5);transition:.25s;pointer-events:none;max-width:calc(100vw - 32px);text-align:center}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+@media (min-width:640px){ .wrap{padding:0 20px} .card{padding:20px} .video{grid-template-columns:110px 1fr} .video img{width:110px} .video .btn{width:auto} }
+</style>
+</head>
+<body>
+<div class="glow"></div>
+
+<div class="bar" id="bar">
+  <div class="wrap">
+    <div class="done-n"><span id="nDone">0</span><small> / <span id="nTotal">12</span> postés</small></div>
+    <div class="next" id="next">Commence par le groupe <b>01</b>.</div>
+  </div>
+  <div class="track"><i id="track"></i></div>
+</div>
+
+<div class="wrap">
+  <header>
+    <a class="brand" href="./"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M7 23c0-8 5.5-14 11.5-14 4.6 0 7.5 2.9 7.5 6.6 0 3.8-3 6.6-6.8 6.6-2.8 0-4.7-1.9-4.7-4.2" fill="none" stroke="#2BE39B" stroke-width="3.4" stroke-linecap="round"/><circle cx="7" cy="23" r="3.6" fill="#E6F2F0"/></svg>Traceo</a>
+    <span class="pill">Privé</span>
+  </header>
+
+  <main>
+    <div class="hero">
+      <p class="kick">Page privée · Pierre</p>
+      <h1>Lancement<br><span class="g">Facebook.</span></h1>
+      <p class="lead">12 groupes de course à pied, <b>un texte écrit pour chacun</b>. Tu copies, tu joins la vidéo, tu postes, tu coches. Le compteur en haut te dit quand passer au groupe suivant.</p>
+    </div>
+
+    <section>
+      <h2>Les 4 règles</h2>
+      <div class="box">
+        <ol class="rules">
+          <li><span><b>Un seul groupe à la fois.</b> Poste, puis reste quelques minutes sur le post pour répondre aux premiers commentaires.</span></li>
+          <li><span><b>Attends 20 à 30 min entre deux groupes.</b> Le même lien posté partout en quelques minutes, Facebook le classe en spam.</span></li>
+          <li><span><b>Personnalise la première ligne.</b> Change au moins quelques mots avant de copier : aucun post ne doit être identique à un autre.</span></li>
+          <li><span><b>Réponds à chaque commentaire dans l'heure.</b> C'est ce qui fait remonter le post dans le groupe. Les réponses toutes prêtes sont plus bas.</span></li>
+        </ol>
+        <p class="note"><b>Avant tout : rejoins les groupes.</b> Certains demandent une validation par un admin (ça peut prendre quelques heures) et d'autres valident chaque publication. Lis les règles épinglées de chaque groupe. <b>Cette page ne publie rien à ta place</b> : Facebook interdit les publications automatiques et bloque les comptes qui le font.</p>
+        <details class="join">
+          <summary>Ouvrir les 12 groupes pour les rejoindre</summary>
+          <div class="joinlist" id="joinlist"></div>
+        </details>
+      </div>
+    </section>
+
+    <section>
+      <h2>La vidéo de 30 s</h2>
+      <div class="box video">
+        <a href="https://traceorun.pages.dev/media/traceo-reel-premium-couverture.jpg" target="_blank" rel="noopener" aria-label="Ouvrir l'image de couverture"><img src="https://traceorun.pages.dev/media/traceo-reel-premium-couverture.jpg" alt="Couverture de la vidéo Traceo" loading="lazy" width="84" height="149"></a>
+        <div>
+          <a class="btn main" href="https://traceorun.pages.dev/media/traceo-reel-premium.mp4" download="traceo-video-30s.mp4" data-ev="lc_video">Télécharger la vidéo</a>
+          <p><b>Joins-la à chaque post</b> (bouton Photo/vidéo) : un post avec vidéo est bien plus vu qu'un texte seul. Sur iPhone, la vidéo s'ouvre : touche Partager puis « Enregistrer la vidéo ».</p>
+          <a class="alt" href="https://traceorun.pages.dev/media/traceo-reel-premium-couverture.jpg" target="_blank" rel="noopener" data-ev="lc_cover">Image de couverture (si la vidéo ne passe pas)</a>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Les 12 groupes</h2>
+      <div class="groups" id="groups"></div>
+    </section>
+
+    <section>
+      <h2>Réponses toutes prêtes</h2>
+      <div class="replies" id="replies"></div>
+    </section>
+  </main>
+
+  <footer>
+    <a class="btn" href="https://traceorun.pages.dev/tableau" target="_blank" rel="noopener" data-ev="lc_tableau">Voir les visites par groupe en direct</a>
+    <p>Dans le tableau de bord, chaque groupe apparaît sous sa source : <b>fb_bref</b>, <b>fb_lyon</b>, <b>fb_garmin</b>… Tu vois tout de suite quel texte marche le mieux.</p>
+    <p>© Traceo · Pierre Renard EI · <a href="legal.html">Mentions légales</a></p>
+  </footer>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function(){
+  "use strict";
+  var BASE = "https://traceorun.pages.dev/nouveau?src=fb_";
+  var IN_COMMENT = "lien en premier commentaire";
+  var GAP_MIN = 20;   // minutes conseillées entre deux groupes
+
+  // Textes : {LINK} est remplacé par le lien suivi du groupe (ou par « lien en premier commentaire »)
+  var GROUPS = [
+    { slug:"bref", name:"Bref, je fais du running", url:"https://www.facebook.com/groups/1113273562426921/",
+      meta:"~290 000 membres · publications validées par les admins · très récréatif, les copiés-collés s'y font chambrer",
+      comment:true,
+      post:"Bref, j'en avais marre de refaire toujours le même tour du quartier. Au point que les pigeons du parc me reconnaissaient.\n\nJe suis Pierre, coureur moi aussi, et j'ai fini par créer Traceo : tu choisis ta distance et, en un clic, il te dessine une boucle neuve autour de toi, loin des grands axes. Une voix te guide rue par rue, donc fini de sortir le téléphone à chaque carrefour.\n\n3 boucles offertes, sans carte bancaire, ça s'ouvre dans le navigateur : {LINK}\n\nJ'aimerais des retours francs, même ceux qui piquent. Et vous, c'est quoi le parcours que vous pourriez courir les yeux fermés ? 😅",
+      first:"Le lien pour tester (3 boucles offertes, pas de carte bancaire) : {URL}\nJe lis tout et je réponds à chacun." },
+
+    { slug:"marathon", name:"Marathon 42,195km, trail, semi, 10km - Running", url:"https://www.facebook.com/groups/1192019197496931",
+      meta:"~98 000 membres · posts commerciaux tolérés",
+      comment:false,
+      post:"Prépa marathon : à la troisième sortie longue sur le même parcours, on finit par compter les lampadaires.\n\nJe suis Pierre, coureur, et j'ai créé Traceo : tu choisis une distance (de 2 à 42 km) ou une durée, et en un clic l'appli trace une boucle neuve autour de chez toi, à l'écart des grands axes, avec un guidage vocal rue par rue. Avec Premium, tu envoies la boucle sur ta Garmin ou en GPX, et ta course part ensuite sur Strava.\n\n3 boucles offertes, sans carte bancaire : {LINK}\n\nQuestion aux marathoniens : pour une sortie longue de 25-30 km, vous préférez une grande boucle ou plusieurs petites autour de chez vous ?",
+      first:"Pour ceux qui veulent l'essayer sur leur prochaine sortie longue : {URL} (3 boucles offertes). Toutes les remarques sur les longues distances m'intéressent." },
+
+    { slug:"cap", name:"Course à Pied", url:"https://www.facebook.com/groups/courseapied/",
+      meta:"Liens et promos tolérés",
+      comment:false,
+      post:"Petite présentation et appel à testeurs : je m'appelle Pierre, je cours, et je viens de lancer Traceo, une appli web française pour ne plus refaire toujours le même parcours.\n\nLe principe : tu ouvres Traceo là où tu es, tu choisis une distance, et en un clic tu as une boucle neuve qui passe par des petites rues et des chemins plutôt que par les grands axes. Pendant la course, une voix te guide rue par rue.\n\nC'est gratuit pour 3 boucles, sans carte bancaire, puis 4,99 € pour 31 jours si tu veux l'illimité, sans renouvellement automatique : {LINK}\n\nQu'est-ce qui vous ferait adopter (ou fuir) ce genre d'appli ?",
+      first:"Le lien direct : {URL}\nÇa s'ouvre dans le navigateur, rien à installer. Je réponds à toutes les questions ici." },
+
+    { slug:"trail", name:"Bref, je fais du trail", url:"https://www.facebook.com/groups/820317944697805/",
+      meta:"30 000+ membres · trail · des organisateurs de courses y publient",
+      comment:true,
+      post:"Les traileurs, j'ai besoin de votre avis honnête, quitte à me faire recadrer.\n\nJe suis Pierre, coureur, et j'ai créé Traceo : une appli qui dessine en un clic une boucle neuve autour de toi, en privilégiant les petites rues et les chemins. Soyons clairs, elle est pensée pour les sorties au départ de chez soi, pas pour remplacer une vraie trace de montagne.\n\nLà où elle peut vous servir : les footings de récup en semaine, quand vous n'avez pas le temps d'aller sur les sentiers. Envoi Garmin et export GPX avec Premium. 3 boucles offertes pour tester : {LINK}\n\nQu'est-ce qui manquerait pour qu'une boucle générée automatiquement vous donne envie ?",
+      first:"Le lien, pour ceux que ça intéresse : {URL}\nEt si vous avez des idées pour une version plus « chemins », je suis preneur." },
+
+    { slug:"debutants", name:"Running : Groupe de conseils pour débuter la course à pied !", url:"https://www.facebook.com/groups/217643894728058",
+      meta:"~19 000 membres · débutants · demandes extérieures acceptées",
+      comment:false,
+      post:"Quand on débute, le plus dur n'est pas toujours de courir. C'est aussi de savoir où aller sans se perdre ni se retrouver le long d'une grosse route.\n\nJe suis Pierre, coureur, et c'est pour ça que j'ai créé Traceo. Tu choisis une petite distance (dès 2 km) ou une durée (dès 10 min), et l'appli te dessine une boucle qui part de là où tu es et y revient, par des rues calmes. Une voix t'annonce chaque rue, tu n'as qu'à suivre.\n\nRien à télécharger, ça s'ouvre dans le navigateur du téléphone, et les 3 premières boucles sont offertes : {LINK}\n\nVous qui débutez, c'est quoi votre plus gros frein pour sortir courir ?",
+      first:"Le lien pour essayer : {URL}\nAstuce : commence par une boucle de 2 ou 3 km, tu pourras toujours allonger la prochaine fois." },
+
+    { slug:"rfc", name:"Running France Communauté – Débutants & Marathoniens bienvenus", url:"https://www.facebook.com/groups/713849781019015",
+      meta:"Des marques y publient",
+      comment:false,
+      post:"Débutant ou marathonien, on connaît tous ce moment : chaussures lacées sur le pas de la porte, et la même question, « je passe par où aujourd'hui ? ».\n\nJe suis Pierre, coureur et créateur de Traceo, une petite appli française qui y répond en un clic : une boucle neuve autour de toi, à la distance ou à la durée que tu veux, loin des grands axes, avec un guidage vocal rue par rue. Ça marche partout en France, sur iPhone comme sur Android, directement dans le navigateur.\n\n3 boucles offertes, sans carte bancaire : {LINK}\n\nJe prends tous les retours. Vous changez souvent de parcours, ou vous avez votre circuit fétiche ?",
+      first:"Pour tester : {URL} (3 boucles offertes, sans carte bancaire). Merci d'avance pour vos retours, bons ou mauvais." },
+
+    { slug:"strava", name:"Strava Running France", url:"https://www.facebook.com/groups/3402258830004560",
+      meta:"Utilisateurs Strava · Traceo envoie tes courses sur Strava (Premium)",
+      comment:false,
+      post:"Une question pour les adeptes de Strava : à force de repasser sur les mêmes segments, vous n'avez pas l'impression de courir en boucle, au sens propre ?\n\nMoi c'est Pierre, coureur, et j'ai créé Traceo pour casser la routine : en un clic, l'appli génère une boucle neuve autour de toi, par des petites rues plutôt que les grands axes, avec un guidage vocal rue par rue. Après la course, Premium te permet d'envoyer ta sortie sur Strava. L'idée n'est pas de remplacer Strava, juste de lui donner de nouvelles rues à enregistrer.\n\n3 boucles offertes pour tester : {LINK}\n\nVous préparez vos parcours à l'avance, ou vous improvisez à chaque sortie ?",
+      first:"Le lien : {URL}\nAprès ta course, l'envoi sur Strava se fait depuis le bilan (avec Premium)." },
+
+    { slug:"40ans", name:"Courir après 40 ans : Running & Course à Pied", url:"https://www.facebook.com/groups/1844737356084213",
+      meta:"Coureurs de 40 ans et plus",
+      comment:false,
+      post:"Passé 40 ans, courir, c'est souvent caser une sortie entre le boulot, la famille et tout le reste. Un créneau de 45 minutes, et pas envie de le passer à chercher un parcours.\n\nJe suis Pierre, coureur, et j'ai créé Traceo pour ces créneaux-là. Tu indiques le temps dont tu disposes (de 10 min à 4 h) ou une distance, et l'appli trace en un clic une boucle neuve qui part de chez toi et y revient, en évitant les grands axes. Une voix te guide rue par rue, tu restes concentré sur ta foulée.\n\nGratuit pour 3 boucles, sans carte bancaire : {LINK}\n\nEt vous, depuis vos 40 ans, vous courez plutôt au chrono ou plutôt au plaisir ?",
+      first:"Le lien : {URL}\nTu peux régler la boucle en durée plutôt qu'en kilomètres, pratique pour les créneaux serrés." },
+
+    { slug:"50ans", name:"Courir après 50 ans", url:"https://www.facebook.com/groups/743206463414773/",
+      meta:"Coureurs de 50 ans et plus · des clubs y publient",
+      comment:false,
+      post:"Bonjour à toutes et à tous. Je me permets ce message, car ce groupe m'a semblé le bon endroit pour avoir des avis sincères.\n\nJe m'appelle Pierre, je cours moi aussi, et j'ai créé Traceo, une application française qui propose une boucle de course nouvelle à chaque sortie, au départ de là où vous êtes. Elle privilégie les rues calmes et les chemins plutôt que les grands axes, et une voix indique le chemin rue par rue : pas besoin de regarder l'écran.\n\nRien à installer, cela s'ouvre dans le navigateur du téléphone. Les 3 premières boucles sont offertes : {LINK}\n\nAimez-vous découvrir de nouveaux parcours, ou préférez-vous vos circuits habituels ?",
+      first:"Voici le lien pour essayer : {URL}\nN'hésitez pas si vous avez une question, je réponds à tout le monde." },
+
+    { slug:"univers", name:"Univers du Running", url:"https://www.facebook.com/groups/universdurunning",
+      meta:"L'admin y partage des liens",
+      comment:false,
+      post:"Combien de rues de votre propre ville n'avez-vous jamais courues ? Sûrement plus qu'on ne le pense. C'est l'idée de départ de Traceo.\n\nJe suis Pierre, coureur, et j'ai développé cette appli pour redécouvrir son coin en courant : en un clic, elle dessine une boucle neuve autour de toi, à la distance que tu veux, à l'écart des grosses routes. Le guidage vocal t'annonce les rues une par une, et avec Premium tu envoies la boucle sur ta Garmin ou en GPX.\n\nÀ tester gratuitement, 3 boucles sans carte bancaire : {LINK}\n\nQuelle est la plus belle rue ou le plus beau chemin que vous avez découvert en courant ?",
+      first:"Le lien : {URL}\nSi une boucle vous fait découvrir une rue sympa, racontez-moi !" },
+
+    { slug:"garmin", name:"Je ne suis pas un héros mais j'ai une Garmin", url:"https://www.facebook.com/groups/313677265859361",
+      meta:"Utilisateurs Garmin · le partage d'outils gratuits y est apprécié",
+      comment:false,
+      post:"Pas de héros ici non plus, mais une question pour les porteurs de Garmin : vous chargez souvent des parcours sur votre montre, ou elle sert surtout à enregistrer ?\n\nJe suis Pierre, coureur, et j'ai créé Traceo : en un clic, l'appli dessine une boucle neuve autour de toi, en évitant les grands axes. Avec Premium, tu l'envoies sur ta Garmin pour suivre le tracé au poignet, ou tu récupères le GPX. Sans montre, le guidage vocal fait le boulot, rue par rue.\n\nPour être clair : 3 boucles offertes, puis 4,99 € les 31 jours, sans renouvellement automatique. Pour tester : {LINK}\n\nVous qui suivez un parcours au poignet, qu'est-ce qui vous agace le plus ?",
+      first:"Le lien : {URL}\nL'envoi sur la montre se fait avec le bouton « Garmin » sous la boucle (Premium)." },
+
+    { slug:"lyon", name:"Courir A Lyon", url:"https://www.facebook.com/groups/couriralyon",
+      meta:"~22 000 membres · local, Lyon",
+      comment:false,
+      post:"Salut les coureurs lyonnais ! Petite question : vous connaissez vraiment toutes les rues entre votre porte et les quais ?\n\nJe suis Pierre, coureur, et j'ai créé Traceo, une appli qui dessine en un clic une boucle neuve autour de toi, partout en France, Lyon compris. Elle privilégie les petites rues, évite les grands axes et te guide à la voix rue par rue, pratique quand on ne connaît pas le quartier.\n\nJ'aimerais beaucoup des retours d'ici : si vous testez depuis la Croix-Rousse, Gerland ou Villeurbanne, dites-moi si la boucle tient la route. 3 boucles offertes : {LINK}\n\nVous courez plutôt sur les quais ou dans les pentes ?",
+      first:"Le lien pour tester depuis chez vous : {URL}\nJe suis curieux de voir ce que ça donne entre Rhône et Saône." }
+  ];
+
+  var REPLIES = [
+    { q:"C'est gratuit ?", a:"Les 3 premières boucles sont offertes, avec un compte gratuit et sans carte bancaire, guidage vocal compris. Ensuite, Premium coûte 4,99 € pour 31 jours, payé une fois par PayPal, sans renouvellement automatique : tu reprends seulement si ça te plaît." },
+    { q:"Ça marche où ?", a:"Partout en France, outre-mer compris. La boucle part de ta position et y revient, dans les vraies rues autour de toi : tu choisis la distance (de 2 à 42 km) ou la durée." },
+    { q:"C'est sur Android ou iPhone ?", a:"Les deux, et sans passer par un store : Traceo s'ouvre dans le navigateur du téléphone (Safari sur iPhone, Chrome sur Android). Tu peux l'ajouter à ton écran d'accueil en quelques secondes pour l'ouvrir comme une appli." },
+    { q:"Quelle différence avec Strava ou Komoot ?", a:"Strava enregistre tes sorties, et sur Komoot tu planifies un itinéraire. Traceo te propose directement une boucle neuve depuis là où tu es, à la distance voulue, sans rien dessiner, avec un guidage vocal rue par rue. Et ça se complète : avec Premium, ta course part sur Strava et la boucle sur ta Garmin ou en GPX." },
+    { q:"Et mes données perso ?", a:"Tes boucles et tes réglages restent sur ton téléphone, dans la mémoire du navigateur. Le compte sert à compter tes boucles offertes, rien n'est vendu ni cédé, et le paiement passe par PayPal : je ne vois jamais tes données bancaires. Tout est détaillé ici : https://traceorun.pages.dev/legal" },
+    { q:"Premium, ça apporte quoi ?", a:"Les boucles illimitées, l'envoi de la boucle sur ta montre Garmin, l'envoi de tes courses sur Strava, l'export GPX pour toutes les montres et l'image de ta boucle à partager. 4,99 € pour 31 jours, sans renouvellement automatique." }
+  ];
+
+  // ---------- mémoire locale (facultative : la page marche sans) ----------
+  var KEY = "traceo-lancement-v1";
+  var S = { posted:{}, mode:{}, text:{} };
+  try{ var raw = localStorage.getItem(KEY); if(raw){ var o = JSON.parse(raw); if(o && typeof o === "object"){ S.posted = o.posted || {}; S.mode = o.mode || {}; S.text = o.text || {}; } } }catch(e){}
+  function save(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){} }
+
+  var $ = function(s, r){ return (r || document).querySelector(s); };
+  function el(tag, attrs, text){
+    var n = document.createElement(tag);
+    if(attrs) for(var k in attrs){ if(k === "class") n.className = attrs[k]; else n.setAttribute(k, attrs[k]); }
+    if(text != null) n.textContent = text;
+    return n;
+  }
+  var pad = function(n){ return (n < 10 ? "0" : "") + n; };
+  var hhmm = function(t){ var d = new Date(t); return pad(d.getHours()) + ":" + pad(d.getMinutes()); };
+  var linkOf = function(g){ return BASE + g.slug; };
+  var inComment = function(g){ return S.mode[g.slug] != null ? !!S.mode[g.slug] : g.comment; };
+  var fresh = function(g){ return g.post.replace("{LINK}", inComment(g) ? IN_COMMENT : linkOf(g)); };
+
+  // ---------- copie : presse-papiers, sinon ancienne méthode ----------
+  function fallbackCopy(text){
+    var ta = el("textarea"); ta.value = text; ta.setAttribute("readonly", "");
+    ta.style.cssText = "position:fixed;top:0;left:0;opacity:0;width:1px;height:1px";
+    document.body.appendChild(ta); ta.focus(); ta.select();
+    try{ ta.setSelectionRange(0, text.length); }catch(e){}
+    var ok = false; try{ ok = document.execCommand("copy"); }catch(e){}
+    document.body.removeChild(ta);
+    return ok;
+  }
+  function copy(text){
+    if(navigator.clipboard && window.isSecureContext){
+      return navigator.clipboard.writeText(text).then(function(){ return true; }, function(){ return fallbackCopy(text); });
+    }
+    return Promise.resolve(fallbackCopy(text));
+  }
+  var toastT;
+  function toast(msg){ var t = $("#toast"); t.textContent = msg; t.classList.add("on"); clearTimeout(toastT); toastT = setTimeout(function(){ t.classList.remove("on"); }, 2200); }
+  function flash(btn, label, okMsg){
+    var orig = btn.getAttribute("data-label") || btn.textContent; btn.setAttribute("data-label", orig);
+    btn.textContent = label; btn.classList.add("ok"); toast(okMsg);
+    setTimeout(function(){ btn.textContent = orig; btn.classList.remove("ok"); }, 2000);
+  }
+  function copyBtn(btn, getText, okMsg){
+    btn.addEventListener("click", function(){
+      copy(getText()).then(function(ok){
+        if(ok) flash(btn, "Copié ✓", okMsg || "Texte copié");
+        else toast("Copie impossible : sélectionne le texte à la main");
+      });
+    });
+  }
+
+  // ---------- rendu ----------
+  var joinlist = $("#joinlist");
+  var groupsEl = $("#groups");
+  $("#nTotal").textContent = GROUPS.length;
+
+  GROUPS.forEach(function(g, i){
+    var n = pad(i + 1);
+    var j = el("a", { href:g.url, target:"_blank", rel:"noopener", "data-ev":"lc_rejoindre" });
+    j.appendChild(el("b", null, g.name)); j.appendChild(el("span", null, "Rejoindre ↗"));
+    joinlist.appendChild(j);
+
+    var card = el("article", { class:"card", id:"g-" + g.slug });
+    var top = el("div", { class:"top" });
+    top.appendChild(el("span", { class:"num" }, n));
+    var head = el("div"); head.appendChild(el("h3", null, g.name)); head.appendChild(el("p", { class:"meta" }, g.meta));
+    top.appendChild(head); card.appendChild(top);
+
+    var body = el("div", { class:"body" });
+    var mode = el("label", { class:"mode" });
+    var modeIn = el("input", { type:"checkbox" }); modeIn.checked = inComment(g);
+    var modeTx = el("span", null, "Lien en premier commentaire");
+    modeTx.appendChild(el("em", null, g.comment ? " · conseillé ici" : " · si le groupe refuse les liens"));
+    mode.appendChild(modeIn); mode.appendChild(modeTx);
+    body.appendChild(mode);
+
+    var ta = el("textarea", { class:"post", spellcheck:"true", "aria-label":"Texte du post pour " + g.name });
+    ta.value = S.text[g.slug] || fresh(g);
+    body.appendChild(ta);
+    var sub = el("div", { class:"sub" });
+    var count = el("span"); var reset = el("button", { type:"button" }, "Texte d'origine");
+    sub.appendChild(count); sub.appendChild(reset); body.appendChild(sub);
+
+    var btns = el("div", { class:"btns" });
+    var bCopy = el("button", { type:"button", class:"btn main", "data-ev":"lc_copier" }, "Copier le texte");
+    var bOpen = el("a", { class:"btn", href:g.url, target:"_blank", rel:"noopener", "data-ev":"lc_ouvrir" }, "Ouvrir le groupe");
+    btns.appendChild(bCopy); btns.appendChild(bOpen); body.appendChild(btns);
+
+    var fc = el("div", { class:"fc" });
+    fc.appendChild(el("h4", null, "Premier commentaire"));
+    var firstText = g.first.replace("{URL}", linkOf(g));
+    fc.appendChild(el("p", null, firstText));
+    var bFc = el("button", { type:"button", class:"btn sm", "data-ev":"lc_comment" }, "Copier le commentaire");
+    fc.appendChild(bFc); body.appendChild(fc);
+    card.appendChild(body);
+
+    var done = el("label", { class:"done" });
+    var doneIn = el("input", { type:"checkbox" });
+    var when = el("span", { class:"when" });
+    done.appendChild(doneIn); done.appendChild(document.createTextNode("Posté")); done.appendChild(when);
+    card.appendChild(done);
+    groupsEl.appendChild(card);
+
+    function sizeTa(){ ta.style.height = "auto"; ta.style.height = (ta.scrollHeight + 2) + "px"; }
+    function refreshCount(){
+      var len = ta.value.length;
+      count.textContent = len + " caractères" + (ta.value.indexOf(linkOf(g)) >= 0 ? " · lien inclus" : "");
+      count.className = len > 700 ? "bad" : "";
+    }
+    function refreshDone(){
+      var t = S.posted[g.slug];
+      doneIn.checked = !!t; card.classList.toggle("posted", !!t);
+      when.textContent = t ? "à " + hhmm(t) : "";
+    }
+    ta.addEventListener("input", function(){
+      sizeTa(); refreshCount();
+      if(ta.value === fresh(g)) delete S.text[g.slug]; else S.text[g.slug] = ta.value;
+      save();
+    });
+    modeIn.addEventListener("change", function(){
+      S.mode[g.slug] = modeIn.checked;
+      var link = linkOf(g);
+      ta.value = modeIn.checked ? ta.value.split(link).join(IN_COMMENT) : ta.value.split(IN_COMMENT).join(link);
+      if(ta.value === fresh(g)) delete S.text[g.slug]; else S.text[g.slug] = ta.value;
+      save(); sizeTa(); refreshCount();
+    });
+    reset.addEventListener("click", function(){ delete S.text[g.slug]; ta.value = fresh(g); save(); sizeTa(); refreshCount(); });
+    copyBtn(bCopy, function(){ return ta.value; }, "Post copié · joins la vidéo puis colle");
+    copyBtn(bFc, function(){ return firstText; }, "Commentaire copié");
+    doneIn.addEventListener("change", function(){
+      if(doneIn.checked) S.posted[g.slug] = Date.now(); else delete S.posted[g.slug];
+      save(); refreshDone(); refreshBar();
+      if(doneIn.checked){
+        var nxt = GROUPS.filter(function(x){ return !S.posted[x.slug]; })[0];
+        toast(nxt ? "Bien joué. Prochain groupe dans " + GAP_MIN + " min" : "Les 12 groupes sont faits !");
+      }
+    });
+
+    refreshCount(); refreshDone();
+    card._size = sizeTa;
+  });
+
+  REPLIES.forEach(function(r){
+    var box = el("div", { class:"reply" });
+    box.appendChild(el("h3", null, "« " + r.q + " »"));
+    box.appendChild(el("p", null, r.a));
+    var b = el("button", { type:"button", class:"btn sm", "data-ev":"lc_reponse" }, "Copier la réponse");
+    box.appendChild(b); copyBtn(b, function(){ return r.a; }, "Réponse copiée");
+    $("#replies").appendChild(box);
+  });
+
+  // ---------- barre de suivi : combien de groupes faits, quand poster le suivant ----------
+  function refreshBar(){
+    var times = GROUPS.map(function(g){ return S.posted[g.slug] || 0; });
+    var nDone = times.filter(Boolean).length;
+    $("#nDone").textContent = nDone;
+    $("#track").style.width = (nDone / GROUPS.length * 100) + "%";
+    var next = $("#next"); next.className = "next";
+    var idx = -1; for(var i = 0; i < GROUPS.length; i++){ if(!times[i]){ idx = i; break; } }
+    if(idx < 0){ next.innerHTML = "<b>Tout est posté.</b> Reste sur les commentaires."; next.className = "next ok"; return; }
+    var label = "<b>" + pad(idx + 1) + "</b> " + escapeHtml(short(GROUPS[idx].name));
+    var last = Math.max.apply(null, times);
+    if(!last){ next.innerHTML = "Commence par le groupe " + label; return; }
+    var wait = Math.ceil((last + GAP_MIN * 60e3 - Date.now()) / 60e3);
+    if(wait > 0){ next.className = "next wait"; next.innerHTML = "Dernier post à " + hhmm(last) + ". Prochain dans <b>" + wait + " min</b> : " + escapeHtml(short(GROUPS[idx].name)); }
+    else { next.className = "next ok"; next.innerHTML = "<b>C'est bon, tu peux poster</b> dans le groupe " + pad(idx + 1); }
+  }
+  function short(s){ return s.length > 30 ? s.slice(0, 29) + "…" : s; }
+  function escapeHtml(s){ return s.replace(/[&<>"]/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]; }); }
+  $("#next").addEventListener("click", function(){
+    var g = GROUPS.filter(function(x){ return !S.posted[x.slug]; })[0];
+    if(g){ var c = document.getElementById("g-" + g.slug); if(c) c.scrollIntoView({ behavior:"smooth", block:"start" }); }
+  });
+  $("#next").style.cursor = "pointer";
+
+  function sizeAll(){ Array.prototype.forEach.call(document.querySelectorAll(".card"), function(c){ if(c._size) c._size(); }); }
+  sizeAll();
+  window.addEventListener("resize", sizeAll);
+  if(document.fonts && document.fonts.ready) document.fonts.ready.then(sizeAll);
+  refreshBar();
+  setInterval(refreshBar, 30e3);
+})();
+</script>
+<script src="stats.js" defer></script>
+</body>
+</html>
