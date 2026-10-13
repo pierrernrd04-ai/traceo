@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Traceo</title>
+<style>html,body{margin:0;height:100%;background:#07131A;color:#E6F2F0;font:600 17px system-ui,sans-serif;display:grid;place-items:center}</style>
+</head>
+<body>
+<p>Un instant…</p>
+<script>
+// Déménagement d'adresse : reprend les données que l'ancienne adresse du site a envoyées (voir _worker.js), sans écraser celles déjà là.
+// Seule l'ancienne adresse officielle peut en envoyer (vérifié par la provenance), et on ne repart que vers une page de ce site.
+(function(){
+  var p = new URLSearchParams(location.hash.slice(1)), to = p.get("to") || "/app", from = p.get("from") || "", d = p.get("d");
+  if(!/^\/(?![\/\\])/.test(to)) to = "/app";
+  var okFrom = /^https:\/\/traceorun\.pages\.dev$|^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(from) && document.referrer.indexOf(from + "/") === 0;
+  try{
+    if(d && okFrom){
+      var o = JSON.parse(decodeURIComponent(escape(atob(d))));
+      for(var k in o) if(/^traceo/.test(k) && typeof o[k] === "string" && localStorage.getItem(k) === null) localStorage.setItem(k, o[k]);
+    }
+  }catch(e){}
+  location.replace(to);
+})();
+</script>
+</body>
+</html>

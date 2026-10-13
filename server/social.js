@@ -667,7 +667,7 @@ export class Hub {
       }, 200, {});
     }
     if(path === "traffic") return json(this.traffic(+url.searchParams.get("days") || 30), 200, {});
-    if(path === "dash") return json({...this.dashboard(+url.searchParams.get("days") || 30), seo:this.kvJson("seo:last")}, 200, {});
+    if(path === "dash") return json({...this.dashboard(+url.searchParams.get("days") || 30), seo:this.kvJson("seo:last"), domain:this.kvJson("seo:domain")}, 200, {});
     if(path === "members"){
       const rows = this.rows(`SELECT u.*, (SELECT COUNT(*) FROM msgs WHERE a = u.id) AS sent, (SELECT COUNT(*) FROM reports WHERE whom = u.id) AS reported, (SELECT COUNT(*) FROM runs WHERE uid = u.id AND ok = 1) AS runs, u.free_used AS free_used FROM users u ORDER BY created DESC LIMIT 5000`);
       return json({members:rows.map(u => ({id:u.id, pseudo:u.pseudo, first:u.first, last:u.last, email:u.email, birth:u.birth, level:u.level, pace:u.pace, created:u.created, last_login:u.last_login, seen:u.seen,
@@ -712,8 +712,8 @@ export class Hub {
   async seoState(req){
     // GET : empreintes des pages + dernier passage ; POST {hashes?, last} : enregistre (appelé seulement par le worker)
     if(req.method === "POST"){ let b; try{ b = await req.json(); }catch(e){ return json({error:"bad_json"}, 400, {}); }
-      for(const k of ["hashes", "last"]){ const v = b && b[k] && typeof b[k] === "object" ? JSON.stringify(b[k]) : ""; if(v && v.length < 200000) this.sql.exec("INSERT OR REPLACE INTO kv(k, v) VALUES(?, ?)", "seo:" + k, v); } }
-    return json({hashes:this.kvJson("seo:hashes") || {}, last:this.kvJson("seo:last")}, 200, {});
+      for(const k of ["hashes", "last", "domain"]){ const v = b && b[k] && typeof b[k] === "object" ? JSON.stringify(b[k]) : ""; if(v && v.length < 200000) this.sql.exec("INSERT OR REPLACE INTO kv(k, v) VALUES(?, ?)", "seo:" + k, v); } }
+    return json({hashes:this.kvJson("seo:hashes") || {}, last:this.kvJson("seo:last"), domain:this.kvJson("seo:domain")}, 200, {});
   }
 
   /* ---------- Notifications (Web Push, sans contenu : le téléphone vient lire le message) ---------- */

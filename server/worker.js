@@ -60,7 +60,7 @@ export default {
     }
   },
   // tâche planifiée (wrangler.toml > [triggers]) : référencement automatique, toutes les heures
-  async scheduled(event, env, ctx){ await seo(env); }
+  async scheduled(event, env, ctx){ const site = await domaine(env).catch(() => null); await seo(env, site); }
 };
 
 function base(env){ return env.PAYPAL_ENV === "sandbox" ? "https://api-m.sandbox.paypal.com" : "https://api-m.paypal.com"; }
@@ -233,8 +233,8 @@ function robotsBlocksAll(txt){
   }
   return block;
 }
-async function seo(env){
-  const site = String(env.SITE_URL || "https://traceorun.pages.dev").replace(/\/+$/, ""), host = new URL(site).host, keyLocation = `${site}/${INDEXNOW_KEY}.txt`;
+async function seo(env, main){
+  const site = String(env.SITE_URL || main || "https://traceorun.pages.dev").replace(/\/+$/, ""), host = new URL(site).host, keyLocation = `${site}/${INDEXNOW_KEY}.txt`;
   const hub = env.HUB.get(env.HUB.idFromName("france"));
   const state = async body => { const r = await hub.fetch(new Request("https://hub/internal/seo-state", {method:body ? "POST" : "GET", headers:{"X-Traceo-Internal":"seo", "Content-Type":"application/json"}, body:body ? JSON.stringify(body) : undefined})); if(!r.ok) throw new Error("hub " + r.status); return r.json(); };
   const get = (u, ms = 15000) => fetch(u, {headers:{"User-Agent":"Traceo-SEO/1.0 (+https://traceorun.pages.dev/)"}, cache:"no-store", redirect:"follow", signal:AbortSignal.timeout(ms)});
@@ -285,7 +285,7 @@ async function seo(env){
     }
     last.status = r ? r.status : 0;
     if(r && (r.status === 200 || r.status === 202)){ save = fresh; last.submitted = changed; last.lastSubmit = last.t; }
-    else last.error = `les moteurs ont répondu HTTP ${last.status || "injoignable"}` + ({400:" (requête invalide)", 403:" (clé refusée)", 422:" (adresses refusées)", 429:" (trop d'envois)"}[last.status] || "") + " : nouvel essai dans une heure";
+    else last.error = (last.status ? `les moteurs ont répondu HTTP ${last.status}` + ({400:" (requête invalide)", 403:" (clé refusée)", 422:" (adresses refusées)", 429:" (trop d'envois)"}[last.status] || "") : "aucun moteur joignable") + " : nouvel essai dans une heure";
   }catch(e){ last.error = "erreur : " + String(e.message || e).slice(0, 160); }
   finally{
     if(save) last.pages = Object.keys(save).length;
@@ -299,4 +299,46 @@ async function seo(env){
     }
     await state(save ? {hashes:save, last} : {last}).catch(e => console.error("seo: état non enregistré", e));
   }
+}
+
+/* ---------- Domaine gratuit traceo.eu.org : branchement et bascule automatiques ----------
+   Pierre ajoute le domaine dans Cloudflare (gratuit) et le demande sur nic.eu.org (gratuit). Ensuite, chaque heure, sans lui :
+   1. dès que la zone existe dans Cloudflare, le domaine est branché sur le site (Pages) ;
+   2. dès qu'il sert le site, _worker.js (côté site) redirige l'ancienne adresse, le référencement passe dessus et Pierre est prévenu.
+   Renvoie l'adresse principale du site. Branchement : secret CF_API_TOKEN + variable CF_ACCOUNT_ID (sans eux, seule la bascule a lieu). */
+const DOMAIN = "traceo.eu.org", PAGES_PROJECT = "traceorun", OLD_SITE = "https://traceorun.pages.dev", NEW_SITE = "https://" + DOMAIN;
+async function domaine(env){
+  const hub = env.HUB.get(env.HUB.idFromName("france"));
+  const st = body => hub.fetch(new Request("https://hub/internal/seo-state", {method:body ? "POST" : "GET", headers:{"X-Traceo-Internal":"seo", "Content-Type":"application/json"}, body:body ? JSON.stringify(body) : undefined})).then(r => r.json());
+  const alert = a => hub.fetch(new Request("https://hub/internal/alert", {method:"POST", headers:{"X-Traceo-Internal":"alert", "Content-Type":"application/json"}, body:JSON.stringify({tags:"globe_with_meridians", click:OLD_SITE + "/tableau", ...a})})).catch(() => null);
+  const d = (await st().catch(() => ({}))).domain || {}, was = d.stage || "";
+  const neu = env.DOMAIN_ORIGIN || NEW_SITE;   // surchargé seulement pour les tests locaux
+  const live = await fetch(`${neu}/${INDEXNOW_KEY}.txt`, {cache:"no-store", signal:AbortSignal.timeout(8000)}).then(async r => r.ok && (await r.text()).trim() === INDEXNOW_KEY).catch(() => false);
+  d.t = Date.now(); d.err = "";
+  if(live){
+    d.stage = "en_ligne";
+    if(was !== "en_ligne"){ d.since = d.t;
+      await alert({title:"Ton domaine gratuit est en ligne !", priority:"high", click:NEW_SITE + "/tableau", body:`🎉 ${DOMAIN} sert maintenant Traceo. L'ancienne adresse redirige toute seule (Google garde tout) et tes utilisateurs gardent leurs données. Dernière étape, 2 min : Search Console › Ajouter une propriété › ${NEW_SITE}/ (même code de validation), puis dans l'ancienne propriété › Paramètres › Changement d'adresse.`}); }
+  } else if(env.CF_API_TOKEN && env.CF_ACCOUNT_ID){
+    const cf = (p, o = {}) => fetch("https://api.cloudflare.com/client/v4" + p, {...o, headers:{Authorization:"Bearer " + env.CF_API_TOKEN, "Content-Type":"application/json"}, signal:AbortSignal.timeout(10000)}).then(r => r.json()).catch(() => ({}));
+    const base = `/accounts/${env.CF_ACCOUNT_ID}/pages/projects/${PAGES_PROJECT}/domains`;
+    const z = ((await cf(`/zones?name=${DOMAIN}`)).result || [])[0];
+    d.zone = z ? z.status : "absente";
+    if(!z) d.stage = "attente_cloudflare";
+    else{
+      let pd = ((await cf(base)).result || []).find(x => x.name === DOMAIN);
+      if(!pd){ const r = await cf(base, {method:"POST", body:JSON.stringify({name:DOMAIN})}); pd = r.result; if(!r.success) d.err = (r.errors || []).map(e => e.message).join(" ; ").slice(0, 200); }
+      else if(z.status === "active" && /error|deactivated|blocked/.test(pd.status || "")) await cf(`${base}/${DOMAIN}`, {method:"PATCH"});   // relance la vérification
+      d.pages = pd ? pd.status : "non branché";
+      d.stage = z.status === "active" ? "certificat" : "attente_eu_org";
+      if(!d.zoneSeen){ d.zoneSeen = d.t;
+        await alert({title:"Domaine ajouté dans Cloudflare", body:`${DOMAIN} est bien dans Cloudflare${pd ? " et branché sur le site" : " (je le branche sur le site dès que Cloudflare l'accepte)"}. Il reste la validation gratuite par eu.org (de quelques jours à quelques semaines) : je bascule tout seul dès qu'elle arrive, rien d'autre à faire.`}); }
+      if(z.status === "active"){ d.activeSince = d.activeSince || d.t;
+        // validé par eu.org mais toujours pas servi au bout de 24 h : l'enregistrement DNS manque sans doute (une seule alerte)
+        if(d.t - d.activeSince > 864e5 && !d.dnsWarned){ d.dnsWarned = d.t;
+          await alert({title:"Domaine : une étape à vérifier", priority:"high", body:`${DOMAIN} est validé mais ne répond pas encore. Dans Cloudflare › ${DOMAIN} › DNS, vérifie qu'il existe un enregistrement CNAME « @ » vers ${PAGES_PROJECT}.pages.dev (proxy orange), sinon ajoute-le.`}); } }
+    }
+  }
+  await st({domain:d}).catch(() => {});
+  return live ? neu : OLD_SITE;
 }

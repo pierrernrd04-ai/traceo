@@ -7,10 +7,12 @@ compatibility_flags = ["nodejs_compat"]
 
 [vars]
 PAYPAL_ENV = "live"
-APP_ORIGIN = "https://traceorun.pages.dev,https://traceo.pages.dev,https://pierrernrd04-ai.github.io,https://localhost,capacitor://localhost"
+APP_ORIGIN = "https://traceo.eu.org,https://traceorun.pages.dev,https://traceo.pages.dev,https://pierrernrd04-ai.github.io,https://localhost,capacitor://localhost"
 PUSH_SUBJECT = "https://pierrernrd04-ai.github.io/traceo/"
 ALERTS_TOPIC = "traceo-alertes-94082f64b4"
 PAYPAL_MERCHANT_ID = "7AR8HKPQ9RGH2"
+# Domaine gratuit traceo.eu.org : compte Cloudflare où le brancher (le jeton CF_API_TOKEN est un secret, voir domaine() dans worker.js)
+CF_ACCOUNT_ID = "b408ac1ecb8c5d0628c2d659f918ae7e"
 # PAYPAL_CLIENT_ID et PAYPAL_PLAN_ID : à ajouter ici ou dans le tableau de bord Cloudflare
 
 # « Ensemble » : comptes, positions approximatives, messages (Durable Object SQLite, offre gratuite)
