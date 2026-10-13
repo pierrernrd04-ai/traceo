@@ -2900,6 +2900,8 @@ document.addEventListener("visibilitychange", async () => {
 });
 document.addEventListener("visibilitychange", () => { if(!document.hidden && S.tab === "premium" && modal.hidden && store.get("payPending", 0) > Date.now() - 2*3600e3) render(); });
 rebuildMemory(); render(); payOnLaunch(); checkBetaLock(); syncClock();
+// ensemble.js (chargé après app.js) sait si l'on est invité : on redessine une fois pour le bon texte (« Ta première boucle est offerte, sans compte. »)
+document.addEventListener("DOMContentLoaded", () => { if(S.tab === "plan" && S.view === "form" && !run.active) try{ render(); }catch(e){} }, {once:true});
 setTimeout(() => { if(!PV) brProfile().catch(() => {}); }, 1200);   // profil piéton sécurité prêt avant le premier calcul
 if("serviceWorker" in navigator && location.protocol === "https:" && !PV && !NATIVE) navigator.serviceWorker.register("sw.js").catch(() => {});
 // À l'ouverture : un écran d'accueil motivant. Pas de localisation automatique : l'utilisateur choisit son départ.
