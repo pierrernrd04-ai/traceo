@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Parcours course à pied Paris : boucle de 7 km | Traceo</title>
+<meta name="description" content="Boucle running de 7 km au départ du Champ de Mars : pont de Bir-Hakeim, Passy, Étoile, avenue Montaigne, pont de l'Alma. Tracé réel, D+, durées.">
+<meta name="theme-color" content="#050F15">
+<link rel="icon" href="../icons/icon-192.png">
+<link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+<link rel="canonical" href="https://traceorun.pages.dev/parcours/paris">
+<meta name="robots" content="index,follow,max-image-preview:large">
+<meta name="author" content="Pierre Renard">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Traceo">
+<meta property="og:locale" content="fr_FR">
+<meta property="og:title" content="Parcours course à pied Paris : boucle de 7 km">
+<meta property="og:description" content="Boucle running de 7 km au départ du Champ de Mars : pont de Bir-Hakeim, Passy, Étoile, avenue Montaigne, pont de l'Alma. Tracé réel, D+, durées.">
+<meta property="og:image" content="https://traceorun.pages.dev/parcours/og/paris.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Tracé de la boucle running de 7 km à Paris">
+<meta property="og:url" content="https://traceorun.pages.dev/parcours/paris">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Parcours course à pied Paris : boucle de 7 km">
+<meta name="twitter:description" content="Boucle running de 7 km au départ du Champ de Mars : pont de Bir-Hakeim, Passy, Étoile, avenue Montaigne, pont de l'Alma. Tracé réel, D+, durées.">
+<meta name="twitter:image" content="https://traceorun.pages.dev/parcours/og/paris.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Bricolage+Grotesque:opsz,wght@12..96,600..800&family=Figtree:wght@500;600;700;800;900&display=swap">
+<style>
+:root{
+  --bg:#050F15; --surface:#0E1E25; --surface-2:#14282F; --line:#1D3640;
+  --ink:#E6F2F0; --muted:#8AA4A3; --accent:#25C98F; --accent-2:#1EA6D0; --accent-ink:#03140D;
+  --f-display:"Bricolage Grotesque","Arial Narrow",system-ui,sans-serif; --f-body:"Figtree",system-ui,-apple-system,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{background:var(--bg);color:var(--ink);font:16px/1.6 var(--f-body);overflow-x:hidden;-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}
+.wrap{max-width:1080px;margin:0 auto;padding:0 20px}
+.glow{position:fixed;inset:-20% -10% auto;height:70vh;background:radial-gradient(60% 60% at 70% 20%,rgba(37,201,143,.16),transparent 70%),radial-gradient(50% 50% at 10% 60%,rgba(30,166,208,.12),transparent 70%);pointer-events:none;z-index:0}
+header,main,footer{position:relative;z-index:1}
+header{display:flex;align-items:center;justify-content:space-between;padding:18px 0}
+.brand{display:flex;align-items:center;gap:10px;font:800 20px var(--f-display);letter-spacing:-.02em}
+.brand svg{width:30px;height:30px}
+.pill{font:800 12px var(--f-body);letter-spacing:.18em;text-transform:uppercase;color:var(--accent-ink);background:linear-gradient(95deg,#3BF5A8,#28B4F0);padding:6px 11px;border-radius:999px}
+.crumbs{font-size:14px;color:var(--muted);padding:4px 0 0}
+.crumbs ol{list-style:none;display:flex;flex-wrap:wrap;gap:6px}
+.crumbs li+li::before{content:"›";margin-right:6px;color:#4C6B6F}
+.crumbs a{text-decoration:underline;text-underline-offset:3px}
+.hero{display:grid;grid-template-columns:1.05fr .95fr;gap:40px;align-items:center;padding:22px 0 44px}
+.kick{font:800 14px var(--f-body);letter-spacing:.2em;text-transform:uppercase;color:#9FD8C8}
+h1{font:400 clamp(46px,7.4vw,86px)/.95 Anton,Impact,sans-serif;text-transform:uppercase;letter-spacing:.005em;margin:12px 0 16px;overflow-wrap:anywhere}
+.g{background:linear-gradient(95deg,#3BF5A8,#22D3C5 45%,#28B4F0);-webkit-background-clip:text;background-clip:text;color:transparent}
+.lead{font-size:clamp(17px,2vw,19px);color:#CFE3E0;max-width:46ch}
+.cta{display:flex;flex-wrap:wrap;gap:12px;margin-top:24px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:54px;padding:0 24px;border-radius:16px;font:900 17px var(--f-body);text-align:center}
+.btn.main{background:linear-gradient(105deg,#3BF5A8,#28B4F0);color:var(--accent-ink);box-shadow:0 12px 40px rgba(43,227,155,.3)}
+.btn.ghost{border:1.5px solid var(--line);background:rgba(14,30,37,.6)}
+.fine{margin-top:12px;font-size:14px;color:var(--muted)}
+.map{margin:0;border:1px solid var(--line);border-radius:26px;overflow:hidden;background:#04080B;box-shadow:0 30px 80px rgba(0,0,0,.5),0 0 60px rgba(43,227,155,.12)}
+.map svg{display:block;width:100%;height:auto}
+.map figcaption{font-size:13px;color:var(--muted);padding:10px 16px 12px;border-top:1px solid var(--line)}
+section{padding:14px 0 44px}
+h2{font:800 clamp(26px,3.6vw,36px)/1.1 var(--f-display);letter-spacing:-.02em;margin-bottom:18px}
+h3{font:800 18px/1.25 var(--f-display);margin-bottom:8px}
+.facts{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:16px 18px}
+.card .k{font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.card .v{font:800 26px/1.15 var(--f-display);margin-top:4px}
+.card .v small{font-size:15px;color:var(--muted);font-weight:700}
+.card p{font-size:14px;color:var(--muted);margin-top:4px;line-height:1.45}
+.paces{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.route{list-style:none;display:flex;flex-wrap:wrap;gap:8px;counter-reset:r}
+.route li{counter-increment:r;display:inline-flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:6px 13px 6px 7px;font-size:14px;font-weight:600}
+.route li::before{content:counter(r);display:inline-grid;place-items:center;min-width:24px;height:24px;border-radius:999px;background:var(--surface-2);color:#9FD8C8;font-size:12px;font-weight:800}
+.route li:first-child::before{background:linear-gradient(105deg,#3BF5A8,#28B4F0);color:var(--accent-ink)}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+ul.list{list-style:none;display:grid;gap:8px}
+ul.list li{position:relative;padding-left:20px;color:#CFE3E0}
+ul.list li::before{content:"";position:absolute;left:2px;top:.62em;width:8px;height:8px;border-radius:50%;background:linear-gradient(105deg,#3BF5A8,#28B4F0)}
+.prose{max-width:68ch}
+.prose p{color:#CFE3E0;font-size:17px;margin-bottom:14px}
+.note{font-size:14px;color:var(--muted);margin-top:14px;max-width:72ch}
+.note a{text-decoration:underline}
+.box{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:18px;background:linear-gradient(135deg,rgba(37,201,143,.14),rgba(30,166,208,.1));border:1px solid rgba(43,227,155,.35);border-radius:24px;padding:26px}
+.box h2{margin-bottom:8px}
+.box p{color:#CFE3E0;max-width:52ch}
+.box .fine a{text-decoration:underline}
+.cities{display:flex;flex-wrap:wrap;gap:8px}
+.cities a{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:8px 14px;font-weight:700;font-size:15px}
+.cities a:hover,.route li:hover{border-color:#2B5A5F}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.tile{display:block;background:var(--surface);border:1px solid var(--line);border-radius:22px;overflow:hidden;transition:border-color .2s}
+.tile:hover{border-color:#2B5A5F}
+.tile svg{display:block;width:100%;height:auto}
+.tile .t{padding:12px 16px 16px}
+.tile h3{font-size:20px;margin-bottom:2px}
+.tile p{font-size:14px;color:var(--muted)}
+footer{border-top:1px solid var(--line);padding:22px 0 40px;color:var(--muted);font-size:13px;display:flex;flex-wrap:wrap;gap:14px;justify-content:space-between}
+footer a{text-decoration:underline}
+@media (max-width:860px){
+  .hero{grid-template-columns:1fr;gap:26px;padding-top:12px}
+  .facts{grid-template-columns:1fr 1fr}
+  .grid{grid-template-columns:1fr 1fr}
+  .cols{grid-template-columns:1fr}
+}
+@media (max-width:520px){
+  .wrap{padding:0 16px}
+  .btn{width:100%}
+  .paces{gap:8px}
+  .paces .card{padding:14px 12px}
+  .paces .v{font-size:20px}
+  .grid{grid-template-columns:1fr}
+  .card .v{font-size:22px}
+  .box{padding:20px}
+}
+</style>
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@graph": [
+  {
+   "@type": "Organization",
+   "@id": "https://traceorun.pages.dev/#organization",
+   "name": "Traceo",
+   "legalName": "Pierre Renard EI",
+   "url": "https://traceorun.pages.dev/",
+   "logo": {
+    "@type": "ImageObject",
+    "url": "https://traceorun.pages.dev/icons/icon-512.png",
+    "width": 512,
+    "height": 512
+   }
+  },
+  {
+   "@type": "WebSite",
+   "@id": "https://traceorun.pages.dev/#website",
+   "url": "https://traceorun.pages.dev/",
+   "name": "Traceo",
+   "inLanguage": "fr",
+   "publisher": {
+    "@id": "https://traceorun.pages.dev/#organization"
+   }
+  },
+  {
+   "@type": "WebPage",
+   "@id": "https://traceorun.pages.dev/parcours/paris#page",
+   "url": "https://traceorun.pages.dev/parcours/paris",
+   "name": "Parcours course à pied Paris : boucle de 7 km | Traceo",
+   "description": "Boucle running de 7 km au départ du Champ de Mars : pont de Bir-Hakeim, Passy, Étoile, avenue Montaigne, pont de l'Alma. Tracé réel, D+, durées.",
+   "inLanguage": "fr",
+   "datePublished": "2026-10-13",
+   "dateModified": "2026-10-13",
+   "isPartOf": {
+    "@id": "https://traceorun.pages.dev/#website"
+   },
+   "publisher": {
+    "@id": "https://traceorun.pages.dev/#organization"
+   },
+   "author": {
+    "@type": "Person",
+    "name": "Pierre Renard"
+   },
+   "breadcrumb": {
+    "@id": "https://traceorun.pages.dev/parcours/paris#breadcrumb"
+   },
+   "primaryImageOfPage": {
+    "@type": "ImageObject",
+    "url": "https://traceorun.pages.dev/parcours/og/paris.jpg",
+    "width": 1200,
+    "height": 630
+   },
+   "about": {
+    "@type": "City",
+    "name": "Paris"
+   },
+   "spatialCoverage": {
+    "@type": "Place",
+    "name": "Départ : Champ de Mars (avenue Pierre-Loti, 7e), Paris",
+    "geo": {
+     "@type": "GeoCoordinates",
+     "latitude": 48.8556,
+     "longitude": 2.2986
+    }
+   }
+  },
+  {
+   "@type": "BreadcrumbList",
+   "@id": "https://traceorun.pages.dev/parcours/paris#breadcrumb",
+   "itemListElement": [
+    {
+     "@type": "ListItem",
+     "position": 1,
+     "name": "Accueil",
+     "item": "https://traceorun.pages.dev/"
+    },
+    {
+     "@type": "ListItem",
+     "position": 2,
+     "name": "Parcours",
+     "item": "https://traceorun.pages.dev/parcours/"
+    },
+    {
+     "@type": "ListItem",
+     "position": 3,
+     "name": "Paris",
+     "item": "https://traceorun.pages.dev/parcours/paris"
+    }
+   ]
+  }
+ ]
+}
+</script>
+</head>
+<body>
+<div class="glow"></div>
+<div class="wrap">
+  <header>
+    <a class="brand" href="../"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M7 23c0-8 5.5-14 11.5-14 4.6 0 7.5 2.9 7.5 6.6 0 3.8-3 6.6-6.8 6.6-2.8 0-4.7-1.9-4.7-4.2" fill="none" stroke="#25C98F" stroke-width="3.4" stroke-linecap="round"/><circle cx="7" cy="23" r="3.6" fill="#E6F2F0"/></svg>Traceo</a>
+    <span class="pill">Parcours</span>
+  </header>
+  <nav class="crumbs" aria-label="Fil d'Ariane"><ol><li><a href="../">Accueil</a></li><li><a href="./">Parcours</a></li><li aria-current="page">Paris</li></ol></nav>
+<main>
+  <div class="hero">
+    <div>
+      <p class="kick">Parcours course à pied · Paris</p>
+      <h1>Paris : boucle de <span class="g">7 km</span></h1>
+      <p class="lead">Départ du Champ de Mars, traversée de la Seine par le pont de Bir-Hakeim, direction Passy et les rues du 16e jusqu'aux abords de l'Étoile (rue de Presbourg), puis retour par l'avenue Montaigne, le pont de l'Alma et l'avenue Rapp.</p>
+      <div class="cta">
+        <a class="btn main" href="https://traceorun.pages.dev/app?src=seo_paris" data-ev="essayer">Génère ta boucle à Paris</a>
+        <a class="btn ghost" href="#trace">Voir le tracé rue par rue</a>
+      </div>
+      <p class="fine">Boucle réellement générée par Traceo le 11 octobre 2026, en 2,1 s. 3 boucles offertes, sans carte bancaire.</p>
+    </div>
+    <figure class="map">
+      <svg class="loop" viewBox="0 0 400 400" role="img" aria-labelledby="l-paris-t" xmlns="http://www.w3.org/2000/svg"><title id="l-paris-t">Tracé réel de la boucle de 7 km à Paris, départ Champ de Mars (avenue Pierre-Loti, 7e)</title><defs><linearGradient id="l-paris-g" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="400" y2="400"><stop offset="0" stop-color="#2BE39B"/><stop offset=".5" stop-color="#22D3C5"/><stop offset="1" stop-color="#28B4F0"/></linearGradient><pattern id="l-paris-p" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M24 0H0V24" fill="none" stroke="#10232B" stroke-width="1"/></pattern><filter id="l-paris-f" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="5"/></filter></defs><rect width="400" height="400" fill="#04080B"/><rect width="400" height="400" fill="url(#l-paris-p)"/><path d="M264.7 335.2 L260.9 331.3 L257.3 332.2 L255.8 333.1 L243.8 345.4 L239.7 341.8 L237.7 343.8 L236.8 342.9 L235.2 344.5 L232.0 345.5 L231.7 346.5 L230.2 346.6 L228.1 348.6 L228.0 349.6 L220.8 357.3 L219.7 359.2 L214.8 364.0 L196.4 356.9 L195.7 357.2 L194.7 356.2 L193.4 356.2 L168.7 345.7 L165.6 345.0 L163.3 345.4 L161.2 346.6 L159.2 348.6 L156.7 346.3 L155.6 346.9 L154.0 346.7 L152.3 344.7 L150.9 346.0 L127.6 310.4 L126.6 311.1 L109.4 284.8 L107.8 285.6 L104.2 285.3 L97.6 286.8 L91.4 287.3 L90.9 285.8 L84.9 287.0 L81.4 280.2 L81.3 278.1 L72.1 270.3 L62.3 262.9 L55.5 261.7 L54.3 260.7 L53.5 257.4 L49.9 258.3 L49.6 257.2 L57.6 246.9 L47.7 238.0 L66.3 210.5 L65.7 210.1 L66.8 208.3 L66.4 207.8 L71.5 198.2 L74.2 193.6 L74.9 193.3 L81.6 180.6 L82.3 180.4 L90.3 166.4 L89.3 164.7 L89.4 162.3 L91.5 160.0 L93.8 159.9 L102.8 140.8 L102.5 140.0 L103.1 138.7 L97.5 136.0 L97.2 135.3 L104.8 120.1 L104.5 119.0 L113.6 98.6 L115.8 99.4 L118.6 98.9 L122.6 94.8 L123.3 92.2 L123.2 88.7 L121.6 86.3 L119.5 85.3 L131.3 59.3 L133.4 58.6 L142.5 72.5 L143.0 72.5 L154.2 65.3 L156.0 67.7 L156.6 67.8 L158.2 66.1 L205.9 36.0 L208.9 39.4 L212.8 42.4 L217.6 44.8 L221.6 45.9 L226.8 46.4 L232.1 45.7 L237.1 44.0 L241.1 41.7 L242.7 44.6 L246.1 43.7 L283.5 61.4 L291.0 66.2 L290.8 67.4 L296.1 70.8 L296.7 81.2 L299.4 83.2 L298.7 84.1 L298.9 85.5 L352.3 135.6 L320.1 161.1 L323.0 164.7 L311.7 174.1 L310.0 174.8 L309.6 176.9 L306.2 177.2 L305.3 178.1 L305.1 186.1 L299.7 186.9 L301.1 209.3 L300.1 214.4 L299.2 215.4 L297.3 215.7 L297.0 225.5 L287.0 272.9 L283.1 293.8 L284.0 294.6 L282.6 294.9 L280.7 296.7 L285.0 301.0 L284.3 304.5 L282.8 305.1 L276.7 312.1 L267.0 321.7 L264.8 327.9 L260.9 331.3 L264.7 335.2 Z" fill="none" stroke="url(#l-paris-g)" stroke-width="9" stroke-linejoin="round" opacity=".45" filter="url(#l-paris-f)"/><path d="M264.7 335.2 L260.9 331.3 L257.3 332.2 L255.8 333.1 L243.8 345.4 L239.7 341.8 L237.7 343.8 L236.8 342.9 L235.2 344.5 L232.0 345.5 L231.7 346.5 L230.2 346.6 L228.1 348.6 L228.0 349.6 L220.8 357.3 L219.7 359.2 L214.8 364.0 L196.4 356.9 L195.7 357.2 L194.7 356.2 L193.4 356.2 L168.7 345.7 L165.6 345.0 L163.3 345.4 L161.2 346.6 L159.2 348.6 L156.7 346.3 L155.6 346.9 L154.0 346.7 L152.3 344.7 L150.9 346.0 L127.6 310.4 L126.6 311.1 L109.4 284.8 L107.8 285.6 L104.2 285.3 L97.6 286.8 L91.4 287.3 L90.9 285.8 L84.9 287.0 L81.4 280.2 L81.3 278.1 L72.1 270.3 L62.3 262.9 L55.5 261.7 L54.3 260.7 L53.5 257.4 L49.9 258.3 L49.6 257.2 L57.6 246.9 L47.7 238.0 L66.3 210.5 L65.7 210.1 L66.8 208.3 L66.4 207.8 L71.5 198.2 L74.2 193.6 L74.9 193.3 L81.6 180.6 L82.3 180.4 L90.3 166.4 L89.3 164.7 L89.4 162.3 L91.5 160.0 L93.8 159.9 L102.8 140.8 L102.5 140.0 L103.1 138.7 L97.5 136.0 L97.2 135.3 L104.8 120.1 L104.5 119.0 L113.6 98.6 L115.8 99.4 L118.6 98.9 L122.6 94.8 L123.3 92.2 L123.2 88.7 L121.6 86.3 L119.5 85.3 L131.3 59.3 L133.4 58.6 L142.5 72.5 L143.0 72.5 L154.2 65.3 L156.0 67.7 L156.6 67.8 L158.2 66.1 L205.9 36.0 L208.9 39.4 L212.8 42.4 L217.6 44.8 L221.6 45.9 L226.8 46.4 L232.1 45.7 L237.1 44.0 L241.1 41.7 L242.7 44.6 L246.1 43.7 L283.5 61.4 L291.0 66.2 L290.8 67.4 L296.1 70.8 L296.7 81.2 L299.4 83.2 L298.7 84.1 L298.9 85.5 L352.3 135.6 L320.1 161.1 L323.0 164.7 L311.7 174.1 L310.0 174.8 L309.6 176.9 L306.2 177.2 L305.3 178.1 L305.1 186.1 L299.7 186.9 L301.1 209.3 L300.1 214.4 L299.2 215.4 L297.3 215.7 L297.0 225.5 L287.0 272.9 L283.1 293.8 L284.0 294.6 L282.6 294.9 L280.7 296.7 L285.0 301.0 L284.3 304.5 L282.8 305.1 L276.7 312.1 L267.0 321.7 L264.8 327.9 L260.9 331.3 L264.7 335.2 Z" fill="none" stroke="url(#l-paris-g)" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/><path d="M-4 -4.5 L3 0 L-4 4.5" transform="translate(110.2 285.9) rotate(-123)" fill="none" stroke="#04080B" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M-4 -4.5 L3 0 L-4 4.5" transform="translate(112.9 100.2) rotate(-66)" fill="none" stroke="#04080B" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M-4 -4.5 L3 0 L-4 4.5" transform="translate(299.3 85.8) rotate(43)" fill="none" stroke="#04080B" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><g fill="#8AA4A3" font-family="Figtree,system-ui,sans-serif" font-size="12" font-weight="700"><path d="M16 377V382H93.7V377" fill="none" stroke="#8AA4A3" stroke-width="1.6"/><text x="99.7" y="383">500 m</text></g><g fill="#8AA4A3" font-family="Figtree,system-ui,sans-serif" font-size="12" font-weight="800" text-anchor="middle"><path d="M378 30 l5 -14 l5 14 l-5 -4z" fill="#8AA4A3"/><text x="383" y="46">N</text></g><g font-family="Figtree,system-ui,sans-serif" font-size="12" font-weight="800"><rect x="278.7" y="309.2" width="62" height="20" rx="10" fill="#E6F2F0"/><text x="309.7" y="323.7" text-anchor="middle" fill="#03140D">Départ</text></g><circle cx="264.7" cy="335.2" r="8.5" fill="#04080B" stroke="#E6F2F0" stroke-width="3"/><circle cx="264.7" cy="335.2" r="3.2" fill="#2BE39B"/></svg>
+      <figcaption>Tracé réel · 7 km · départ Champ de Mars (avenue Pierre-Loti, 7e)</figcaption>
+    </figure>
+  </div>
+
+  <section aria-labelledby="h-faits">
+    <h2 id="h-faits">La boucle en chiffres</h2>
+    <div class="facts">
+      <div class="card"><div class="k">Distance</div><div class="v">7 km</div><p>Mesurée sur le tracé</p></div>
+      <div class="card"><div class="k">Dénivelé +</div><div class="v">28 <small>m</small></div><p>Peu de relief</p></div>
+      <div class="card"><div class="k">Départ</div><div class="v" style="font-size:20px">Champ de Mars</div><p>Paris</p></div>
+      <div class="card"><div class="k">Routes dangereuses</div><div class="v">0 m</div><p>Selon l'analyse de sécurité de Traceo</p></div>
+    </div>
+    <ul class="list" style="margin-top:18px">
+      <li><b>Points d'eau</b> : 2 recensés à moins de 40 m du tracé</li><li><b>Revêtement</b> : surtout bitume ou béton (≈ 4,9 km) · pavés ou dalles ≈ 570 m</li><li><b>Escaliers</b> : ≈ 60 m au total</li><li><b>Forme</b> : boucle, retour au point de départ (≈ 2,1 km d'un bout à l'autre)</li>
+    </ul>
+  </section>
+
+  <section aria-labelledby="h-temps">
+    <h2 id="h-temps">Combien de temps pour faire ces 7 km ?</h2>
+    <div class="paces">
+      <div class="card"><div class="k">5:00 /km</div><div class="v">35 min</div><p>12 km/h</p></div>
+      <div class="card"><div class="k">6:00 /km</div><div class="v">42 min</div><p>10 km/h</p></div>
+      <div class="card"><div class="k">7:00 /km</div><div class="v">49 min</div><p>8,6 km/h</p></div>
+    </div>
+    <p class="note">Durées calculées : distance × allure, hors arrêts aux feux, pauses et effet du dénivelé.</p>
+  </section>
+
+  <section id="trace" aria-labelledby="h-trace">
+    <h2 id="h-trace">Le tracé, rue par rue</h2>
+    <ol class="route">
+      <li>Avenue Pierre Loti</li>
+      <li>Avenue Charles Floquet</li>
+      <li>Pont de Bir Hakeim</li>
+      <li>Promenade Jean-Paul Belmondo</li>
+      <li>Rue Claude Chahu</li>
+      <li>Rue Vital</li>
+      <li>Rue Cortambert</li>
+      <li>Rue du Pasteur Marc Boegner</li>
+      <li>Rue des Sablons</li>
+      <li>Rue de Presbourg</li>
+      <li>Rue Vernet</li>
+      <li>Rue François-Iᵉʳ</li>
+      <li>Avenue Montaigne</li>
+      <li>Pont de l'Alma</li>
+      <li>Avenue Rapp</li>
+      <li>Avenue Barbey d'Aurevilly</li>
+    </ol>
+    <p class="note">Dans l'ordre du parcours, d'après le guidage vocal de Traceo et OpenStreetMap. Une rue empruntée deux fois n'apparaît qu'une fois ; les allées et chemins sans nom ne sont pas listés.</p>
+  </section>
+
+  <section aria-labelledby="h-voir">
+    <h2 id="h-voir">Ce que tu croises en chemin</h2>
+    <div class="cols">
+      <div class="card"><h3>Eau et espaces verts</h3><ul class="list"><li>La Seine, franchie deux fois (pont de Bir-Hakeim à l'aller, pont de l'Alma au retour)</li><li>Traverse le Champ de Mars (≈ 530 m)</li><li>Longe l'allée des Cygnes</li></ul></div>
+      <div class="card"><h3>Sécurité</h3><ul class="list"><li>Aucun tronçon sur une route jugée dangereuse par Traceo (grands axes sans trottoir, routes très circulées ; les traversées courtes ne comptent pas)</li><li>Guidage vocal rue par rue dans l'app, avec le nom de chaque rue</li><li>Vérifie toujours les conditions sur place : travaux, événements, horaires des parcs</li></ul></div>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-conseils">
+    <h2 id="h-conseils">Courir à Paris : nos conseils pour cette boucle</h2>
+    <div class="prose">
+      <p>Le Champ de Mars est l'un des endroits les plus fréquentés de Paris : pour courir au calme, vise le tout début de matinée, avant l'arrivée des visiteurs, ou la fin de soirée. Les deux traversées de la Seine (pont de Bir-Hakeim, pont de l'Alma) sont aussi des points où l'on croise beaucoup de piétons : garde de la marge.</p>
+      <p>Côté 16e et 8e, le tracé enchaîne des rues résidentielles et commerçantes (rue des Sablons, rue François-Iᵉʳ, avenue Montaigne) avec de nombreux carrefours à feux. Compte quelques arrêts : les durées ci-dessus n'en tiennent pas compte. Si tu prévois une séance au rythme, garde tes accélérations pour les allées du Champ de Mars, plus fluides tôt le matin.</p>
+      <p>Avec 28 m de dénivelé au total, le parcours est presque plat : une bonne base pour une sortie d'endurance tranquille. Paris compte de nombreuses fontaines publiques ; OpenStreetMap en recense 2 à moins de 40 m de ce tracé.</p>
+      <p>Envie d'allonger ? Les bords de Seine, en partie réservés aux piétons et aux vélos, sont un classique pour ajouter des kilomètres à plat.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="box">
+      <div>
+        <h2>Génère ta propre boucle à Paris en 1 clic</h2>
+        <p>Cette boucle est un exemple. La tienne part de là où tu es, à la distance que tu veux, en évitant les grands axes, avec le guidage vocal rue par rue. Et jamais deux fois la même.</p>
+        <p class="fine">3 boucles offertes, sans carte bancaire. Ensuite, <a href="https://traceorun.pages.dev/essai-premium?src=seo_paris" data-ev="premium">Premium à 4,99 € les 31 jours</a> : boucles illimitées, Garmin, Strava, export GPX. Sans abonnement.</p>
+      </div>
+      <a class="btn main" href="https://traceorun.pages.dev/app?src=seo_paris" data-ev="essayer">Générer ma boucle</a>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-villes">
+    <h2 id="h-villes">Autres parcours de course à pied</h2>
+    <div class="cities">
+      <a href="marseille">Marseille</a>
+      <a href="lyon">Lyon</a>
+      <a href="toulouse">Toulouse</a>
+      <a href="nice">Nice</a>
+      <a href="nantes">Nantes</a>
+      <a href="strasbourg">Strasbourg</a>
+      <a href="bordeaux">Bordeaux</a>
+      <a href="lille">Lille</a>
+      <a href="angers">Angers</a>
+      <a href="saint-georges-sur-loire">Saint-Georges-sur-Loire</a>
+      <a href="./">Toutes les villes →</a>
+    </div>
+    <p class="note">Données : boucle calculée par Traceo (moteur BRouter) sur les données OpenStreetMap. Parcs, cours d'eau, revêtement, escaliers et points d'eau : © contributeurs <a href="https://www.openstreetmap.org/copyright" rel="noopener">OpenStreetMap</a>, licence ODbL. Le revêtement et les points d'eau dépendent de ce que la communauté a cartographié : ils peuvent être incomplets.</p>
+  </section>
+</main>
+  <footer>
+    <span>© 2026 Traceo · Pierre Renard EI</span>
+    <span><a href="./">Tous les parcours</a> · <a href="../legal">Mentions légales et CGV</a> · <a href="../">Accueil</a></span>
+  </footer>
+</div>
+<script src="../stats.js" defer></script>
+</body>
+</html>

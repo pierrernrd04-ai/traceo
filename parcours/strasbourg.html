@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Parcours course à pied Strasbourg : boucle de 6,5 km | Traceo</title>
+<meta name="description" content="Boucle running de 6,5 km depuis la Grande Île : Neustadt, quartier des XV, Jardin botanique, Krutenau, quais de l'Ill. Toute plate.">
+<meta name="theme-color" content="#050F15">
+<link rel="icon" href="../icons/icon-192.png">
+<link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+<link rel="canonical" href="https://traceorun.pages.dev/parcours/strasbourg">
+<meta name="robots" content="index,follow,max-image-preview:large">
+<meta name="author" content="Pierre Renard">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Traceo">
+<meta property="og:locale" content="fr_FR">
+<meta property="og:title" content="Parcours course à pied Strasbourg : boucle de 6,5 km">
+<meta property="og:description" content="Boucle running de 6,5 km depuis la Grande Île : Neustadt, quartier des XV, Jardin botanique, Krutenau, quais de l'Ill. Toute plate.">
+<meta property="og:image" content="https://traceorun.pages.dev/parcours/og/strasbourg.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Tracé de la boucle running de 6,5 km à Strasbourg">
+<meta property="og:url" content="https://traceorun.pages.dev/parcours/strasbourg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Parcours course à pied Strasbourg : boucle de 6,5 km">
+<meta name="twitter:description" content="Boucle running de 6,5 km depuis la Grande Île : Neustadt, quartier des XV, Jardin botanique, Krutenau, quais de l'Ill. Toute plate.">
+<meta name="twitter:image" content="https://traceorun.pages.dev/parcours/og/strasbourg.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Bricolage+Grotesque:opsz,wght@12..96,600..800&family=Figtree:wght@500;600;700;800;900&display=swap">
+<style>
+:root{
+  --bg:#050F15; --surface:#0E1E25; --surface-2:#14282F; --line:#1D3640;
+  --ink:#E6F2F0; --muted:#8AA4A3; --accent:#25C98F; --accent-2:#1EA6D0; --accent-ink:#03140D;
+  --f-display:"Bricolage Grotesque","Arial Narrow",system-ui,sans-serif; --f-body:"Figtree",system-ui,-apple-system,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{background:var(--bg);color:var(--ink);font:16px/1.6 var(--f-body);overflow-x:hidden;-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}
+.wrap{max-width:1080px;margin:0 auto;padding:0 20px}
+.glow{position:fixed;inset:-20% -10% auto;height:70vh;background:radial-gradient(60% 60% at 70% 20%,rgba(37,201,143,.16),transparent 70%),radial-gradient(50% 50% at 10% 60%,rgba(30,166,208,.12),transparent 70%);pointer-events:none;z-index:0}
+header,main,footer{position:relative;z-index:1}
+header{display:flex;align-items:center;justify-content:space-between;padding:18px 0}
+.brand{display:flex;align-items:center;gap:10px;font:800 20px var(--f-display);letter-spacing:-.02em}
+.brand svg{width:30px;height:30px}
+.pill{font:800 12px var(--f-body);letter-spacing:.18em;text-transform:uppercase;color:var(--accent-ink);background:linear-gradient(95deg,#3BF5A8,#28B4F0);padding:6px 11px;border-radius:999px}
+.crumbs{font-size:14px;color:var(--muted);padding:4px 0 0}
+.crumbs ol{list-style:none;display:flex;flex-wrap:wrap;gap:6px}
+.crumbs li+li::before{content:"›";margin-right:6px;color:#4C6B6F}
+.crumbs a{text-decoration:underline;text-underline-offset:3px}
+.hero{display:grid;grid-template-columns:1.05fr .95fr;gap:40px;align-items:center;padding:22px 0 44px}
+.kick{font:800 14px var(--f-body);letter-spacing:.2em;text-transform:uppercase;color:#9FD8C8}
+h1{font:400 clamp(46px,7.4vw,86px)/.95 Anton,Impact,sans-serif;text-transform:uppercase;letter-spacing:.005em;margin:12px 0 16px;overflow-wrap:anywhere}
+.g{background:linear-gradient(95deg,#3BF5A8,#22D3C5 45%,#28B4F0);-webkit-background-clip:text;background-clip:text;color:transparent}
+.lead{font-size:clamp(17px,2vw,19px);color:#CFE3E0;max-width:46ch}
+.cta{display:flex;flex-wrap:wrap;gap:12px;margin-top:24px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:54px;padding:0 24px;border-radius:16px;font:900 17px var(--f-body);text-align:center}
+.btn.main{background:linear-gradient(105deg,#3BF5A8,#28B4F0);color:var(--accent-ink);box-shadow:0 12px 40px rgba(43,227,155,.3)}
+.btn.ghost{border:1.5px solid var(--line);background:rgba(14,30,37,.6)}
+.fine{margin-top:12px;font-size:14px;color:var(--muted)}
+.map{margin:0;border:1px solid var(--line);border-radius:26px;overflow:hidden;background:#04080B;box-shadow:0 30px 80px rgba(0,0,0,.5),0 0 60px rgba(43,227,155,.12)}
+.map svg{display:block;width:100%;height:auto}
+.map figcaption{font-size:13px;color:var(--muted);padding:10px 16px 12px;border-top:1px solid var(--line)}
+section{padding:14px 0 44px}
+h2{font:800 clamp(26px,3.6vw,36px)/1.1 var(--f-display);letter-spacing:-.02em;margin-bottom:18px}
+h3{font:800 18px/1.25 var(--f-display);margin-bottom:8px}
+.facts{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:16px 18px}
+.card .k{font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.card .v{font:800 26px/1.15 var(--f-display);margin-top:4px}
+.card .v small{font-size:15px;color:var(--muted);font-weight:700}
+.card p{font-size:14px;color:var(--muted);margin-top:4px;line-height:1.45}
+.paces{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.route{list-style:none;display:flex;flex-wrap:wrap;gap:8px;counter-reset:r}
+.route li{counter-increment:r;display:inline-flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:6px 13px 6px 7px;font-size:14px;font-weight:600}
+.route li::before{content:counter(r);display:inline-grid;place-items:center;min-width:24px;height:24px;border-radius:999px;background:var(--surface-2);color:#9FD8C8;font-size:12px;font-weight:800}
+.route li:first-child::before{background:linear-gradient(105deg,#3BF5A8,#28B4F0);color:var(--accent-ink)}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+ul.list{list-style:none;display:grid;gap:8px}
+ul.list li{position:relative;padding-left:20px;color:#CFE3E0}
+ul.list li::before{content:"";position:absolute;left:2px;top:.62em;width:8px;height:8px;border-radius:50%;background:linear-gradient(105deg,#3BF5A8,#28B4F0)}
+.prose{max-width:68ch}
+.prose p{color:#CFE3E0;font-size:17px;margin-bottom:14px}
+.note{font-size:14px;color:var(--muted);margin-top:14px;max-width:72ch}
+.note a{text-decoration:underline}
+.box{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:18px;background:linear-gradient(135deg,rgba(37,201,143,.14),rgba(30,166,208,.1));border:1px solid rgba(43,227,155,.35);border-radius:24px;padding:26px}
+.box h2{margin-bottom:8px}
+.box p{color:#CFE3E0;max-width:52ch}
+.box .fine a{text-decoration:underline}
+.cities{display:flex;flex-wrap:wrap;gap:8px}
+.cities a{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:8px 14px;font-weight:700;font-size:15px}
+.cities a:hover,.route li:hover{border-color:#2B5A5F}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.tile{display:block;background:var(--surface);border:1px solid var(--line);border-radius:22px;overflow:hidden;transition:border-color .2s}
+.tile:hover{border-color:#2B5A5F}
+.tile svg{display:block;width:100%;height:auto}
+.tile .t{padding:12px 16px 16px}
+.tile h3{font-size:20px;margin-bottom:2px}
+.tile p{font-size:14px;color:var(--muted)}
+footer{border-top:1px solid var(--line);padding:22px 0 40px;color:var(--muted);font-size:13px;display:flex;flex-wrap:wrap;gap:14px;justify-content:space-between}
+footer a{text-decoration:underline}
+@media (max-width:860px){
+  .hero{grid-template-columns:1fr;gap:26px;padding-top:12px}
+  .facts{grid-template-columns:1fr 1fr}
+  .grid{grid-template-columns:1fr 1fr}
+  .cols{grid-template-columns:1fr}
+}
+@media (max-width:520px){
+  .wrap{padding:0 16px}
+  .btn{width:100%}
+  .paces{gap:8px}
+  .paces .card{padding:14px 12px}
+  .paces .v{font-size:20px}
+  .grid{grid-template-columns:1fr}
+  .card .v{font-size:22px}
+  .box{padding:20px}
+}
+</style>
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@graph": [
+  {
+   "@type": "Organization",
+   "@id": "https://traceorun.pages.dev/#organization",
+   "name": "Traceo",
+   "legalName": "Pierre Renard EI",
+   "url": "https://traceorun.pages.dev/",
+   "logo": {
+    "@type": "ImageObject",
+    "url": "https://traceorun.pages.dev/icons/icon-512.png",
+    "width": 512,
+    "height": 512
+   }
+  },
+  {
+   "@type": "WebSite",
+   "@id": "https://traceorun.pages.dev/#website",
+   "url": "https://traceorun.pages.dev/",
+   "name": "Traceo",
+   "inLanguage": "fr",
+   "publisher": {
+    "@id": "https://traceorun.pages.dev/#organization"
+   }
+  },
+  {
+   "@type": "WebPage",
+   "@id": "https://traceorun.pages.dev/parcours/strasbourg#page",
+   "url": "https://traceorun.pages.dev/parcours/strasbourg",
+   "name": "Parcours course à pied Strasbourg : boucle de 6,5 km | Traceo",
+   "description": "Boucle running de 6,5 km depuis la Grande Île : Neustadt, quartier des XV, Jardin botanique, Krutenau, quais de l'Ill. Toute plate.",
+   "inLanguage": "fr",
+   "datePublished": "2026-10-13",
+   "dateModified": "2026-10-13",
+   "isPartOf": {
+    "@id": "https://traceorun.pages.dev/#website"
+   },
+   "publisher": {
+    "@id": "https://traceorun.pages.dev/#organization"
+   },
+   "author": {
+    "@type": "Person",
+    "name": "Pierre Renard"
+   },
+   "breadcrumb": {
+    "@id": "https://traceorun.pages.dev/parcours/strasbourg#breadcrumb"
+   },
+   "primaryImageOfPage": {
+    "@type": "ImageObject",
+    "url": "https://traceorun.pages.dev/parcours/og/strasbourg.jpg",
+    "width": 1200,
+    "height": 630
+   },
+   "about": {
+    "@type": "City",
+    "name": "Strasbourg"
+   },
+   "spatialCoverage": {
+    "@type": "Place",
+    "name": "Départ : place du Temple-Neuf (Grande Île), Strasbourg",
+    "geo": {
+     "@type": "GeoCoordinates",
+     "latitude": 48.583,
+     "longitude": 7.748
+    }
+   }
+  },
+  {
+   "@type": "BreadcrumbList",
+   "@id": "https://traceorun.pages.dev/parcours/strasbourg#breadcrumb",
+   "itemListElement": [
+    {
+     "@type": "ListItem",
+     "position": 1,
+     "name": "Accueil",
+     "item": "https://traceorun.pages.dev/"
+    },
+    {
+     "@type": "ListItem",
+     "position": 2,
+     "name": "Parcours",
+     "item": "https://traceorun.pages.dev/parcours/"
+    },
+    {
+     "@type": "ListItem",
+     "position": 3,
+     "name": "Strasbourg",
+     "item": "https://traceorun.pages.dev/parcours/strasbourg"
+    }
+   ]
+  }
+ ]
+}
+</script>
+</head>
+<body>
+<div class="glow"></div>
+<div class="wrap">
+  <header>
+    <a class="brand" href="../"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M7 23c0-8 5.5-14 11.5-14 4.6 0 7.5 2.9 7.5 6.6 0 3.8-3 6.6-6.8 6.6-2.8 0-4.7-1.9-4.7-4.2" fill="none" stroke="#25C98F" stroke-width="3.4" stroke-linecap="round"/><circle cx="7" cy="23" r="3.6" fill="#E6F2F0"/></svg>Traceo</a>
+    <span class="pill">Parcours</span>
+  </header>
+  <nav class="crumbs" aria-label="Fil d'Ariane"><ol><li><a href="../">Accueil</a></li><li><a href="./">Parcours</a></li><li aria-current="page">Strasbourg</li></ol></nav>
+<main>
+  <div class="hero">
+    <div>
+      <p class="kick">Parcours course à pied · Strasbourg</p>
+      <h1>Strasbourg : boucle de <span class="g">6,5 km</span></h1>
+      <p class="lead">Départ place du Temple-Neuf, en pleine Grande Île, sortie par la rue des Étudiants, traversée de la Neustadt et du quartier des XV (rue Jacques-Kablé, boulevard d'Anvers), passage par le Jardin botanique et l'Esplanade, puis retour par la Krutenau, les quais de l'Ill et la place Saint-Étienne.</p>
+      <div class="cta">
+        <a class="btn main" href="https://traceorun.pages.dev/app?src=seo_strasbourg" data-ev="essayer">Génère ta boucle à Strasbourg</a>
+        <a class="btn ghost" href="#trace">Voir le tracé rue par rue</a>
+      </div>
+      <p class="fine">Boucle réellement générée par Traceo le 11 octobre 2026, en 1,9 s. 3 boucles offertes, sans carte bancaire.</p>
+    </div>
+    <figure class="map">
+      <svg class="loop" viewBox="0 0 400 400" role="img" aria-labelledby="l-strasbourg-t" xmlns="http://www.w3.org/2000/svg"><title id="l-strasbourg-t">Tracé réel de la boucle de 6,5 km à Strasbourg, départ place du Temple-Neuf (Grande Île)</title><defs><linearGradient id="l-strasbourg-g" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="400" y2="400"><stop offset="0" stop-color="#2BE39B"/><stop offset=".5" stop-color="#22D3C5"/><stop offset="1" stop-color="#28B4F0"/></linearGradient><pattern id="l-strasbourg-p" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M24 0H0V24" fill="none" stroke="#10232B" stroke-width="1"/></pattern><filter id="l-strasbourg-f" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="5"/></filter></defs><rect width="400" height="400" fill="#04080B"/><rect width="400" height="400" fill="url(#l-strasbourg-p)"/><path d="M39.7 289.7 L41.4 288.8 L36.0 273.0 L36.3 271.9 L52.2 263.2 L66.6 252.0 L80.2 243.2 L78.6 240.8 L90.7 232.7 L92.5 228.6 L110.5 217.0 L114.1 216.5 L116.2 214.2 L117.4 211.3 L116.9 207.1 L123.5 191.6 L126.9 189.2 L128.3 186.3 L126.3 185.5 L144.8 142.9 L115.3 130.0 L108.0 101.7 L103.5 75.3 L100.3 48.3 L103.5 72.6 L176.1 64.0 L178.6 62.4 L187.1 61.6 L188.6 63.1 L188.6 66.7 L195.8 76.2 L242.1 102.9 L256.3 109.2 L266.6 114.9 L285.0 127.7 L324.6 158.4 L341.2 137.1 L339.0 131.6 L341.8 129.2 L364.0 150.5 L352.2 164.9 L355.3 173.0 L352.7 173.9 L353.2 175.3 L349.7 177.6 L347.4 180.1 L341.9 179.3 L340.0 191.2 L341.2 193.1 L332.7 242.6 L323.1 265.5 L320.8 266.7 L313.2 263.6 L310.2 269.9 L310.0 270.6 L313.4 275.0 L308.9 281.6 L310.6 288.9 L312.7 290.7 L304.8 308.4 L302.8 308.0 L300.4 313.5 L302.3 314.5 L303.8 322.3 L300.6 329.6 L297.9 351.7 L286.1 348.1 L276.1 346.9 L275.2 345.2 L276.1 346.9 L273.0 346.3 L272.0 344.1 L274.3 337.7 L254.8 326.5 L255.2 325.4 L247.0 322.7 L246.8 321.9 L244.9 321.3 L243.9 322.7 L198.3 313.5 L189.8 313.8 L167.4 301.5 L162.3 303.8 L160.5 303.1 L154.1 300.2 L145.6 293.9 L138.4 284.0 L135.7 282.5 L134.0 285.3 L132.1 286.6 L116.3 288.5 L86.9 301.7 L81.2 294.5 L67.7 303.0 L60.3 292.6 L52.3 297.5 L47.0 286.4 L39.7 289.7 Z" fill="none" stroke="url(#l-strasbourg-g)" stroke-width="9" stroke-linejoin="round" opacity=".45" filter="url(#l-strasbourg-f)"/><path d="M39.7 289.7 L41.4 288.8 L36.0 273.0 L36.3 271.9 L52.2 263.2 L66.6 252.0 L80.2 243.2 L78.6 240.8 L90.7 232.7 L92.5 228.6 L110.5 217.0 L114.1 216.5 L116.2 214.2 L117.4 211.3 L116.9 207.1 L123.5 191.6 L126.9 189.2 L128.3 186.3 L126.3 185.5 L144.8 142.9 L115.3 130.0 L108.0 101.7 L103.5 75.3 L100.3 48.3 L103.5 72.6 L176.1 64.0 L178.6 62.4 L187.1 61.6 L188.6 63.1 L188.6 66.7 L195.8 76.2 L242.1 102.9 L256.3 109.2 L266.6 114.9 L285.0 127.7 L324.6 158.4 L341.2 137.1 L339.0 131.6 L341.8 129.2 L364.0 150.5 L352.2 164.9 L355.3 173.0 L352.7 173.9 L353.2 175.3 L349.7 177.6 L347.4 180.1 L341.9 179.3 L340.0 191.2 L341.2 193.1 L332.7 242.6 L323.1 265.5 L320.8 266.7 L313.2 263.6 L310.2 269.9 L310.0 270.6 L313.4 275.0 L308.9 281.6 L310.6 288.9 L312.7 290.7 L304.8 308.4 L302.8 308.0 L300.4 313.5 L302.3 314.5 L303.8 322.3 L300.6 329.6 L297.9 351.7 L286.1 348.1 L276.1 346.9 L275.2 345.2 L276.1 346.9 L273.0 346.3 L272.0 344.1 L274.3 337.7 L254.8 326.5 L255.2 325.4 L247.0 322.7 L246.8 321.9 L244.9 321.3 L243.9 322.7 L198.3 313.5 L189.8 313.8 L167.4 301.5 L162.3 303.8 L160.5 303.1 L154.1 300.2 L145.6 293.9 L138.4 284.0 L135.7 282.5 L134.0 285.3 L132.1 286.6 L116.3 288.5 L86.9 301.7 L81.2 294.5 L67.7 303.0 L60.3 292.6 L52.3 297.5 L47.0 286.4 L39.7 289.7 Z" fill="none" stroke="url(#l-strasbourg-g)" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/><path d="M-4 -4.5 L3 0 L-4 4.5" transform="translate(112.6 119.7) rotate(-105)" fill="none" stroke="#04080B" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M-4 -4.5 L3 0 L-4 4.5" transform="translate(288.5 130.4) rotate(38)" fill="none" stroke="#04080B" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M-4 -4.5 L3 0 L-4 4.5" transform="translate(305.7 306.4) rotate(114)" fill="none" stroke="#04080B" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><g fill="#8AA4A3" font-family="Figtree,system-ui,sans-serif" font-size="12" font-weight="700"><path d="M16 377V382H110.6V377" fill="none" stroke="#8AA4A3" stroke-width="1.6"/><text x="116.6" y="383">500 m</text></g><g fill="#8AA4A3" font-family="Figtree,system-ui,sans-serif" font-size="12" font-weight="800" text-anchor="middle"><path d="M378 30 l5 -14 l5 14 l-5 -4z" fill="#8AA4A3"/><text x="383" y="46">N</text></g><g font-family="Figtree,system-ui,sans-serif" font-size="12" font-weight="800"><rect x="53.7" y="263.7" width="62" height="20" rx="10" fill="#E6F2F0"/><text x="84.7" y="278.2" text-anchor="middle" fill="#03140D">Départ</text></g><circle cx="39.7" cy="289.7" r="8.5" fill="#04080B" stroke="#E6F2F0" stroke-width="3"/><circle cx="39.7" cy="289.7" r="3.2" fill="#2BE39B"/></svg>
+      <figcaption>Tracé réel · 6,5 km · départ place du Temple-Neuf (Grande Île)</figcaption>
+    </figure>
+  </div>
+
+  <section aria-labelledby="h-faits">
+    <h2 id="h-faits">La boucle en chiffres</h2>
+    <div class="facts">
+      <div class="card"><div class="k">Distance</div><div class="v">6,5 km</div><p>Mesurée sur le tracé</p></div>
+      <div class="card"><div class="k">Dénivelé +</div><div class="v">2 <small>m</small></div><p>Quasi plat</p></div>
+      <div class="card"><div class="k">Départ</div><div class="v" style="font-size:20px">Place du Temple-Neuf</div><p>Strasbourg</p></div>
+      <div class="card"><div class="k">Routes dangereuses</div><div class="v">0 m</div><p>Selon l'analyse de sécurité de Traceo</p></div>
+    </div>
+    <ul class="list" style="margin-top:18px">
+      <li><b>Points d'eau</b> : 2 recensés à moins de 40 m du tracé</li><li><b>Revêtement</b> : surtout bitume ou béton (≈ 5 km) · pavés ou dalles ≈ 1,2 km</li><li><b>Forme</b> : boucle, retour au point de départ (≈ 1,7 km d'un bout à l'autre)</li>
+    </ul>
+  </section>
+
+  <section aria-labelledby="h-temps">
+    <h2 id="h-temps">Combien de temps pour faire ces 6,5 km ?</h2>
+    <div class="paces">
+      <div class="card"><div class="k">5:00 /km</div><div class="v">32 min</div><p>12 km/h</p></div>
+      <div class="card"><div class="k">6:00 /km</div><div class="v">39 min</div><p>10 km/h</p></div>
+      <div class="card"><div class="k">7:00 /km</div><div class="v">46 min</div><p>8,6 km/h</p></div>
+    </div>
+    <p class="note">Durées calculées : distance × allure, hors arrêts aux feux, pauses et effet du dénivelé.</p>
+  </section>
+
+  <section id="trace" aria-labelledby="h-trace">
+    <h2 id="h-trace">Le tracé, rue par rue</h2>
+    <ol class="route">
+      <li>Place du Temple Neuf</li>
+      <li>Rue des Étudiants</li>
+      <li>Rue de la Comédie</li>
+      <li>Avenue de la Paix - Simone Veil</li>
+      <li>Rue Strauss-Durkheim</li>
+      <li>Rue de Bitche</li>
+      <li>Rue Fritz Kieffer</li>
+      <li>Rue Jacques Kablé</li>
+      <li>Place de Bordeaux</li>
+      <li>Boulevard Ohmacht</li>
+      <li>Pont de la Dordogne</li>
+      <li>Rue Herder</li>
+      <li>Rue Daniel Hirtz</li>
+      <li>Rue de la Schiffmatt</li>
+      <li>Rue Gottfried</li>
+      <li>Rue Massenet</li>
+      <li>Boulevard d'Anvers</li>
+      <li>Rue de Reims</li>
+      <li>Rue Goethe</li>
+      <li>Rue de l'Université</li>
+      <li>Rue Blaise Pascal</li>
+      <li>Allée Konrad Roentgen</li>
+      <li>Allée Gaspard Monge</li>
+      <li>Impasse Louis Arbogast</li>
+      <li>Place Saint-Nicolas aux Ondes</li>
+      <li>Rue de l'Académie</li>
+      <li>Rue Saint-Guillaume</li>
+      <li>Quai des Pêcheurs</li>
+      <li>Quai des Bateliers</li>
+      <li>Rue de la Pierre Large</li>
+      <li>Rue Saint-Étienne</li>
+      <li>Place Saint-Étienne</li>
+      <li>Rue des Frères</li>
+      <li>Rue du Dôme</li>
+      <li>Rue des Hallebardes</li>
+      <li>Rue du Sanglier</li>
+      <li>Rue du Chaudron</li>
+      <li>Rue des Orfèvres</li>
+      <li>Rue du Temple Neuf</li>
+    </ol>
+    <p class="note">Dans l'ordre du parcours, d'après le guidage vocal de Traceo et OpenStreetMap. Une rue empruntée deux fois n'apparaît qu'une fois ; les allées et chemins sans nom ne sont pas listés.</p>
+  </section>
+
+  <section aria-labelledby="h-voir">
+    <h2 id="h-voir">Ce que tu croises en chemin</h2>
+    <div class="cols">
+      <div class="card"><h3>Eau et espaces verts</h3><ul class="list"><li>L'Ill, franchie au pont Saint-Guillaume, avec les quais des Pêcheurs et des Bateliers</li><li>Traverse le Jardin botanique (≈ 130 m)</li><li>Traverse le jardin de la place de la République (≈ 150 m)</li><li>Longe le square Markos Botzaris</li></ul></div>
+      <div class="card"><h3>Sécurité</h3><ul class="list"><li>Aucun tronçon sur une route jugée dangereuse par Traceo (grands axes sans trottoir, routes très circulées ; les traversées courtes ne comptent pas)</li><li>Guidage vocal rue par rue dans l'app, avec le nom de chaque rue</li><li>Vérifie toujours les conditions sur place : travaux, événements, horaires des parcs</li></ul></div>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-conseils">
+    <h2 id="h-conseils">Courir à Strasbourg : nos conseils pour cette boucle</h2>
+    <div class="prose">
+      <p>Avec 2 m de dénivelé, c'est la boucle la plus plate de cette série : parfaite pour travailler une allure régulière, faire des intervalles ou une sortie de récupération. Elle combine les grandes avenues de la Neustadt et du quartier des XV, un passage le long du Jardin botanique (attention à ses horaires d'ouverture) et les quais de l'Ill autour du pont Saint-Guillaume.</p>
+      <p>Strasbourg est une ville de vélos : sur les quais et les voies partagées, reste bien à droite et jette un œil derrière toi avant de changer de trajectoire.</p>
+      <p>La Grande Île, au départ et à l'arrivée, est très fréquentée en journée, et plus encore pendant le marché de Noël : pour courir sans slalomer, sors tôt le matin. Les pavés et dalles du centre représentent environ 1,2 km du tracé d'après OpenStreetMap.</p>
+      <p>L'hiver alsacien peut être froid et humide : superpose des couches fines, et pense au bonnet et aux gants pour les premiers kilomètres. 2 points d'eau sont recensés à moins de 40 m de la boucle.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="box">
+      <div>
+        <h2>Génère ta propre boucle à Strasbourg en 1 clic</h2>
+        <p>Cette boucle est un exemple. La tienne part de là où tu es, à la distance que tu veux, en évitant les grands axes, avec le guidage vocal rue par rue. Et jamais deux fois la même.</p>
+        <p class="fine">3 boucles offertes, sans carte bancaire. Ensuite, <a href="https://traceorun.pages.dev/essai-premium?src=seo_strasbourg" data-ev="premium">Premium à 4,99 € les 31 jours</a> : boucles illimitées, Garmin, Strava, export GPX. Sans abonnement.</p>
+      </div>
+      <a class="btn main" href="https://traceorun.pages.dev/app?src=seo_strasbourg" data-ev="essayer">Générer ma boucle</a>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-villes">
+    <h2 id="h-villes">Autres parcours de course à pied</h2>
+    <div class="cities">
+      <a href="paris">Paris</a>
+      <a href="marseille">Marseille</a>
+      <a href="lyon">Lyon</a>
+      <a href="toulouse">Toulouse</a>
+      <a href="nice">Nice</a>
+      <a href="nantes">Nantes</a>
+      <a href="bordeaux">Bordeaux</a>
+      <a href="lille">Lille</a>
+      <a href="angers">Angers</a>
+      <a href="saint-georges-sur-loire">Saint-Georges-sur-Loire</a>
+      <a href="./">Toutes les villes →</a>
+    </div>
+    <p class="note">Données : boucle calculée par Traceo (moteur BRouter) sur les données OpenStreetMap. Parcs, cours d'eau, revêtement, escaliers et points d'eau : © contributeurs <a href="https://www.openstreetmap.org/copyright" rel="noopener">OpenStreetMap</a>, licence ODbL. Le revêtement et les points d'eau dépendent de ce que la communauté a cartographié : ils peuvent être incomplets.</p>
+  </section>
+</main>
+  <footer>
+    <span>© 2026 Traceo · Pierre Renard EI</span>
+    <span><a href="./">Tous les parcours</a> · <a href="../legal">Mentions légales et CGV</a> · <a href="../">Accueil</a></span>
+  </footer>
+</div>
+<script src="../stats.js" defer></script>
+</body>
+</html>

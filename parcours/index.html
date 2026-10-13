@@ -1,0 +1,365 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Parcours course à pied par ville : boucles réelles | Traceo</title>
+<meta name="description" content="Boucles de course à pied réellement générées par Traceo à Paris, Marseille, Lyon, Toulouse, Nice, Nantes, Bordeaux, Lille… Tracé, D+, durées.">
+<meta name="theme-color" content="#050F15">
+<link rel="icon" href="../icons/icon-192.png">
+<link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+<link rel="canonical" href="https://traceorun.pages.dev/parcours/">
+<meta name="robots" content="index,follow,max-image-preview:large">
+<meta name="author" content="Pierre Renard">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Traceo">
+<meta property="og:locale" content="fr_FR">
+<meta property="og:title" content="Parcours course à pied par ville · Traceo">
+<meta property="og:description" content="Boucles de course à pied réellement générées par Traceo à Paris, Marseille, Lyon, Toulouse, Nice, Nantes, Bordeaux, Lille… Tracé, D+, durées.">
+<meta property="og:image" content="https://traceorun.pages.dev/parcours/og/parcours.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Boucles de course à pied réelles dans 11 villes françaises">
+<meta property="og:url" content="https://traceorun.pages.dev/parcours/">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Parcours course à pied par ville · Traceo">
+<meta name="twitter:description" content="Boucles de course à pied réellement générées par Traceo à Paris, Marseille, Lyon, Toulouse, Nice, Nantes, Bordeaux, Lille… Tracé, D+, durées.">
+<meta name="twitter:image" content="https://traceorun.pages.dev/parcours/og/parcours.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Bricolage+Grotesque:opsz,wght@12..96,600..800&family=Figtree:wght@500;600;700;800;900&display=swap">
+<style>
+:root{
+  --bg:#050F15; --surface:#0E1E25; --surface-2:#14282F; --line:#1D3640;
+  --ink:#E6F2F0; --muted:#8AA4A3; --accent:#25C98F; --accent-2:#1EA6D0; --accent-ink:#03140D;
+  --f-display:"Bricolage Grotesque","Arial Narrow",system-ui,sans-serif; --f-body:"Figtree",system-ui,-apple-system,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{background:var(--bg);color:var(--ink);font:16px/1.6 var(--f-body);overflow-x:hidden;-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}
+.wrap{max-width:1080px;margin:0 auto;padding:0 20px}
+.glow{position:fixed;inset:-20% -10% auto;height:70vh;background:radial-gradient(60% 60% at 70% 20%,rgba(37,201,143,.16),transparent 70%),radial-gradient(50% 50% at 10% 60%,rgba(30,166,208,.12),transparent 70%);pointer-events:none;z-index:0}
+header,main,footer{position:relative;z-index:1}
+header{display:flex;align-items:center;justify-content:space-between;padding:18px 0}
+.brand{display:flex;align-items:center;gap:10px;font:800 20px var(--f-display);letter-spacing:-.02em}
+.brand svg{width:30px;height:30px}
+.pill{font:800 12px var(--f-body);letter-spacing:.18em;text-transform:uppercase;color:var(--accent-ink);background:linear-gradient(95deg,#3BF5A8,#28B4F0);padding:6px 11px;border-radius:999px}
+.crumbs{font-size:14px;color:var(--muted);padding:4px 0 0}
+.crumbs ol{list-style:none;display:flex;flex-wrap:wrap;gap:6px}
+.crumbs li+li::before{content:"›";margin-right:6px;color:#4C6B6F}
+.crumbs a{text-decoration:underline;text-underline-offset:3px}
+.hero{display:grid;grid-template-columns:1.05fr .95fr;gap:40px;align-items:center;padding:22px 0 44px}
+.kick{font:800 14px var(--f-body);letter-spacing:.2em;text-transform:uppercase;color:#9FD8C8}
+h1{font:400 clamp(46px,7.4vw,86px)/.95 Anton,Impact,sans-serif;text-transform:uppercase;letter-spacing:.005em;margin:12px 0 16px;overflow-wrap:anywhere}
+.g{background:linear-gradient(95deg,#3BF5A8,#22D3C5 45%,#28B4F0);-webkit-background-clip:text;background-clip:text;color:transparent}
+.lead{font-size:clamp(17px,2vw,19px);color:#CFE3E0;max-width:46ch}
+.cta{display:flex;flex-wrap:wrap;gap:12px;margin-top:24px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:54px;padding:0 24px;border-radius:16px;font:900 17px var(--f-body);text-align:center}
+.btn.main{background:linear-gradient(105deg,#3BF5A8,#28B4F0);color:var(--accent-ink);box-shadow:0 12px 40px rgba(43,227,155,.3)}
+.btn.ghost{border:1.5px solid var(--line);background:rgba(14,30,37,.6)}
+.fine{margin-top:12px;font-size:14px;color:var(--muted)}
+.map{margin:0;border:1px solid var(--line);border-radius:26px;overflow:hidden;background:#04080B;box-shadow:0 30px 80px rgba(0,0,0,.5),0 0 60px rgba(43,227,155,.12)}
+.map svg{display:block;width:100%;height:auto}
+.map figcaption{font-size:13px;color:var(--muted);padding:10px 16px 12px;border-top:1px solid var(--line)}
+section{padding:14px 0 44px}
+h2{font:800 clamp(26px,3.6vw,36px)/1.1 var(--f-display);letter-spacing:-.02em;margin-bottom:18px}
+h3{font:800 18px/1.25 var(--f-display);margin-bottom:8px}
+.facts{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:16px 18px}
+.card .k{font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.card .v{font:800 26px/1.15 var(--f-display);margin-top:4px}
+.card .v small{font-size:15px;color:var(--muted);font-weight:700}
+.card p{font-size:14px;color:var(--muted);margin-top:4px;line-height:1.45}
+.paces{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.route{list-style:none;display:flex;flex-wrap:wrap;gap:8px;counter-reset:r}
+.route li{counter-increment:r;display:inline-flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:6px 13px 6px 7px;font-size:14px;font-weight:600}
+.route li::before{content:counter(r);display:inline-grid;place-items:center;min-width:24px;height:24px;border-radius:999px;background:var(--surface-2);color:#9FD8C8;font-size:12px;font-weight:800}
+.route li:first-child::before{background:linear-gradient(105deg,#3BF5A8,#28B4F0);color:var(--accent-ink)}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+ul.list{list-style:none;display:grid;gap:8px}
+ul.list li{position:relative;padding-left:20px;color:#CFE3E0}
+ul.list li::before{content:"";position:absolute;left:2px;top:.62em;width:8px;height:8px;border-radius:50%;background:linear-gradient(105deg,#3BF5A8,#28B4F0)}
+.prose{max-width:68ch}
+.prose p{color:#CFE3E0;font-size:17px;margin-bottom:14px}
+.note{font-size:14px;color:var(--muted);margin-top:14px;max-width:72ch}
+.note a{text-decoration:underline}
+.box{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:18px;background:linear-gradient(135deg,rgba(37,201,143,.14),rgba(30,166,208,.1));border:1px solid rgba(43,227,155,.35);border-radius:24px;padding:26px}
+.box h2{margin-bottom:8px}
+.box p{color:#CFE3E0;max-width:52ch}
+.box .fine a{text-decoration:underline}
+.cities{display:flex;flex-wrap:wrap;gap:8px}
+.cities a{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:8px 14px;font-weight:700;font-size:15px}
+.cities a:hover,.route li:hover{border-color:#2B5A5F}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.tile{display:block;background:var(--surface);border:1px solid var(--line);border-radius:22px;overflow:hidden;transition:border-color .2s}
+.tile:hover{border-color:#2B5A5F}
+.tile svg{display:block;width:100%;height:auto}
+.tile .t{padding:12px 16px 16px}
+.tile h3{font-size:20px;margin-bottom:2px}
+.tile p{font-size:14px;color:var(--muted)}
+footer{border-top:1px solid var(--line);padding:22px 0 40px;color:var(--muted);font-size:13px;display:flex;flex-wrap:wrap;gap:14px;justify-content:space-between}
+footer a{text-decoration:underline}
+@media (max-width:860px){
+  .hero{grid-template-columns:1fr;gap:26px;padding-top:12px}
+  .facts{grid-template-columns:1fr 1fr}
+  .grid{grid-template-columns:1fr 1fr}
+  .cols{grid-template-columns:1fr}
+}
+@media (max-width:520px){
+  .wrap{padding:0 16px}
+  .btn{width:100%}
+  .paces{gap:8px}
+  .paces .card{padding:14px 12px}
+  .paces .v{font-size:20px}
+  .grid{grid-template-columns:1fr}
+  .card .v{font-size:22px}
+  .box{padding:20px}
+}
+</style>
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@graph": [
+  {
+   "@type": "Organization",
+   "@id": "https://traceorun.pages.dev/#organization",
+   "name": "Traceo",
+   "legalName": "Pierre Renard EI",
+   "url": "https://traceorun.pages.dev/",
+   "logo": {
+    "@type": "ImageObject",
+    "url": "https://traceorun.pages.dev/icons/icon-512.png",
+    "width": 512,
+    "height": 512
+   }
+  },
+  {
+   "@type": "WebSite",
+   "@id": "https://traceorun.pages.dev/#website",
+   "url": "https://traceorun.pages.dev/",
+   "name": "Traceo",
+   "inLanguage": "fr",
+   "publisher": {
+    "@id": "https://traceorun.pages.dev/#organization"
+   }
+  },
+  {
+   "@type": "CollectionPage",
+   "@id": "https://traceorun.pages.dev/parcours/#page",
+   "url": "https://traceorun.pages.dev/parcours/",
+   "name": "Parcours course à pied par ville : boucles réelles | Traceo",
+   "description": "Boucles de course à pied réellement générées par Traceo à Paris, Marseille, Lyon, Toulouse, Nice, Nantes, Bordeaux, Lille… Tracé, D+, durées.",
+   "inLanguage": "fr",
+   "datePublished": "2026-10-13",
+   "dateModified": "2026-10-13",
+   "isPartOf": {
+    "@id": "https://traceorun.pages.dev/#website"
+   },
+   "publisher": {
+    "@id": "https://traceorun.pages.dev/#organization"
+   },
+   "breadcrumb": {
+    "@id": "https://traceorun.pages.dev/parcours/#breadcrumb"
+   },
+   "primaryImageOfPage": {
+    "@type": "ImageObject",
+    "url": "https://traceorun.pages.dev/parcours/og/parcours.jpg",
+    "width": 1200,
+    "height": 630
+   },
+   "mainEntity": {
+    "@type": "ItemList",
+    "numberOfItems": 11,
+    "itemListElement": [
+     {
+      "@type": "ListItem",
+      "position": 1,
+      "url": "https://traceorun.pages.dev/parcours/paris",
+      "name": "Parcours course à pied Paris : boucle de 7 km"
+     },
+     {
+      "@type": "ListItem",
+      "position": 2,
+      "url": "https://traceorun.pages.dev/parcours/marseille",
+      "name": "Parcours course à pied Marseille : boucle de 7,2 km"
+     },
+     {
+      "@type": "ListItem",
+      "position": 3,
+      "url": "https://traceorun.pages.dev/parcours/lyon",
+      "name": "Parcours course à pied Lyon : boucle de 7,3 km"
+     },
+     {
+      "@type": "ListItem",
+      "position": 4,
+      "url": "https://traceorun.pages.dev/parcours/toulouse",
+      "name": "Parcours course à pied Toulouse : boucle de 7 km"
+     },
+     {
+      "@type": "ListItem",
+      "position": 5,
+      "url": "https://traceorun.pages.dev/parcours/nice",
+      "name": "Parcours course à pied Nice : boucle de 6,8 km"
+     },
+     {
+      "@type": "ListItem",
+      "position": 6,
+      "url": "https://traceorun.pages.dev/parcours/nantes",
+      "name": "Parcours course à pied Nantes : boucle de 7,3 km"
+     },
+     {
+      "@type": "ListItem",
+      "position": 7,
+      "url": "https://traceorun.pages.dev/parcours/strasbourg",
+      "name": "Parcours course à pied Strasbourg : boucle de 6,5 km"
+     },
+     {
+      "@type": "ListItem",
+      "position": 8,
+      "url": "https://traceorun.pages.dev/parcours/bordeaux",
+      "name": "Parcours course à pied Bordeaux : boucle de 6,8 km"
+     },
+     {
+      "@type": "ListItem",
+      "position": 9,
+      "url": "https://traceorun.pages.dev/parcours/lille",
+      "name": "Parcours course à pied Lille : boucle de 6,7 km"
+     },
+     {
+      "@type": "ListItem",
+      "position": 10,
+      "url": "https://traceorun.pages.dev/parcours/angers",
+      "name": "Parcours course à pied Angers : boucle de 7,2 km"
+     },
+     {
+      "@type": "ListItem",
+      "position": 11,
+      "url": "https://traceorun.pages.dev/parcours/saint-georges-sur-loire",
+      "name": "Parcours course à pied Saint-Georges-sur-Loire : boucle de 8,2 km"
+     }
+    ]
+   }
+  },
+  {
+   "@type": "BreadcrumbList",
+   "@id": "https://traceorun.pages.dev/parcours/#breadcrumb",
+   "itemListElement": [
+    {
+     "@type": "ListItem",
+     "position": 1,
+     "name": "Accueil",
+     "item": "https://traceorun.pages.dev/"
+    },
+    {
+     "@type": "ListItem",
+     "position": 2,
+     "name": "Parcours",
+     "item": "https://traceorun.pages.dev/parcours/"
+    }
+   ]
+  }
+ ]
+}
+</script>
+</head>
+<body>
+<div class="glow"></div>
+<div class="wrap">
+  <header>
+    <a class="brand" href="../"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M7 23c0-8 5.5-14 11.5-14 4.6 0 7.5 2.9 7.5 6.6 0 3.8-3 6.6-6.8 6.6-2.8 0-4.7-1.9-4.7-4.2" fill="none" stroke="#25C98F" stroke-width="3.4" stroke-linecap="round"/><circle cx="7" cy="23" r="3.6" fill="#E6F2F0"/></svg>Traceo</a>
+    <span class="pill">Parcours</span>
+  </header>
+  <nav class="crumbs" aria-label="Fil d'Ariane"><ol><li><a href="../">Accueil</a></li><li aria-current="page">Parcours</li></ol></nav>
+<main>
+  <div class="hero" style="grid-template-columns:1fr">
+    <div>
+      <p class="kick">Parcours course à pied en France</p>
+      <h1>Des boucles <span class="g">vraies</span>, ville par ville</h1>
+      <p class="lead" style="max-width:62ch">Chaque parcours ci-dessous a été réellement généré par Traceo, en un clic, au cœur de la ville : tracé exact, distance, dénivelé, rues empruntées, temps estimés selon ton allure et conseils pour courir sur place. Aucune route jugée dangereuse par l'analyse de sécurité de Traceo sur ces boucles.</p>
+      <div class="cta">
+        <a class="btn main" href="https://traceorun.pages.dev/app?src=seo_parcours" data-ev="essayer">Génère ta boucle près de chez toi</a>
+      </div>
+      <p class="fine">3 boucles offertes, sans carte bancaire. Partout en France.</p>
+    </div>
+  </div>
+
+  <section aria-labelledby="h-villes">
+    <h2 id="h-villes">Choisis ta ville</h2>
+    <div class="grid">
+      <a class="tile" href="paris">
+        <svg class="loop" viewBox="0 0 320 220" role="img" aria-labelledby="h-paris-t" xmlns="http://www.w3.org/2000/svg"><title id="h-paris-t">Boucle de 7 km à Paris</title><defs><linearGradient id="h-paris-g" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="320" y2="220"><stop offset="0" stop-color="#2BE39B"/><stop offset=".5" stop-color="#22D3C5"/><stop offset="1" stop-color="#28B4F0"/></linearGradient><pattern id="h-paris-p" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M24 0H0V24" fill="none" stroke="#10232B" stroke-width="1"/></pattern><filter id="h-paris-f" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="5"/></filter></defs><rect width="320" height="220" fill="#04080B"/><rect width="320" height="220" fill="url(#h-paris-p)"/><path d="M193.1 179.3 L191.2 177.3 L189.4 177.7 L182.4 184.5 L180.3 182.6 L176.4 184.5 L167.6 194.0 L144.0 184.6 L141.2 184.5 L139.1 186.1 L135.6 184.1 L134.9 184.8 L113.6 153.4 L101.1 154.6 L99.2 150.0 L94.5 146.0 L89.5 142.2 L86.0 141.6 L85.0 139.4 L83.1 139.8 L87.1 134.0 L82.0 129.5 L91.5 115.4 L94.2 109.1 L103.8 92.8 L103.4 90.7 L105.6 89.4 L110.2 79.7 L110.4 78.6 L107.4 76.9 L115.8 58.0 L118.3 58.2 L120.4 56.1 L120.6 53.0 L118.8 51.2 L124.8 37.9 L125.9 37.6 L130.8 44.7 L136.5 41.0 L137.8 42.3 L163.0 26.0 L166.6 29.3 L171.1 31.1 L176.4 31.0 L181.1 28.9 L181.9 30.4 L183.6 29.9 L206.6 41.5 L209.2 43.8 L209.5 49.1 L210.9 50.2 L210.7 51.3 L238.0 77.0 L221.5 90.1 L223.0 91.9 L216.3 97.1 L216.1 98.2 L213.9 98.8 L213.8 102.9 L211.1 103.3 L211.8 114.8 L211.3 117.4 L209.9 118.0 L209.7 123.1 L203.0 158.4 L201.3 159.5 L203.5 161.7 L203.2 163.5 L194.3 172.3 L193.2 175.5 L191.2 177.3 L193.1 179.3 Z" fill="none" stroke="url(#h-paris-g)" stroke-width="9" stroke-linejoin="round" opacity=".45" filter="url(#h-paris-f)"/><path d="M193.1 179.3 L191.2 177.3 L189.4 177.7 L182.4 184.5 L180.3 182.6 L176.4 184.5 L167.6 194.0 L144.0 184.6 L141.2 184.5 L139.1 186.1 L135.6 184.1 L134.9 184.8 L113.6 153.4 L101.1 154.6 L99.2 150.0 L94.5 146.0 L89.5 142.2 L86.0 141.6 L85.0 139.4 L83.1 139.8 L87.1 134.0 L82.0 129.5 L91.5 115.4 L94.2 109.1 L103.8 92.8 L103.4 90.7 L105.6 89.4 L110.2 79.7 L110.4 78.6 L107.4 76.9 L115.8 58.0 L118.3 58.2 L120.4 56.1 L120.6 53.0 L118.8 51.2 L124.8 37.9 L125.9 37.6 L130.8 44.7 L136.5 41.0 L137.8 42.3 L163.0 26.0 L166.6 29.3 L171.1 31.1 L176.4 31.0 L181.1 28.9 L181.9 30.4 L183.6 29.9 L206.6 41.5 L209.2 43.8 L209.5 49.1 L210.9 50.2 L210.7 51.3 L238.0 77.0 L221.5 90.1 L223.0 91.9 L216.3 97.1 L216.1 98.2 L213.9 98.8 L213.8 102.9 L211.1 103.3 L211.8 114.8 L211.3 117.4 L209.9 118.0 L209.7 123.1 L203.0 158.4 L201.3 159.5 L203.5 161.7 L203.2 163.5 L194.3 172.3 L193.2 175.5 L191.2 177.3 L193.1 179.3 Z" fill="none" stroke="url(#h-paris-g)" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/><circle cx="193.1" cy="179.3" r="8.5" fill="#04080B" stroke="#E6F2F0" stroke-width="3"/><circle cx="193.1" cy="179.3" r="3.2" fill="#2BE39B"/></svg>
+        <div class="t"><h3>Paris</h3><p>7 km · 28 m D+ · départ Champ de Mars</p></div>
+      </a>
+      <a class="tile" href="marseille">
+        <svg class="loop" viewBox="0 0 320 220" role="img" aria-labelledby="h-marseille-t" xmlns="http://www.w3.org/2000/svg"><title id="h-marseille-t">Boucle de 7,2 km à Marseille</title><defs><linearGradient id="h-marseille-g" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="320" y2="220"><stop offset="0" stop-color="#2BE39B"/><stop offset=".5" stop-color="#22D3C5"/><stop offset="1" stop-color="#28B4F0"/></linearGradient><pattern id="h-marseille-p" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M24 0H0V24" fill="none" stroke="#10232B" stroke-width="1"/></pattern><filter id="h-marseille-f" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="5"/></filter></defs><rect width="320" height="220" fill="#04080B"/><rect width="320" height="220" fill="url(#h-marseille-p)"/><path d="M173.8 26.0 L175.7 33.2 L177.6 34.2 L175.5 35.5 L176.1 36.8 L181.6 34.6 L183.2 39.6 L204.6 32.7 L215.6 59.5 L223.5 57.3 L246.8 111.7 L245.6 112.2 L248.0 118.4 L247.0 121.5 L233.1 127.2 L234.9 132.6 L225.6 135.5 L221.2 131.8 L219.5 128.8 L207.5 133.7 L212.5 153.4 L211.6 153.7 L212.5 160.8 L206.4 164.0 L207.6 166.7 L206.6 168.6 L207.1 171.8 L200.2 177.1 L196.4 178.2 L196.0 180.2 L183.9 180.2 L182.4 184.1 L180.6 183.1 L179.8 184.5 L177.2 185.4 L174.3 189.9 L170.0 188.3 L167.1 183.4 L165.8 183.8 L165.3 185.7 L166.5 188.0 L164.0 193.7 L160.7 192.6 L160.0 194.0 L160.7 192.6 L155.2 189.9 L155.7 186.3 L147.6 186.0 L150.6 182.4 L150.2 181.0 L138.7 177.2 L137.3 176.1 L137.5 174.8 L134.7 175.5 L130.3 172.7 L124.2 171.7 L119.1 174.5 L117.7 171.2 L109.9 175.0 L97.2 170.1 L95.3 160.8 L95.5 138.4 L92.5 130.0 L91.5 117.9 L90.6 116.3 L85.2 113.5 L79.5 114.2 L77.0 98.8 L72.0 100.0 L87.1 96.5 L88.0 101.9 L120.7 88.5 L121.2 84.8 L117.9 85.0 L117.4 76.5 L122.3 62.6 L124.1 61.9 L123.4 58.8 L133.8 55.0 L132.5 50.4 L153.0 44.7 L152.6 43.6 L153.8 42.6 L173.6 35.6 L175.7 33.2 L173.8 26.0 Z" fill="none" stroke="url(#h-marseille-g)" stroke-width="9" stroke-linejoin="round" opacity=".45" filter="url(#h-marseille-f)"/><path d="M173.8 26.0 L175.7 33.2 L177.6 34.2 L175.5 35.5 L176.1 36.8 L181.6 34.6 L183.2 39.6 L204.6 32.7 L215.6 59.5 L223.5 57.3 L246.8 111.7 L245.6 112.2 L248.0 118.4 L247.0 121.5 L233.1 127.2 L234.9 132.6 L225.6 135.5 L221.2 131.8 L219.5 128.8 L207.5 133.7 L212.5 153.4 L211.6 153.7 L212.5 160.8 L206.4 164.0 L207.6 166.7 L206.6 168.6 L207.1 171.8 L200.2 177.1 L196.4 178.2 L196.0 180.2 L183.9 180.2 L182.4 184.1 L180.6 183.1 L179.8 184.5 L177.2 185.4 L174.3 189.9 L170.0 188.3 L167.1 183.4 L165.8 183.8 L165.3 185.7 L166.5 188.0 L164.0 193.7 L160.7 192.6 L160.0 194.0 L160.7 192.6 L155.2 189.9 L155.7 186.3 L147.6 186.0 L150.6 182.4 L150.2 181.0 L138.7 177.2 L137.3 176.1 L137.5 174.8 L134.7 175.5 L130.3 172.7 L124.2 171.7 L119.1 174.5 L117.7 171.2 L109.9 175.0 L97.2 170.1 L95.3 160.8 L95.5 138.4 L92.5 130.0 L91.5 117.9 L90.6 116.3 L85.2 113.5 L79.5 114.2 L77.0 98.8 L72.0 100.0 L87.1 96.5 L88.0 101.9 L120.7 88.5 L121.2 84.8 L117.9 85.0 L117.4 76.5 L122.3 62.6 L124.1 61.9 L123.4 58.8 L133.8 55.0 L132.5 50.4 L153.0 44.7 L152.6 43.6 L153.8 42.6 L173.6 35.6 L175.7 33.2 L173.8 26.0 Z" fill="none" stroke="url(#h-marseille-g)" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/><circle cx="173.8" cy="26.0" r="8.5" fill="#04080B" stroke="#E6F2F0" stroke-width="3"/><circle cx="173.8" cy="26.0" r="3.2" fill="#2BE39B"/></svg>
+        <div class="t"><h3>Marseille</h3><p>7,2 km · 133 m D+ · départ Vieux-Port</p></div>
+      </a>
+      <a class="tile" href="lyon">
+        <svg class="loop" viewBox="0 0 320 220" role="img" aria-labelledby="h-lyon-t" xmlns="http://www.w3.org/2000/svg"><title id="h-lyon-t">Boucle de 7,3 km à Lyon</title><defs><linearGradient id="h-lyon-g" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="320" y2="220"><stop offset="0" stop-color="#2BE39B"/><stop offset=".5" stop-color="#22D3C5"/><stop offset="1" stop-color="#28B4F0"/></linearGradient><pattern id="h-lyon-p" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M24 0H0V24" fill="none" stroke="#10232B" stroke-width="1"/></pattern><filter id="h-lyon-f" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="5"/></filter></defs><rect width="320" height="220" fill="#04080B"/><rect width="320" height="220" fill="url(#h-lyon-p)"/><path d="M94.6 121.6 L95.8 118.5 L93.0 116.6 L93.3 115.8 L97.0 117.3 L100.6 100.9 L102.2 100.0 L102.8 97.3 L106.4 97.0 L106.6 96.2 L118.3 96.8 L120.2 93.4 L121.1 93.5 L130.5 76.2 L134.4 75.3 L133.5 56.6 L150.6 54.2 L150.0 38.4 L150.8 37.1 L167.6 35.1 L167.0 30.5 L186.8 27.9 L186.8 27.0 L194.7 26.0 L194.9 27.3 L196.2 27.2 L198.8 47.3 L199.8 47.2 L200.1 48.3 L206.3 47.5 L209.7 71.1 L216.4 71.3 L216.9 72.7 L223.6 72.7 L224.3 77.5 L224.9 78.5 L226.1 78.3 L227.0 80.7 L221.4 81.4 L220.6 83.1 L221.6 86.9 L225.2 91.6 L222.4 93.1 L221.1 95.3 L216.5 96.4 L216.8 98.5 L216.1 98.6 L217.5 108.5 L215.5 108.7 L217.1 124.4 L210.9 127.5 L210.5 129.7 L207.3 129.8 L202.7 146.1 L205.3 164.1 L204.1 166.8 L198.2 167.8 L197.0 173.8 L191.4 180.1 L190.4 191.3 L189.4 191.6 L189.2 194.0 L182.9 190.3 L185.0 187.9 L175.4 178.9 L179.6 168.2 L170.9 161.1 L166.6 155.9 L159.9 143.9 L139.7 134.2 L97.2 116.8 L97.0 117.3 L93.3 115.8 L93.6 117.5 L95.8 118.5 L94.6 121.6 Z" fill="none" stroke="url(#h-lyon-g)" stroke-width="9" stroke-linejoin="round" opacity=".45" filter="url(#h-lyon-f)"/><path d="M94.6 121.6 L95.8 118.5 L93.0 116.6 L93.3 115.8 L97.0 117.3 L100.6 100.9 L102.2 100.0 L102.8 97.3 L106.4 97.0 L106.6 96.2 L118.3 96.8 L120.2 93.4 L121.1 93.5 L130.5 76.2 L134.4 75.3 L133.5 56.6 L150.6 54.2 L150.0 38.4 L150.8 37.1 L167.6 35.1 L167.0 30.5 L186.8 27.9 L186.8 27.0 L194.7 26.0 L194.9 27.3 L196.2 27.2 L198.8 47.3 L199.8 47.2 L200.1 48.3 L206.3 47.5 L209.7 71.1 L216.4 71.3 L216.9 72.7 L223.6 72.7 L224.3 77.5 L224.9 78.5 L226.1 78.3 L227.0 80.7 L221.4 81.4 L220.6 83.1 L221.6 86.9 L225.2 91.6 L222.4 93.1 L221.1 95.3 L216.5 96.4 L216.8 98.5 L216.1 98.6 L217.5 108.5 L215.5 108.7 L217.1 124.4 L210.9 127.5 L210.5 129.7 L207.3 129.8 L202.7 146.1 L205.3 164.1 L204.1 166.8 L198.2 167.8 L197.0 173.8 L191.4 180.1 L190.4 191.3 L189.4 191.6 L189.2 194.0 L182.9 190.3 L185.0 187.9 L175.4 178.9 L179.6 168.2 L170.9 161.1 L166.6 155.9 L159.9 143.9 L139.7 134.2 L97.2 116.8 L97.0 117.3 L93.3 115.8 L93.6 117.5 L95.8 118.5 L94.6 121.6 Z" fill="none" stroke="url(#h-lyon-g)" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/><circle cx="94.6" cy="121.6" r="8.5" fill="#04080B" stroke="#E6F2F0" stroke-width="3"/><circle cx="94.6" cy="121.6" r="3.2" fill="#2BE39B"/></svg>
+        <div class="t"><h3>Lyon</h3><p>7,3 km · 4 m D+ · départ Place Bellecour</p></div>
+      </a>
+      <a class="tile" href="toulouse">
+        <svg class="loop" viewBox="0 0 320 220" role="img" aria-labelledby="h-toulouse-t" xmlns="http://www.w3.org/2000/svg"><title id="h-toulouse-t">Boucle de 7 km à Toulouse</title><defs><linearGradient id="h-toulouse-g" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="320" y2="220"><stop offset="0" stop-color="#2BE39B"/><stop offset=".5" stop-color="#22D3C5"/><stop offset="1" stop-color="#28B4F0"/></linearGradient><pattern id="h-toulouse-p" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M24 0H0V24" fill="none" stroke="#10232B" stroke-width="1"/></pattern><filter id="h-toulouse-f" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="5"/></filter></defs><rect width="320" height="220" fill="#04080B"/><rect width="320" height="220" fill="url(#h-toulouse-p)"/><path d="M86.7 155.3 L84.8 156.0 L84.1 149.7 L99.0 118.2 L99.0 113.0 L97.6 111.4 L100.4 108.8 L122.5 68.2 L122.5 66.4 L136.2 56.2 L138.9 52.4 L119.4 39.5 L124.6 31.3 L124.6 28.3 L126.4 29.2 L127.6 26.0 L125.3 31.3 L145.0 41.8 L145.7 41.0 L147.5 41.9 L150.7 44.1 L151.6 46.9 L152.6 46.7 L156.7 70.1 L158.4 76.2 L160.7 75.8 L162.0 83.1 L163.8 83.8 L168.6 83.0 L169.2 85.8 L171.3 86.7 L176.7 92.6 L178.9 90.6 L182.9 95.1 L185.9 92.5 L186.9 94.0 L195.1 89.3 L198.5 91.0 L223.8 75.6 L224.4 72.7 L225.3 72.9 L226.0 71.4 L228.6 71.3 L230.1 73.0 L235.9 71.8 L235.9 67.6 L235.9 82.3 L231.5 84.8 L227.7 84.2 L220.3 103.1 L203.9 112.5 L205.4 116.9 L199.7 118.7 L201.4 124.0 L195.1 125.9 L201.2 149.5 L203.6 175.4 L211.8 176.7 L210.1 188.7 L211.3 190.1 L217.0 190.6 L213.2 189.6 L212.6 190.4 L204.8 186.9 L204.5 187.7 L198.5 185.9 L187.0 192.9 L185.4 191.2 L184.8 192.9 L182.2 194.0 L183.2 185.3 L173.1 184.6 L149.2 177.3 L145.5 178.0 L142.9 171.6 L137.7 164.4 L112.8 158.5 L111.6 161.7 L93.3 155.1 L86.7 155.3 Z" fill="none" stroke="url(#h-toulouse-g)" stroke-width="9" stroke-linejoin="round" opacity=".45" filter="url(#h-toulouse-f)"/><path d="M86.7 155.3 L84.8 156.0 L84.1 149.7 L99.0 118.2 L99.0 113.0 L97.6 111.4 L100.4 108.8 L122.5 68.2 L122.5 66.4 L136.2 56.2 L138.9 52.4 L119.4 39.5 L124.6 31.3 L124.6 28.3 L126.4 29.2 L127.6 26.0 L125.3 31.3 L145.0 41.8 L145.7 41.0 L147.5 41.9 L150.7 44.1 L151.6 46.9 L152.6 46.7 L156.7 70.1 L158.4 76.2 L160.7 75.8 L162.0 83.1 L163.8 83.8 L168.6 83.0 L169.2 85.8 L171.3 86.7 L176.7 92.6 L178.9 90.6 L182.9 95.1 L185.9 92.5 L186.9 94.0 L195.1 89.3 L198.5 91.0 L223.8 75.6 L224.4 72.7 L225.3 72.9 L226.0 71.4 L228.6 71.3 L230.1 73.0 L235.9 71.8 L235.9 67.6 L235.9 82.3 L231.5 84.8 L227.7 84.2 L220.3 103.1 L203.9 112.5 L205.4 116.9 L199.7 118.7 L201.4 124.0 L195.1 125.9 L201.2 149.5 L203.6 175.4 L211.8 176.7 L210.1 188.7 L211.3 190.1 L217.0 190.6 L213.2 189.6 L212.6 190.4 L204.8 186.9 L204.5 187.7 L198.5 185.9 L187.0 192.9 L185.4 191.2 L184.8 192.9 L182.2 194.0 L183.2 185.3 L173.1 184.6 L149.2 177.3 L145.5 178.0 L142.9 171.6 L137.7 164.4 L112.8 158.5 L111.6 161.7 L93.3 155.1 L86.7 155.3 Z" fill="none" stroke="url(#h-toulouse-g)" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/><circle cx="86.7" cy="155.3" r="8.5" fill="#04080B" stroke="#E6F2F0" stroke-width="3"/><circle cx="86.7" cy="155.3" r="3.2" fill="#2BE39B"/></svg>
+        <div class="t"><h3>Toulouse</h3><p>7 km · 58 m D+ · départ Capitole</p></div>
+      </a>
+      <a class="tile" href="nice">
+        <svg class="loop" viewBox="0 0 320 220" role="img" aria-labelledby="h-nice-t" xmlns="http://www.w3.org/2000/svg"><title id="h-nice-t">Boucle de 6,8 km à Nice</title><defs><linearGradient id="h-nice-g" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="320" y2="220"><stop offset="0" stop-color="#2BE39B"/><stop offset=".5" stop-color="#22D3C5"/><stop offset="1" stop-color="#28B4F0"/></linearGradient><pattern id="h-nice-p" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M24 0H0V24" fill="none" stroke="#10232B" stroke-width="1"/></pattern><filter id="h-nice-f" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="5"/></filter></defs><rect width="320" height="220" fill="#04080B"/><rect width="320" height="220" fill="url(#h-nice-p)"/><path d="M68.2 166.1 L64.7 160.7 L68.3 156.6 L56.5 133.4 L60.7 131.5 L45.7 94.9 L52.9 91.8 L49.1 80.1 L55.2 76.2 L51.6 65.4 L47.1 59.0 L52.7 56.3 L44.0 32.4 L58.1 26.0 L49.4 30.0 L54.1 39.9 L53.7 41.6 L55.2 42.1 L67.7 68.5 L133.5 100.1 L134.5 98.6 L135.9 99.3 L143.0 84.8 L174.9 98.7 L193.3 97.2 L240.5 101.8 L244.9 104.6 L251.6 105.7 L260.2 103.4 L268.8 95.5 L268.9 96.8 L276.0 96.7 L268.9 96.8 L268.8 95.5 L257.9 104.5 L252.4 105.7 L247.1 104.6 L244.1 106.0 L243.3 113.4 L241.6 113.2 L238.4 132.2 L232.7 185.8 L232.9 191.3 L241.5 194.0 L232.6 190.6 L234.8 167.6 L230.7 167.0 L231.3 155.8 L227.4 154.8 L226.8 153.1 L229.0 136.7 L220.2 135.3 L221.1 132.1 L218.1 131.8 L218.6 127.5 L217.1 126.3 L207.0 125.3 L205.3 123.0 L203.7 124.0 L173.2 98.1 L170.9 103.6 L158.8 98.6 L156.7 99.4 L146.4 109.5 L132.6 127.4 L125.5 132.9 L106.4 141.8 L67.1 157.1 L64.7 160.7 L68.2 166.1 Z" fill="none" stroke="url(#h-nice-g)" stroke-width="9" stroke-linejoin="round" opacity=".45" filter="url(#h-nice-f)"/><path d="M68.2 166.1 L64.7 160.7 L68.3 156.6 L56.5 133.4 L60.7 131.5 L45.7 94.9 L52.9 91.8 L49.1 80.1 L55.2 76.2 L51.6 65.4 L47.1 59.0 L52.7 56.3 L44.0 32.4 L58.1 26.0 L49.4 30.0 L54.1 39.9 L53.7 41.6 L55.2 42.1 L67.7 68.5 L133.5 100.1 L134.5 98.6 L135.9 99.3 L143.0 84.8 L174.9 98.7 L193.3 97.2 L240.5 101.8 L244.9 104.6 L251.6 105.7 L260.2 103.4 L268.8 95.5 L268.9 96.8 L276.0 96.7 L268.9 96.8 L268.8 95.5 L257.9 104.5 L252.4 105.7 L247.1 104.6 L244.1 106.0 L243.3 113.4 L241.6 113.2 L238.4 132.2 L232.7 185.8 L232.9 191.3 L241.5 194.0 L232.6 190.6 L234.8 167.6 L230.7 167.0 L231.3 155.8 L227.4 154.8 L226.8 153.1 L229.0 136.7 L220.2 135.3 L221.1 132.1 L218.1 131.8 L218.6 127.5 L217.1 126.3 L207.0 125.3 L205.3 123.0 L203.7 124.0 L173.2 98.1 L170.9 103.6 L158.8 98.6 L156.7 99.4 L146.4 109.5 L132.6 127.4 L125.5 132.9 L106.4 141.8 L67.1 157.1 L64.7 160.7 L68.2 166.1 Z" fill="none" stroke="url(#h-nice-g)" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/><circle cx="68.2" cy="166.1" r="8.5" fill="#04080B" stroke="#E6F2F0" stroke-width="3"/><circle cx="68.2" cy="166.1" r="3.2" fill="#2BE39B"/></svg>
+        <div class="t"><h3>Nice</h3><p>6,8 km · 41 m D+ · départ Place Masséna</p></div>
+      </a>
+      <a class="tile" href="nantes">
+        <svg class="loop" viewBox="0 0 320 220" role="img" aria-labelledby="h-nantes-t" xmlns="http://www.w3.org/2000/svg"><title id="h-nantes-t">Boucle de 7,3 km à Nantes</title><defs><linearGradient id="h-nantes-g" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="320" y2="220"><stop offset="0" stop-color="#2BE39B"/><stop offset=".5" stop-color="#22D3C5"/><stop offset="1" stop-color="#28B4F0"/></linearGradient><pattern id="h-nantes-p" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M24 0H0V24" fill="none" stroke="#10232B" stroke-width="1"/></pattern><filter id="h-nantes-f" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="5"/></filter></defs><rect width="320" height="220" fill="#04080B"/><rect width="320" height="220" fill="url(#h-nantes-p)"/><path d="M147.1 194.0 L146.5 193.0 L151.8 189.9 L149.2 184.3 L150.8 183.7 L145.5 174.5 L138.8 150.0 L137.2 148.9 L138.2 147.3 L139.2 138.8 L134.6 137.6 L134.2 136.5 L130.5 136.5 L130.4 130.8 L129.2 128.4 L126.4 126.2 L119.0 123.3 L111.7 118.6 L109.0 119.4 L108.0 117.1 L102.7 119.0 L101.3 114.9 L85.7 104.4 L86.3 103.6 L82.3 100.9 L83.8 98.7 L80.6 96.5 L83.8 98.7 L82.3 100.9 L89.2 106.9 L93.7 101.3 L90.3 98.9 L93.5 93.6 L97.7 90.9 L104.5 84.2 L103.7 82.0 L105.3 81.1 L107.1 81.7 L109.0 81.1 L110.7 82.2 L124.6 73.9 L123.3 71.9 L124.5 70.8 L143.5 59.3 L144.2 56.2 L152.1 44.9 L161.5 40.8 L163.5 37.8 L171.1 30.4 L175.9 27.8 L173.8 26.0 L175.9 27.8 L171.1 30.4 L168.1 33.5 L165.9 34.3 L162.0 31.7 L158.2 38.5 L166.4 45.5 L166.7 47.0 L172.8 52.8 L170.7 57.4 L170.5 60.5 L168.4 60.3 L167.9 61.1 L168.9 67.7 L170.2 70.3 L177.2 76.6 L185.7 86.9 L186.1 88.0 L182.0 92.3 L187.9 103.1 L192.7 107.0 L195.9 111.0 L196.5 110.6 L199.8 115.0 L201.4 113.4 L202.6 114.1 L203.1 113.4 L212.7 120.5 L212.9 122.7 L214.2 122.5 L219.0 128.0 L221.1 127.6 L222.8 130.8 L223.6 130.0 L225.9 130.8 L230.3 133.6 L234.4 134.9 L239.4 129.6 L234.4 134.9 L227.9 136.3 L229.4 139.9 L228.5 143.0 L219.9 147.9 L221.6 151.2 L212.7 156.5 L212.5 159.7 L208.2 160.9 L191.4 171.9 L160.9 182.5 L161.6 183.9 L146.5 193.0 L147.1 194.0 Z" fill="none" stroke="url(#h-nantes-g)" stroke-width="9" stroke-linejoin="round" opacity=".45" filter="url(#h-nantes-f)"/><path d="M147.1 194.0 L146.5 193.0 L151.8 189.9 L149.2 184.3 L150.8 183.7 L145.5 174.5 L138.8 150.0 L137.2 148.9 L138.2 147.3 L139.2 138.8 L134.6 137.6 L134.2 136.5 L130.5 136.5 L130.4 130.8 L129.2 128.4 L126.4 126.2 L119.0 123.3 L111.7 118.6 L109.0 119.4 L108.0 117.1 L102.7 119.0 L101.3 114.9 L85.7 104.4 L86.3 103.6 L82.3 100.9 L83.8 98.7 L80.6 96.5 L83.8 98.7 L82.3 100.9 L89.2 106.9 L93.7 101.3 L90.3 98.9 L93.5 93.6 L97.7 90.9 L104.5 84.2 L103.7 82.0 L105.3 81.1 L107.1 81.7 L109.0 81.1 L110.7 82.2 L124.6 73.9 L123.3 71.9 L124.5 70.8 L143.5 59.3 L144.2 56.2 L152.1 44.9 L161.5 40.8 L163.5 37.8 L171.1 30.4 L175.9 27.8 L173.8 26.0 L175.9 27.8 L171.1 30.4 L168.1 33.5 L165.9 34.3 L162.0 31.7 L158.2 38.5 L166.4 45.5 L166.7 47.0 L172.8 52.8 L170.7 57.4 L170.5 60.5 L168.4 60.3 L167.9 61.1 L168.9 67.7 L170.2 70.3 L177.2 76.6 L185.7 86.9 L186.1 88.0 L182.0 92.3 L187.9 103.1 L192.7 107.0 L195.9 111.0 L196.5 110.6 L199.8 115.0 L201.4 113.4 L202.6 114.1 L203.1 113.4 L212.7 120.5 L212.9 122.7 L214.2 122.5 L219.0 128.0 L221.1 127.6 L222.8 130.8 L223.6 130.0 L225.9 130.8 L230.3 133.6 L234.4 134.9 L239.4 129.6 L234.4 134.9 L227.9 136.3 L229.4 139.9 L228.5 143.0 L219.9 147.9 L221.6 151.2 L212.7 156.5 L212.5 159.7 L208.2 160.9 L191.4 171.9 L160.9 182.5 L161.6 183.9 L146.5 193.0 L147.1 194.0 Z" fill="none" stroke="url(#h-nantes-g)" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/><circle cx="147.1" cy="194.0" r="8.5" fill="#04080B" stroke="#E6F2F0" stroke-width="3"/><circle cx="147.1" cy="194.0" r="3.2" fill="#2BE39B"/></svg>
+        <div class="t"><h3>Nantes</h3><p>7,3 km · 47 m D+ · départ Île Feydeau</p></div>
+      </a>
+      <a class="tile" href="strasbourg">
+        <svg class="loop" viewBox="0 0 320 220" role="img" aria-labelledby="h-strasbourg-t" xmlns="http://www.w3.org/2000/svg"><title id="h-strasbourg-t">Boucle de 6,5 km à Strasbourg</title><defs><linearGradient id="h-strasbourg-g" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="320" y2="220"><stop offset="0" stop-color="#2BE39B"/><stop offset=".5" stop-color="#22D3C5"/><stop offset="1" stop-color="#28B4F0"/></linearGradient><pattern id="h-strasbourg-p" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M24 0H0V24" fill="none" stroke="#10232B" stroke-width="1"/></pattern><filter id="h-strasbourg-f" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="5"/></filter></defs><rect width="320" height="220" fill="#04080B"/><rect width="320" height="220" fill="url(#h-strasbourg-p)"/><path d="M71.1 159.7 L72.1 159.2 L69.2 149.8 L78.0 145.0 L93.6 133.9 L92.7 132.6 L99.4 128.1 L100.4 125.8 L113.5 117.8 L113.9 113.9 L117.6 105.3 L120.2 102.4 L119.1 102.0 L129.4 78.4 L113.0 71.3 L109.0 55.6 L104.7 26.0 L106.5 39.4 L152.8 33.4 L157.6 41.4 L196.8 62.9 L228.9 87.0 L238.1 75.2 L236.9 72.1 L238.5 70.8 L250.8 82.6 L244.2 90.6 L245.9 95.0 L241.6 99.0 L238.5 98.5 L237.4 105.1 L238.1 106.2 L233.4 133.6 L228.1 146.3 L226.8 147.0 L222.6 145.2 L220.9 148.7 L222.7 151.5 L220.2 155.2 L222.3 160.2 L218.0 170.1 L216.9 169.8 L215.5 172.9 L216.6 173.4 L217.4 177.8 L215.6 181.8 L214.1 194.0 L202.1 191.4 L201.6 190.4 L202.1 191.4 L200.4 191.0 L201.1 186.3 L185.8 177.5 L159.0 172.9 L154.3 173.0 L141.8 166.2 L138.1 167.1 L129.8 162.0 L124.3 155.7 L122.3 157.9 L113.6 159.0 L97.3 166.3 L94.1 162.3 L86.7 167.0 L82.5 161.3 L78.1 164.0 L75.2 157.8 L71.1 159.7 Z" fill="none" stroke="url(#h-strasbourg-g)" stroke-width="9" stroke-linejoin="round" opacity=".45" filter="url(#h-strasbourg-f)"/><path d="M71.1 159.7 L72.1 159.2 L69.2 149.8 L78.0 145.0 L93.6 133.9 L92.7 132.6 L99.4 128.1 L100.4 125.8 L113.5 117.8 L113.9 113.9 L117.6 105.3 L120.2 102.4 L119.1 102.0 L129.4 78.4 L113.0 71.3 L109.0 55.6 L104.7 26.0 L106.5 39.4 L152.8 33.4 L157.6 41.4 L196.8 62.9 L228.9 87.0 L238.1 75.2 L236.9 72.1 L238.5 70.8 L250.8 82.6 L244.2 90.6 L245.9 95.0 L241.6 99.0 L238.5 98.5 L237.4 105.1 L238.1 106.2 L233.4 133.6 L228.1 146.3 L226.8 147.0 L222.6 145.2 L220.9 148.7 L222.7 151.5 L220.2 155.2 L222.3 160.2 L218.0 170.1 L216.9 169.8 L215.5 172.9 L216.6 173.4 L217.4 177.8 L215.6 181.8 L214.1 194.0 L202.1 191.4 L201.6 190.4 L202.1 191.4 L200.4 191.0 L201.1 186.3 L185.8 177.5 L159.0 172.9 L154.3 173.0 L141.8 166.2 L138.1 167.1 L129.8 162.0 L124.3 155.7 L122.3 157.9 L113.6 159.0 L97.3 166.3 L94.1 162.3 L86.7 167.0 L82.5 161.3 L78.1 164.0 L75.2 157.8 L71.1 159.7 Z" fill="none" stroke="url(#h-strasbourg-g)" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/><circle cx="71.1" cy="159.7" r="8.5" fill="#04080B" stroke="#E6F2F0" stroke-width="3"/><circle cx="71.1" cy="159.7" r="3.2" fill="#2BE39B"/></svg>
+        <div class="t"><h3>Strasbourg</h3><p>6,5 km · 2 m D+ · départ Place du Temple-Neuf</p></div>
+      </a>
+      <a class="tile" href="bordeaux">
+        <svg class="loop" viewBox="0 0 320 220" role="img" aria-labelledby="h-bordeaux-t" xmlns="http://www.w3.org/2000/svg"><title id="h-bordeaux-t">Boucle de 6,8 km à Bordeaux</title><defs><linearGradient id="h-bordeaux-g" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="320" y2="220"><stop offset="0" stop-color="#2BE39B"/><stop offset=".5" stop-color="#22D3C5"/><stop offset="1" stop-color="#28B4F0"/></linearGradient><pattern id="h-bordeaux-p" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M24 0H0V24" fill="none" stroke="#10232B" stroke-width="1"/></pattern><filter id="h-bordeaux-f" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="5"/></filter></defs><rect width="320" height="220" fill="#04080B"/><rect width="320" height="220" fill="url(#h-bordeaux-p)"/><path d="M216.3 189.1 L213.6 189.1 L211.9 183.7 L131.6 194.0 L131.4 190.0 L129.8 189.4 L129.5 186.7 L126.4 185.9 L125.8 183.4 L123.5 183.2 L120.5 170.4 L76.5 175.2 L75.8 170.7 L76.5 175.2 L93.7 173.3 L91.7 170.0 L90.1 162.8 L92.6 149.4 L91.5 141.3 L77.1 131.4 L84.8 116.4 L83.9 114.6 L80.2 114.0 L86.2 102.9 L77.0 97.6 L84.1 85.5 L81.7 82.9 L92.4 73.8 L93.7 74.4 L98.5 64.5 L102.7 60.1 L108.5 43.7 L100.9 40.7 L105.3 26.7 L107.3 27.5 L108.0 26.5 L114.8 26.4 L151.8 26.1 L153.4 26.9 L178.9 26.0 L179.2 30.1 L212.1 52.5 L227.5 26.2 L243.0 41.5 L241.4 43.4 L244.2 45.9 L233.6 59.1 L218.8 83.9 L211.6 108.7 L210.2 126.7 L219.2 175.8 L215.6 176.9 L218.6 188.4 L216.3 189.1 Z" fill="none" stroke="url(#h-bordeaux-g)" stroke-width="9" stroke-linejoin="round" opacity=".45" filter="url(#h-bordeaux-f)"/><path d="M216.3 189.1 L213.6 189.1 L211.9 183.7 L131.6 194.0 L131.4 190.0 L129.8 189.4 L129.5 186.7 L126.4 185.9 L125.8 183.4 L123.5 183.2 L120.5 170.4 L76.5 175.2 L75.8 170.7 L76.5 175.2 L93.7 173.3 L91.7 170.0 L90.1 162.8 L92.6 149.4 L91.5 141.3 L77.1 131.4 L84.8 116.4 L83.9 114.6 L80.2 114.0 L86.2 102.9 L77.0 97.6 L84.1 85.5 L81.7 82.9 L92.4 73.8 L93.7 74.4 L98.5 64.5 L102.7 60.1 L108.5 43.7 L100.9 40.7 L105.3 26.7 L107.3 27.5 L108.0 26.5 L114.8 26.4 L151.8 26.1 L153.4 26.9 L178.9 26.0 L179.2 30.1 L212.1 52.5 L227.5 26.2 L243.0 41.5 L241.4 43.4 L244.2 45.9 L233.6 59.1 L218.8 83.9 L211.6 108.7 L210.2 126.7 L219.2 175.8 L215.6 176.9 L218.6 188.4 L216.3 189.1 Z" fill="none" stroke="url(#h-bordeaux-g)" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/><circle cx="216.3" cy="189.1" r="8.5" fill="#04080B" stroke="#E6F2F0" stroke-width="3"/><circle cx="216.3" cy="189.1" r="3.2" fill="#2BE39B"/></svg>
+        <div class="t"><h3>Bordeaux</h3><p>6,8 km · 10 m D+ · départ Place de la Bourse</p></div>
+      </a>
+      <a class="tile" href="lille">
+        <svg class="loop" viewBox="0 0 320 220" role="img" aria-labelledby="h-lille-t" xmlns="http://www.w3.org/2000/svg"><title id="h-lille-t">Boucle de 6,7 km à Lille</title><defs><linearGradient id="h-lille-g" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="320" y2="220"><stop offset="0" stop-color="#2BE39B"/><stop offset=".5" stop-color="#22D3C5"/><stop offset="1" stop-color="#28B4F0"/></linearGradient><pattern id="h-lille-p" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M24 0H0V24" fill="none" stroke="#10232B" stroke-width="1"/></pattern><filter id="h-lille-f" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="5"/></filter></defs><rect width="320" height="220" fill="#04080B"/><rect width="320" height="220" fill="url(#h-lille-p)"/><path d="M73.2 130.4 L74.5 132.9 L78.0 128.8 L75.4 125.5 L81.3 121.3 L90.1 104.3 L111.9 95.6 L117.3 91.5 L123.1 77.9 L120.7 76.8 L130.7 58.0 L130.8 55.3 L147.2 35.0 L158.3 40.8 L173.1 26.5 L179.8 34.9 L193.9 26.0 L210.3 87.2 L209.7 121.8 L211.8 121.8 L215.1 124.7 L221.2 132.1 L221.9 130.2 L228.1 131.5 L228.0 134.0 L236.2 138.4 L243.2 139.2 L243.0 143.9 L246.8 144.2 L236.2 143.3 L232.7 140.0 L230.4 144.9 L224.7 152.4 L221.7 152.2 L216.2 156.5 L215.9 171.5 L201.9 173.1 L192.3 165.0 L188.7 164.4 L182.9 168.9 L188.3 176.9 L186.5 178.4 L161.9 186.5 L132.9 194.0 L122.6 173.2 L121.7 173.5 L120.7 171.5 L117.5 160.5 L103.5 160.9 L103.6 162.3 L94.5 164.2 L94.7 161.7 L84.9 149.1 L73.2 130.4 Z" fill="none" stroke="url(#h-lille-g)" stroke-width="9" stroke-linejoin="round" opacity=".45" filter="url(#h-lille-f)"/><path d="M73.2 130.4 L74.5 132.9 L78.0 128.8 L75.4 125.5 L81.3 121.3 L90.1 104.3 L111.9 95.6 L117.3 91.5 L123.1 77.9 L120.7 76.8 L130.7 58.0 L130.8 55.3 L147.2 35.0 L158.3 40.8 L173.1 26.5 L179.8 34.9 L193.9 26.0 L210.3 87.2 L209.7 121.8 L211.8 121.8 L215.1 124.7 L221.2 132.1 L221.9 130.2 L228.1 131.5 L228.0 134.0 L236.2 138.4 L243.2 139.2 L243.0 143.9 L246.8 144.2 L236.2 143.3 L232.7 140.0 L230.4 144.9 L224.7 152.4 L221.7 152.2 L216.2 156.5 L215.9 171.5 L201.9 173.1 L192.3 165.0 L188.7 164.4 L182.9 168.9 L188.3 176.9 L186.5 178.4 L161.9 186.5 L132.9 194.0 L122.6 173.2 L121.7 173.5 L120.7 171.5 L117.5 160.5 L103.5 160.9 L103.6 162.3 L94.5 164.2 L94.7 161.7 L84.9 149.1 L73.2 130.4 Z" fill="none" stroke="url(#h-lille-g)" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/><circle cx="73.2" cy="130.4" r="8.5" fill="#04080B" stroke="#E6F2F0" stroke-width="3"/><circle cx="73.2" cy="130.4" r="3.2" fill="#2BE39B"/></svg>
+        <div class="t"><h3>Lille</h3><p>6,7 km · 19 m D+ · départ Grand'Place</p></div>
+      </a>
+      <a class="tile" href="angers">
+        <svg class="loop" viewBox="0 0 320 220" role="img" aria-labelledby="h-angers-t" xmlns="http://www.w3.org/2000/svg"><title id="h-angers-t">Boucle de 7,2 km à Angers</title><defs><linearGradient id="h-angers-g" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="320" y2="220"><stop offset="0" stop-color="#2BE39B"/><stop offset=".5" stop-color="#22D3C5"/><stop offset="1" stop-color="#28B4F0"/></linearGradient><pattern id="h-angers-p" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M24 0H0V24" fill="none" stroke="#10232B" stroke-width="1"/></pattern><filter id="h-angers-f" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="5"/></filter></defs><rect width="320" height="220" fill="#04080B"/><rect width="320" height="220" fill="url(#h-angers-p)"/><path d="M165.3 189.7 L163.6 187.6 L156.3 194.0 L155.4 192.9 L154.6 193.5 L150.5 191.7 L143.0 185.5 L135.5 183.6 L129.9 179.4 L128.0 175.2 L124.6 173.8 L109.4 159.3 L108.5 157.3 L107.7 157.7 L92.8 147.2 L77.3 116.0 L77.1 113.8 L75.1 113.3 L66.8 97.2 L72.6 92.0 L76.3 86.2 L77.2 85.8 L81.6 89.4 L82.4 89.2 L82.8 85.7 L95.0 80.5 L96.3 80.4 L99.6 82.9 L101.3 82.4 L108.7 74.6 L115.2 61.8 L122.2 60.0 L127.3 60.0 L133.0 49.8 L137.6 44.9 L138.3 45.5 L140.3 39.9 L142.2 39.1 L149.5 26.0 L160.9 31.2 L164.9 30.1 L165.4 29.0 L168.4 32.2 L170.3 32.4 L174.2 28.5 L176.0 30.9 L173.4 37.9 L175.5 39.7 L165.7 57.4 L166.5 57.8 L150.7 92.2 L150.2 95.8 L173.8 105.2 L204.7 124.6 L222.0 121.6 L237.7 122.3 L244.2 125.8 L253.2 116.2 L244.2 125.8 L237.7 122.3 L235.8 122.4 L231.4 129.6 L216.8 144.2 L211.0 141.0 L209.6 141.5 L199.3 156.2 L198.6 156.1 L193.0 165.5 L188.0 163.8 L185.3 166.2 L182.3 167.2 L164.8 185.6 L163.6 187.6 L165.3 189.7 Z" fill="none" stroke="url(#h-angers-g)" stroke-width="9" stroke-linejoin="round" opacity=".45" filter="url(#h-angers-f)"/><path d="M165.3 189.7 L163.6 187.6 L156.3 194.0 L155.4 192.9 L154.6 193.5 L150.5 191.7 L143.0 185.5 L135.5 183.6 L129.9 179.4 L128.0 175.2 L124.6 173.8 L109.4 159.3 L108.5 157.3 L107.7 157.7 L92.8 147.2 L77.3 116.0 L77.1 113.8 L75.1 113.3 L66.8 97.2 L72.6 92.0 L76.3 86.2 L77.2 85.8 L81.6 89.4 L82.4 89.2 L82.8 85.7 L95.0 80.5 L96.3 80.4 L99.6 82.9 L101.3 82.4 L108.7 74.6 L115.2 61.8 L122.2 60.0 L127.3 60.0 L133.0 49.8 L137.6 44.9 L138.3 45.5 L140.3 39.9 L142.2 39.1 L149.5 26.0 L160.9 31.2 L164.9 30.1 L165.4 29.0 L168.4 32.2 L170.3 32.4 L174.2 28.5 L176.0 30.9 L173.4 37.9 L175.5 39.7 L165.7 57.4 L166.5 57.8 L150.7 92.2 L150.2 95.8 L173.8 105.2 L204.7 124.6 L222.0 121.6 L237.7 122.3 L244.2 125.8 L253.2 116.2 L244.2 125.8 L237.7 122.3 L235.8 122.4 L231.4 129.6 L216.8 144.2 L211.0 141.0 L209.6 141.5 L199.3 156.2 L198.6 156.1 L193.0 165.5 L188.0 163.8 L185.3 166.2 L182.3 167.2 L164.8 185.6 L163.6 187.6 L165.3 189.7 Z" fill="none" stroke="url(#h-angers-g)" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/><circle cx="165.3" cy="189.7" r="8.5" fill="#04080B" stroke="#E6F2F0" stroke-width="3"/><circle cx="165.3" cy="189.7" r="3.2" fill="#2BE39B"/></svg>
+        <div class="t"><h3>Angers</h3><p>7,2 km · 53 m D+ · départ Centre-ville</p></div>
+      </a>
+      <a class="tile" href="saint-georges-sur-loire">
+        <svg class="loop" viewBox="0 0 320 220" role="img" aria-labelledby="h-saint-georges-sur-loire-t" xmlns="http://www.w3.org/2000/svg"><title id="h-saint-georges-sur-loire-t">Boucle de 8,2 km à Saint-Georges-sur-Loire</title><defs><linearGradient id="h-saint-georges-sur-loire-g" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="320" y2="220"><stop offset="0" stop-color="#2BE39B"/><stop offset=".5" stop-color="#22D3C5"/><stop offset="1" stop-color="#28B4F0"/></linearGradient><pattern id="h-saint-georges-sur-loire-p" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M24 0H0V24" fill="none" stroke="#10232B" stroke-width="1"/></pattern><filter id="h-saint-georges-sur-loire-f" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="5"/></filter></defs><rect width="320" height="220" fill="#04080B"/><rect width="320" height="220" fill="url(#h-saint-georges-sur-loire-p)"/><path d="M60.0 135.9 L58.4 124.9 L59.4 123.7 L65.6 123.5 L65.4 109.1 L69.8 100.3 L73.5 96.0 L76.7 81.7 L78.2 81.0 L98.1 84.5 L99.9 83.3 L104.4 73.7 L119.9 73.3 L121.1 74.5 L120.9 83.2 L111.1 98.4 L112.1 100.2 L109.5 103.0 L111.9 105.3 L115.2 105.4 L117.4 113.9 L123.0 115.6 L132.5 115.6 L133.6 110.9 L145.4 107.2 L167.1 90.3 L215.3 50.1 L224.6 39.9 L212.2 38.2 L200.8 34.1 L193.9 30.1 L191.7 26.0 L192.2 28.5 L197.4 32.6 L212.2 38.2 L224.6 39.9 L223.5 42.1 L151.5 103.2 L145.4 107.2 L133.6 110.9 L132.5 115.6 L146.5 122.9 L149.7 122.1 L166.9 126.7 L189.8 129.2 L237.4 140.2 L257.1 146.2 L261.6 117.4 L255.7 153.2 L242.9 183.0 L241.5 194.0 L229.2 188.6 L205.2 189.5 L205.3 181.5 L202.0 172.8 L198.2 171.3 L189.1 173.6 L184.8 172.0 L179.5 162.9 L161.4 143.6 L158.7 138.9 L158.3 124.3 L149.7 122.1 L146.5 122.9 L133.4 115.7 L123.0 115.6 L117.4 113.9 L115.2 105.4 L111.9 105.3 L109.5 103.0 L112.1 100.2 L111.1 98.4 L120.9 83.2 L121.1 74.5 L119.9 73.3 L104.4 73.7 L99.9 83.3 L98.1 84.5 L76.7 81.7 L73.5 96.0 L69.8 100.3 L65.4 109.1 L65.6 123.5 L59.4 123.7 L58.4 124.9 L60.0 135.9 Z" fill="none" stroke="url(#h-saint-georges-sur-loire-g)" stroke-width="9" stroke-linejoin="round" opacity=".45" filter="url(#h-saint-georges-sur-loire-f)"/><path d="M60.0 135.9 L58.4 124.9 L59.4 123.7 L65.6 123.5 L65.4 109.1 L69.8 100.3 L73.5 96.0 L76.7 81.7 L78.2 81.0 L98.1 84.5 L99.9 83.3 L104.4 73.7 L119.9 73.3 L121.1 74.5 L120.9 83.2 L111.1 98.4 L112.1 100.2 L109.5 103.0 L111.9 105.3 L115.2 105.4 L117.4 113.9 L123.0 115.6 L132.5 115.6 L133.6 110.9 L145.4 107.2 L167.1 90.3 L215.3 50.1 L224.6 39.9 L212.2 38.2 L200.8 34.1 L193.9 30.1 L191.7 26.0 L192.2 28.5 L197.4 32.6 L212.2 38.2 L224.6 39.9 L223.5 42.1 L151.5 103.2 L145.4 107.2 L133.6 110.9 L132.5 115.6 L146.5 122.9 L149.7 122.1 L166.9 126.7 L189.8 129.2 L237.4 140.2 L257.1 146.2 L261.6 117.4 L255.7 153.2 L242.9 183.0 L241.5 194.0 L229.2 188.6 L205.2 189.5 L205.3 181.5 L202.0 172.8 L198.2 171.3 L189.1 173.6 L184.8 172.0 L179.5 162.9 L161.4 143.6 L158.7 138.9 L158.3 124.3 L149.7 122.1 L146.5 122.9 L133.4 115.7 L123.0 115.6 L117.4 113.9 L115.2 105.4 L111.9 105.3 L109.5 103.0 L112.1 100.2 L111.1 98.4 L120.9 83.2 L121.1 74.5 L119.9 73.3 L104.4 73.7 L99.9 83.3 L98.1 84.5 L76.7 81.7 L73.5 96.0 L69.8 100.3 L65.4 109.1 L65.6 123.5 L59.4 123.7 L58.4 124.9 L60.0 135.9 Z" fill="none" stroke="url(#h-saint-georges-sur-loire-g)" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/><circle cx="60.0" cy="135.9" r="8.5" fill="#04080B" stroke="#E6F2F0" stroke-width="3"/><circle cx="60.0" cy="135.9" r="3.2" fill="#2BE39B"/></svg>
+        <div class="t"><h3>Saint-Georges-sur-Loire</h3><p>8,2 km · 30 m D+ · départ Rue des Lauriers</p></div>
+      </a>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-comment">
+    <h2 id="h-comment">Comment ces parcours ont été construits</h2>
+    <div class="prose">
+      <p>Le 11 octobre 2026, nous avons lancé Traceo depuis un point central de chaque ville et demandé une boucle d'environ 7 km. Traceo a calculé chaque tracé en quelques secondes, en privilégiant les petites rues, les allées et les quais, et en écartant les grands axes sans trottoir.</p>
+      <p>Les informations de chaque page viennent de ce tracé réel : la distance et le dénivelé calculés par Traceo, la liste des rues donnée par son guidage vocal, et, pour les parcs, cours d'eau, revêtements et points d'eau, les données ouvertes d'OpenStreetMap. Les durées sont un simple calcul distance × allure.</p>
+      <p>Ces boucles sont des exemples. Dans l'app, la tienne part de là où tu es, à la distance ou à la durée que tu choisis, et ce n'est jamais deux fois la même. Pour choisir un bon parcours, lis aussi notre guide <a href="../guides/trouver-parcours-course-a-pied" style="text-decoration:underline">trouver un parcours de course à pied</a>.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="box">
+      <div>
+        <h2>Ta ville n'est pas dans la liste ?</h2>
+        <p>Traceo fonctionne partout en France, outre-mer compris : ouvre l'app, choisis ta distance, ta boucle est prête en quelques secondes.</p>
+        <p class="fine">3 boucles offertes. Ensuite, <a href="https://traceorun.pages.dev/essai-premium?src=seo_parcours" data-ev="premium">Premium à 4,99 € les 31 jours</a> : boucles illimitées, Garmin, Strava, export GPX. Sans abonnement.</p>
+      </div>
+      <a class="btn main" href="https://traceorun.pages.dev/app?src=seo_parcours" data-ev="essayer">Générer ma boucle</a>
+    </div>
+    <p class="note">Données : boucles calculées par Traceo (moteur BRouter) sur les données © contributeurs <a href="https://www.openstreetmap.org/copyright" rel="noopener">OpenStreetMap</a>, licence ODbL.</p>
+  </section>
+</main>
+  <footer>
+    <span>© 2026 Traceo · Pierre Renard EI</span>
+    <span><a href="../legal">Mentions légales et CGV</a> · <a href="../">Accueil</a></span>
+  </footer>
+</div>
+<script src="../stats.js" defer></script>
+</body>
+</html>

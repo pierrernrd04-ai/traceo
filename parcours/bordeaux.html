@@ -1,0 +1,356 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Parcours course à pied Bordeaux : boucle de 6,8 km | Traceo</title>
+<meta name="description" content="Boucle running de 6,8 km au départ de la place de la Bourse : Gambetta, Saint-Seurin, Chartrons, quais de la Garonne. Plate, tracé réel.">
+<meta name="theme-color" content="#050F15">
+<link rel="icon" href="../icons/icon-192.png">
+<link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+<link rel="canonical" href="https://traceorun.pages.dev/parcours/bordeaux">
+<meta name="robots" content="index,follow,max-image-preview:large">
+<meta name="author" content="Pierre Renard">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Traceo">
+<meta property="og:locale" content="fr_FR">
+<meta property="og:title" content="Parcours course à pied Bordeaux : boucle de 6,8 km">
+<meta property="og:description" content="Boucle running de 6,8 km au départ de la place de la Bourse : Gambetta, Saint-Seurin, Chartrons, quais de la Garonne. Plate, tracé réel.">
+<meta property="og:image" content="https://traceorun.pages.dev/parcours/og/bordeaux.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Tracé de la boucle running de 6,8 km à Bordeaux">
+<meta property="og:url" content="https://traceorun.pages.dev/parcours/bordeaux">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Parcours course à pied Bordeaux : boucle de 6,8 km">
+<meta name="twitter:description" content="Boucle running de 6,8 km au départ de la place de la Bourse : Gambetta, Saint-Seurin, Chartrons, quais de la Garonne. Plate, tracé réel.">
+<meta name="twitter:image" content="https://traceorun.pages.dev/parcours/og/bordeaux.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Bricolage+Grotesque:opsz,wght@12..96,600..800&family=Figtree:wght@500;600;700;800;900&display=swap">
+<style>
+:root{
+  --bg:#050F15; --surface:#0E1E25; --surface-2:#14282F; --line:#1D3640;
+  --ink:#E6F2F0; --muted:#8AA4A3; --accent:#25C98F; --accent-2:#1EA6D0; --accent-ink:#03140D;
+  --f-display:"Bricolage Grotesque","Arial Narrow",system-ui,sans-serif; --f-body:"Figtree",system-ui,-apple-system,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{background:var(--bg);color:var(--ink);font:16px/1.6 var(--f-body);overflow-x:hidden;-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}
+.wrap{max-width:1080px;margin:0 auto;padding:0 20px}
+.glow{position:fixed;inset:-20% -10% auto;height:70vh;background:radial-gradient(60% 60% at 70% 20%,rgba(37,201,143,.16),transparent 70%),radial-gradient(50% 50% at 10% 60%,rgba(30,166,208,.12),transparent 70%);pointer-events:none;z-index:0}
+header,main,footer{position:relative;z-index:1}
+header{display:flex;align-items:center;justify-content:space-between;padding:18px 0}
+.brand{display:flex;align-items:center;gap:10px;font:800 20px var(--f-display);letter-spacing:-.02em}
+.brand svg{width:30px;height:30px}
+.pill{font:800 12px var(--f-body);letter-spacing:.18em;text-transform:uppercase;color:var(--accent-ink);background:linear-gradient(95deg,#3BF5A8,#28B4F0);padding:6px 11px;border-radius:999px}
+.crumbs{font-size:14px;color:var(--muted);padding:4px 0 0}
+.crumbs ol{list-style:none;display:flex;flex-wrap:wrap;gap:6px}
+.crumbs li+li::before{content:"›";margin-right:6px;color:#4C6B6F}
+.crumbs a{text-decoration:underline;text-underline-offset:3px}
+.hero{display:grid;grid-template-columns:1.05fr .95fr;gap:40px;align-items:center;padding:22px 0 44px}
+.kick{font:800 14px var(--f-body);letter-spacing:.2em;text-transform:uppercase;color:#9FD8C8}
+h1{font:400 clamp(46px,7.4vw,86px)/.95 Anton,Impact,sans-serif;text-transform:uppercase;letter-spacing:.005em;margin:12px 0 16px;overflow-wrap:anywhere}
+.g{background:linear-gradient(95deg,#3BF5A8,#22D3C5 45%,#28B4F0);-webkit-background-clip:text;background-clip:text;color:transparent}
+.lead{font-size:clamp(17px,2vw,19px);color:#CFE3E0;max-width:46ch}
+.cta{display:flex;flex-wrap:wrap;gap:12px;margin-top:24px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:54px;padding:0 24px;border-radius:16px;font:900 17px var(--f-body);text-align:center}
+.btn.main{background:linear-gradient(105deg,#3BF5A8,#28B4F0);color:var(--accent-ink);box-shadow:0 12px 40px rgba(43,227,155,.3)}
+.btn.ghost{border:1.5px solid var(--line);background:rgba(14,30,37,.6)}
+.fine{margin-top:12px;font-size:14px;color:var(--muted)}
+.map{margin:0;border:1px solid var(--line);border-radius:26px;overflow:hidden;background:#04080B;box-shadow:0 30px 80px rgba(0,0,0,.5),0 0 60px rgba(43,227,155,.12)}
+.map svg{display:block;width:100%;height:auto}
+.map figcaption{font-size:13px;color:var(--muted);padding:10px 16px 12px;border-top:1px solid var(--line)}
+section{padding:14px 0 44px}
+h2{font:800 clamp(26px,3.6vw,36px)/1.1 var(--f-display);letter-spacing:-.02em;margin-bottom:18px}
+h3{font:800 18px/1.25 var(--f-display);margin-bottom:8px}
+.facts{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:16px 18px}
+.card .k{font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.card .v{font:800 26px/1.15 var(--f-display);margin-top:4px}
+.card .v small{font-size:15px;color:var(--muted);font-weight:700}
+.card p{font-size:14px;color:var(--muted);margin-top:4px;line-height:1.45}
+.paces{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.route{list-style:none;display:flex;flex-wrap:wrap;gap:8px;counter-reset:r}
+.route li{counter-increment:r;display:inline-flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:6px 13px 6px 7px;font-size:14px;font-weight:600}
+.route li::before{content:counter(r);display:inline-grid;place-items:center;min-width:24px;height:24px;border-radius:999px;background:var(--surface-2);color:#9FD8C8;font-size:12px;font-weight:800}
+.route li:first-child::before{background:linear-gradient(105deg,#3BF5A8,#28B4F0);color:var(--accent-ink)}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+ul.list{list-style:none;display:grid;gap:8px}
+ul.list li{position:relative;padding-left:20px;color:#CFE3E0}
+ul.list li::before{content:"";position:absolute;left:2px;top:.62em;width:8px;height:8px;border-radius:50%;background:linear-gradient(105deg,#3BF5A8,#28B4F0)}
+.prose{max-width:68ch}
+.prose p{color:#CFE3E0;font-size:17px;margin-bottom:14px}
+.note{font-size:14px;color:var(--muted);margin-top:14px;max-width:72ch}
+.note a{text-decoration:underline}
+.box{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:18px;background:linear-gradient(135deg,rgba(37,201,143,.14),rgba(30,166,208,.1));border:1px solid rgba(43,227,155,.35);border-radius:24px;padding:26px}
+.box h2{margin-bottom:8px}
+.box p{color:#CFE3E0;max-width:52ch}
+.box .fine a{text-decoration:underline}
+.cities{display:flex;flex-wrap:wrap;gap:8px}
+.cities a{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:8px 14px;font-weight:700;font-size:15px}
+.cities a:hover,.route li:hover{border-color:#2B5A5F}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.tile{display:block;background:var(--surface);border:1px solid var(--line);border-radius:22px;overflow:hidden;transition:border-color .2s}
+.tile:hover{border-color:#2B5A5F}
+.tile svg{display:block;width:100%;height:auto}
+.tile .t{padding:12px 16px 16px}
+.tile h3{font-size:20px;margin-bottom:2px}
+.tile p{font-size:14px;color:var(--muted)}
+footer{border-top:1px solid var(--line);padding:22px 0 40px;color:var(--muted);font-size:13px;display:flex;flex-wrap:wrap;gap:14px;justify-content:space-between}
+footer a{text-decoration:underline}
+@media (max-width:860px){
+  .hero{grid-template-columns:1fr;gap:26px;padding-top:12px}
+  .facts{grid-template-columns:1fr 1fr}
+  .grid{grid-template-columns:1fr 1fr}
+  .cols{grid-template-columns:1fr}
+}
+@media (max-width:520px){
+  .wrap{padding:0 16px}
+  .btn{width:100%}
+  .paces{gap:8px}
+  .paces .card{padding:14px 12px}
+  .paces .v{font-size:20px}
+  .grid{grid-template-columns:1fr}
+  .card .v{font-size:22px}
+  .box{padding:20px}
+}
+</style>
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@graph": [
+  {
+   "@type": "Organization",
+   "@id": "https://traceorun.pages.dev/#organization",
+   "name": "Traceo",
+   "legalName": "Pierre Renard EI",
+   "url": "https://traceorun.pages.dev/",
+   "logo": {
+    "@type": "ImageObject",
+    "url": "https://traceorun.pages.dev/icons/icon-512.png",
+    "width": 512,
+    "height": 512
+   }
+  },
+  {
+   "@type": "WebSite",
+   "@id": "https://traceorun.pages.dev/#website",
+   "url": "https://traceorun.pages.dev/",
+   "name": "Traceo",
+   "inLanguage": "fr",
+   "publisher": {
+    "@id": "https://traceorun.pages.dev/#organization"
+   }
+  },
+  {
+   "@type": "WebPage",
+   "@id": "https://traceorun.pages.dev/parcours/bordeaux#page",
+   "url": "https://traceorun.pages.dev/parcours/bordeaux",
+   "name": "Parcours course à pied Bordeaux : boucle de 6,8 km | Traceo",
+   "description": "Boucle running de 6,8 km au départ de la place de la Bourse : Gambetta, Saint-Seurin, Chartrons, quais de la Garonne. Plate, tracé réel.",
+   "inLanguage": "fr",
+   "datePublished": "2026-10-13",
+   "dateModified": "2026-10-13",
+   "isPartOf": {
+    "@id": "https://traceorun.pages.dev/#website"
+   },
+   "publisher": {
+    "@id": "https://traceorun.pages.dev/#organization"
+   },
+   "author": {
+    "@type": "Person",
+    "name": "Pierre Renard"
+   },
+   "breadcrumb": {
+    "@id": "https://traceorun.pages.dev/parcours/bordeaux#breadcrumb"
+   },
+   "primaryImageOfPage": {
+    "@type": "ImageObject",
+    "url": "https://traceorun.pages.dev/parcours/og/bordeaux.jpg",
+    "width": 1200,
+    "height": 630
+   },
+   "about": {
+    "@type": "City",
+    "name": "Bordeaux"
+   },
+   "spatialCoverage": {
+    "@type": "Place",
+    "name": "Départ : place de la Bourse (Miroir d'eau), Bordeaux",
+    "geo": {
+     "@type": "GeoCoordinates",
+     "latitude": 44.8412,
+     "longitude": -0.57
+    }
+   }
+  },
+  {
+   "@type": "BreadcrumbList",
+   "@id": "https://traceorun.pages.dev/parcours/bordeaux#breadcrumb",
+   "itemListElement": [
+    {
+     "@type": "ListItem",
+     "position": 1,
+     "name": "Accueil",
+     "item": "https://traceorun.pages.dev/"
+    },
+    {
+     "@type": "ListItem",
+     "position": 2,
+     "name": "Parcours",
+     "item": "https://traceorun.pages.dev/parcours/"
+    },
+    {
+     "@type": "ListItem",
+     "position": 3,
+     "name": "Bordeaux",
+     "item": "https://traceorun.pages.dev/parcours/bordeaux"
+    }
+   ]
+  }
+ ]
+}
+</script>
+</head>
+<body>
+<div class="glow"></div>
+<div class="wrap">
+  <header>
+    <a class="brand" href="../"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M7 23c0-8 5.5-14 11.5-14 4.6 0 7.5 2.9 7.5 6.6 0 3.8-3 6.6-6.8 6.6-2.8 0-4.7-1.9-4.7-4.2" fill="none" stroke="#25C98F" stroke-width="3.4" stroke-linecap="round"/><circle cx="7" cy="23" r="3.6" fill="#E6F2F0"/></svg>Traceo</a>
+    <span class="pill">Parcours</span>
+  </header>
+  <nav class="crumbs" aria-label="Fil d'Ariane"><ol><li><a href="../">Accueil</a></li><li><a href="./">Parcours</a></li><li aria-current="page">Bordeaux</li></ol></nav>
+<main>
+  <div class="hero">
+    <div>
+      <p class="kick">Parcours course à pied · Bordeaux</p>
+      <h1>Bordeaux : boucle de <span class="g">6,8 km</span></h1>
+      <p class="lead">Départ place de la Bourse, à deux pas du Miroir d'eau, direction la place Gambetta par la rue Porte-Dijeaux, boucle par Saint-Seurin et Fondaudège, descente par les Chartrons (rue Notre-Dame) et retour par la promenade des quais, le long de la Garonne.</p>
+      <div class="cta">
+        <a class="btn main" href="https://traceorun.pages.dev/app?src=seo_bordeaux" data-ev="essayer">Génère ta boucle à Bordeaux</a>
+        <a class="btn ghost" href="#trace">Voir le tracé rue par rue</a>
+      </div>
+      <p class="fine">Boucle réellement générée par Traceo le 11 octobre 2026, en 2,2 s. 3 boucles offertes, sans carte bancaire.</p>
+    </div>
+    <figure class="map">
+      <svg class="loop" viewBox="0 0 400 400" role="img" aria-labelledby="l-bordeaux-t" xmlns="http://www.w3.org/2000/svg"><title id="l-bordeaux-t">Tracé réel de la boucle de 6,8 km à Bordeaux, départ place de la Bourse (Miroir d'eau)</title><defs><linearGradient id="l-bordeaux-g" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="400" y2="400"><stop offset="0" stop-color="#2BE39B"/><stop offset=".5" stop-color="#22D3C5"/><stop offset="1" stop-color="#28B4F0"/></linearGradient><pattern id="l-bordeaux-p" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M24 0H0V24" fill="none" stroke="#10232B" stroke-width="1"/></pattern><filter id="l-bordeaux-f" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="5"/></filter></defs><rect width="400" height="400" fill="#04080B"/><rect width="400" height="400" fill="url(#l-bordeaux-p)"/><path d="M309.8 354.1 L306.4 355.1 L304.4 354.1 L301.1 343.7 L296.5 345.3 L144.6 363.7 L144.3 355.9 L141.2 354.7 L140.6 349.4 L134.6 348.0 L133.4 343.1 L131.5 343.2 L130.2 342.1 L128.8 342.7 L124.2 325.4 L123.1 317.6 L37.2 327.1 L36.0 318.2 L37.2 327.1 L70.8 323.4 L66.8 317.0 L63.8 302.9 L65.6 287.8 L68.7 276.8 L66.4 261.0 L64.6 258.2 L57.4 255.6 L44.5 247.4 L38.4 241.8 L53.4 212.4 L52.0 211.0 L51.8 209.0 L44.5 207.7 L56.1 186.1 L38.2 175.8 L52.2 152.2 L52.1 151.1 L46.9 148.2 L47.5 147.1 L50.4 145.8 L68.2 129.5 L70.9 130.6 L80.1 111.3 L88.3 102.7 L99.6 70.8 L99.4 69.8 L84.7 64.9 L93.3 37.7 L95.1 37.3 L97.3 39.1 L98.8 37.3 L111.9 37.0 L184.0 36.5 L187.2 38.1 L190.3 36.6 L236.8 36.3 L237.4 44.2 L240.4 45.8 L241.2 45.5 L240.6 46.8 L301.6 87.9 L331.5 36.6 L361.7 66.5 L358.6 70.3 L364.0 75.0 L343.4 100.9 L325.6 128.1 L314.6 149.1 L310.4 159.5 L305.9 174.6 L300.6 197.4 L298.1 215.7 L297.9 232.6 L301.8 259.4 L315.3 328.3 L308.3 330.4 L308.9 332.1 L308.3 333.5 L314.2 352.8 L309.8 354.1 Z" fill="none" stroke="url(#l-bordeaux-g)" stroke-width="9" stroke-linejoin="round" opacity=".45" filter="url(#l-bordeaux-f)"/><path d="M309.8 354.1 L306.4 355.1 L304.4 354.1 L301.1 343.7 L296.5 345.3 L144.6 363.7 L144.3 355.9 L141.2 354.7 L140.6 349.4 L134.6 348.0 L133.4 343.1 L131.5 343.2 L130.2 342.1 L128.8 342.7 L124.2 325.4 L123.1 317.6 L37.2 327.1 L36.0 318.2 L37.2 327.1 L70.8 323.4 L66.8 317.0 L63.8 302.9 L65.6 287.8 L68.7 276.8 L66.4 261.0 L64.6 258.2 L57.4 255.6 L44.5 247.4 L38.4 241.8 L53.4 212.4 L52.0 211.0 L51.8 209.0 L44.5 207.7 L56.1 186.1 L38.2 175.8 L52.2 152.2 L52.1 151.1 L46.9 148.2 L47.5 147.1 L50.4 145.8 L68.2 129.5 L70.9 130.6 L80.1 111.3 L88.3 102.7 L99.6 70.8 L99.4 69.8 L84.7 64.9 L93.3 37.7 L95.1 37.3 L97.3 39.1 L98.8 37.3 L111.9 37.0 L184.0 36.5 L187.2 38.1 L190.3 36.6 L236.8 36.3 L237.4 44.2 L240.4 45.8 L241.2 45.5 L240.6 46.8 L301.6 87.9 L331.5 36.6 L361.7 66.5 L358.6 70.3 L364.0 75.0 L343.4 100.9 L325.6 128.1 L314.6 149.1 L310.4 159.5 L305.9 174.6 L300.6 197.4 L298.1 215.7 L297.9 232.6 L301.8 259.4 L315.3 328.3 L308.3 330.4 L308.9 332.1 L308.3 333.5 L314.2 352.8 L309.8 354.1 Z" fill="none" stroke="url(#l-bordeaux-g)" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/><path d="M-4 -4.5 L3 0 L-4 4.5" transform="translate(78.1 322.6) rotate(174)" fill="none" stroke="#04080B" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M-4 -4.5 L3 0 L-4 4.5" transform="translate(71.2 130.0) rotate(-65)" fill="none" stroke="#04080B" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M-4 -4.5 L3 0 L-4 4.5" transform="translate(303.5 84.5) rotate(-60)" fill="none" stroke="#04080B" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><g fill="#8AA4A3" font-family="Figtree,system-ui,sans-serif" font-size="12" font-weight="700"><path d="M16 377V382H119.0V377" fill="none" stroke="#8AA4A3" stroke-width="1.6"/><text x="125.0" y="383">500 m</text></g><g fill="#8AA4A3" font-family="Figtree,system-ui,sans-serif" font-size="12" font-weight="800" text-anchor="middle"><path d="M378 30 l5 -14 l5 14 l-5 -4z" fill="#8AA4A3"/><text x="383" y="46">N</text></g><g font-family="Figtree,system-ui,sans-serif" font-size="12" font-weight="800"><rect x="323.8" y="328.1" width="62" height="20" rx="10" fill="#E6F2F0"/><text x="354.8" y="342.6" text-anchor="middle" fill="#03140D">Départ</text></g><circle cx="309.8" cy="354.1" r="8.5" fill="#04080B" stroke="#E6F2F0" stroke-width="3"/><circle cx="309.8" cy="354.1" r="3.2" fill="#2BE39B"/></svg>
+      <figcaption>Tracé réel · 6,8 km · départ place de la Bourse (Miroir d'eau)</figcaption>
+    </figure>
+  </div>
+
+  <section aria-labelledby="h-faits">
+    <h2 id="h-faits">La boucle en chiffres</h2>
+    <div class="facts">
+      <div class="card"><div class="k">Distance</div><div class="v">6,8 km</div><p>Mesurée sur le tracé</p></div>
+      <div class="card"><div class="k">Dénivelé +</div><div class="v">10 <small>m</small></div><p>Quasi plat</p></div>
+      <div class="card"><div class="k">Départ</div><div class="v" style="font-size:20px">Place de la Bourse</div><p>Bordeaux</p></div>
+      <div class="card"><div class="k">Routes dangereuses</div><div class="v">0 m</div><p>Selon l'analyse de sécurité de Traceo</p></div>
+    </div>
+    <ul class="list" style="margin-top:18px">
+      <li><b>Points d'eau</b> : 12 recensés à moins de 40 m du tracé</li><li><b>Revêtement</b> : surtout bitume ou béton (≈ 3,8 km) · pavés ou dalles ≈ 1,7 km</li><li><b>Forme</b> : boucle, retour au point de départ (≈ 1,6 km d'un bout à l'autre)</li>
+    </ul>
+  </section>
+
+  <section aria-labelledby="h-temps">
+    <h2 id="h-temps">Combien de temps pour faire ces 6,8 km ?</h2>
+    <div class="paces">
+      <div class="card"><div class="k">5:00 /km</div><div class="v">34 min</div><p>12 km/h</p></div>
+      <div class="card"><div class="k">6:00 /km</div><div class="v">41 min</div><p>10 km/h</p></div>
+      <div class="card"><div class="k">7:00 /km</div><div class="v">48 min</div><p>8,6 km/h</p></div>
+    </div>
+    <p class="note">Durées calculées : distance × allure, hors arrêts aux feux, pauses et effet du dénivelé.</p>
+  </section>
+
+  <section id="trace" aria-labelledby="h-trace">
+    <h2 id="h-trace">Le tracé, rue par rue</h2>
+    <ol class="route">
+      <li>Place de la Bourse</li>
+      <li>Rue Saint-Rémi</li>
+      <li>Rue Porte Dijeaux</li>
+      <li>Place Gambetta</li>
+      <li>Rue du Palais Gallien</li>
+      <li>Rue Castéja</li>
+      <li>Allée Vercingétorix</li>
+      <li>Rue Ségalier</li>
+      <li>Place des Martyrs de la Résistance</li>
+      <li>Rue Rodrigues Péreire</li>
+      <li>Rue Duranteau</li>
+      <li>Rue Goya</li>
+      <li>Place de Lerme</li>
+      <li>Rue Émile Fourcand</li>
+      <li>Rue Malleret</li>
+      <li>Rue Luflade</li>
+      <li>Rue Poudensan</li>
+      <li>Place Marie Brizard</li>
+      <li>Rue Matignon</li>
+      <li>Rue David Johnston</li>
+      <li>Rue Dumaine</li>
+      <li>Rue du Lavoir</li>
+      <li>Rue Catros Gérand</li>
+      <li>Rue Ferdinand de Lesseps</li>
+      <li>Rue Minvielle</li>
+      <li>Rue Notre-Dame</li>
+      <li>Rue Barreyre</li>
+      <li>Quai des Chartrons</li>
+      <li>Quai du Maréchal Lyautey</li>
+    </ol>
+    <p class="note">Dans l'ordre du parcours, d'après le guidage vocal de Traceo et OpenStreetMap. Une rue empruntée deux fois n'apparaît qu'une fois ; les allées et chemins sans nom ne sont pas listés.</p>
+  </section>
+
+  <section aria-labelledby="h-voir">
+    <h2 id="h-voir">Ce que tu croises en chemin</h2>
+    <div class="cols">
+      <div class="card"><h3>Eau et espaces verts</h3><ul class="list"><li>La Garonne, sur environ 1,3 km de quais, sur allées et pistes séparées des voitures</li><li>Longe le jardin de la place des Martyrs de la Résistance</li><li>Longe le parc fleuri du Miroir d'eau</li><li>Longe le jardin de la place Gambetta</li><li>Traverse l'espace Vert des Quais (≈ 150 m)</li><li>Traverse le parc du Quai Louis XVIII (≈ 130 m)</li></ul></div>
+      <div class="card"><h3>Sécurité</h3><ul class="list"><li>Aucun tronçon sur une route jugée dangereuse par Traceo (grands axes sans trottoir, routes très circulées ; les traversées courtes ne comptent pas)</li><li>Guidage vocal rue par rue dans l'app, avec le nom de chaque rue</li><li>Vérifie toujours les conditions sur place : travaux, événements, horaires des parcs</li></ul></div>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-conseils">
+    <h2 id="h-conseils">Courir à Bordeaux : nos conseils pour cette boucle</h2>
+    <div class="prose">
+      <p>Bordeaux est une ville plate (10 m de dénivelé sur cette boucle) : parfait pour une sortie régulière ou un footing de récupération. Le dernier tiers, sur les quais, est le plus agréable : environ 1,3 km sur la promenade aménagée le long de la Garonne, à l'écart des voitures, du quai des Chartrons jusqu'à la place de la Bourse. Le week-end, coureurs, vélos et promeneurs s'y croisent nombreux : tôt le matin, tu l'auras presque pour toi.</p>
+      <p>Dans le centre (rue Porte-Dijeaux, Saint-Seurin, Chartrons), compte des pavés et des dalles : OpenStreetMap en indique environ 1,7 km sur le tracé. Ils glissent par temps de pluie, adapte ta foulée.</p>
+      <p>Le Miroir d'eau, juste au départ, est un bon repère pour fixer un rendez-vous ou finir ta séance par quelques lignes droites. Côté hydratation, la boucle est bien servie : 12 points d'eau recensés à moins de 40 m du tracé.</p>
+      <p>L'été, la chaleur peut être lourde en fin de journée : privilégie le matin.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="box">
+      <div>
+        <h2>Génère ta propre boucle à Bordeaux en 1 clic</h2>
+        <p>Cette boucle est un exemple. La tienne part de là où tu es, à la distance que tu veux, en évitant les grands axes, avec le guidage vocal rue par rue. Et jamais deux fois la même.</p>
+        <p class="fine">3 boucles offertes, sans carte bancaire. Ensuite, <a href="https://traceorun.pages.dev/essai-premium?src=seo_bordeaux" data-ev="premium">Premium à 4,99 € les 31 jours</a> : boucles illimitées, Garmin, Strava, export GPX. Sans abonnement.</p>
+      </div>
+      <a class="btn main" href="https://traceorun.pages.dev/app?src=seo_bordeaux" data-ev="essayer">Générer ma boucle</a>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-villes">
+    <h2 id="h-villes">Autres parcours de course à pied</h2>
+    <div class="cities">
+      <a href="paris">Paris</a>
+      <a href="marseille">Marseille</a>
+      <a href="lyon">Lyon</a>
+      <a href="toulouse">Toulouse</a>
+      <a href="nice">Nice</a>
+      <a href="nantes">Nantes</a>
+      <a href="strasbourg">Strasbourg</a>
+      <a href="lille">Lille</a>
+      <a href="angers">Angers</a>
+      <a href="saint-georges-sur-loire">Saint-Georges-sur-Loire</a>
+      <a href="./">Toutes les villes →</a>
+    </div>
+    <p class="note">Données : boucle calculée par Traceo (moteur BRouter) sur les données OpenStreetMap. Parcs, cours d'eau, revêtement, escaliers et points d'eau : © contributeurs <a href="https://www.openstreetmap.org/copyright" rel="noopener">OpenStreetMap</a>, licence ODbL. Le revêtement et les points d'eau dépendent de ce que la communauté a cartographié : ils peuvent être incomplets.</p>
+  </section>
+</main>
+  <footer>
+    <span>© 2026 Traceo · Pierre Renard EI</span>
+    <span><a href="./">Tous les parcours</a> · <a href="../legal">Mentions légales et CGV</a> · <a href="../">Accueil</a></span>
+  </footer>
+</div>
+<script src="../stats.js" defer></script>
+</body>
+</html>
