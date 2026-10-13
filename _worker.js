@@ -27,6 +27,37 @@ var s = ""; try{ s = btoa(unescape(encodeURIComponent(JSON.stringify(d)))); }cat
 location.replace(${JSON.stringify(neu)} + "/transfert#to=" + encodeURIComponent(location.pathname + location.search) + "&from=" + encodeURIComponent(${JSON.stringify(from)}) + "&d=" + s);
 </script></body></html>`;
 
+// Safari (iPhone) ne lit une vidéo que si le serveur répond par morceaux (« Range », réponse 206) : Pages ne le fait pas, on découpe ici
+async function ranged(req, res){
+  let len = +res.headers.get("Content-Length"); const m = /^bytes=(\d*)-(\d*)$/.exec(req.headers.get("Range") || "");
+  if(res.status !== 200) return res;
+  const h = new Headers(res.headers); h.set("Accept-Ranges", "bytes");
+  if(!m || (m[1] === "" && m[2] === "")) return new Response(res.body, {status:200, headers:h});
+  if(!len){   // taille inconnue (envoi en flux) : on lit le fichier entier pour la connaître
+    const buf = await res.arrayBuffer(); len = buf.byteLength;
+    res = new Response(buf, {status:200, headers:res.headers});
+  }
+  const s = m[1] === "" ? Math.max(0, len - +m[2]) : +m[1], e = m[1] !== "" && m[2] !== "" ? Math.min(+m[2], len - 1) : len - 1;
+  if(s > e || s >= len){ await res.body?.cancel(); return new Response(null, {status:416, headers:{"Content-Range":`bytes */${len}`}}); }
+  h.set("Content-Range", `bytes ${s}-${e}/${len}`); h.set("Content-Length", String(e - s + 1));
+  const rd = res.body.getReader(); let pos = 0;
+  const part = new ReadableStream({
+    async pull(ctl){
+      for(;;){
+        const {done, value} = await rd.read(); if(done){ ctl.close(); return; }
+        const a = pos, b = pos + value.byteLength; pos = b;
+        if(b <= s) continue;                                    // avant le morceau demandé : ignoré
+        ctl.enqueue(value.subarray(Math.max(0, s - a), Math.min(value.byteLength, e - a + 1)));
+        if(b > e){ rd.cancel().catch(() => {}); ctl.close(); }  // morceau complet : on arrête de lire
+        return;
+      }
+    },
+    cancel(){ rd.cancel().catch(() => {}); }
+  });
+  const fl = new FixedLengthStream(e - s + 1); part.pipeTo(fl.writable).catch(() => {});
+  return new Response(fl.readable, {status:206, headers:h});
+}
+
 export default {
   async fetch(req, env){
     const old = env.OLD_ORIGIN || OLD, neu = env.NEW_ORIGIN || NEW;   // surchargés seulement pour les tests locaux
@@ -38,7 +69,8 @@ export default {
           return new Response(moving(neu, old), {headers:{"Content-Type":"text/html; charset=utf-8", "Cache-Control":"no-store", "X-Robots-Tag":"noindex"}});
         return new Response(null, {status:301, headers:{Location:neu + u.pathname + u.search, "Cache-Control":"public, max-age=3600"}});
       }
-      const res = await env.ASSETS.fetch(req);
+      let res = await env.ASSETS.fetch(req);
+      if(/^(video|audio)\//.test(res.headers.get("Content-Type") || "")) res = await ranged(req, res);
       // nouvelle adresse : liens internes réécrits vers elle (pages, sitemap, robots.txt, manifestes)
       if(u.origin === neu && res.ok && TEXT.test(res.headers.get("Content-Type") || "")){
         const h = new Headers(res.headers); h.delete("Content-Length"); h.delete("ETag");
