@@ -10,8 +10,10 @@ const T0 = Date.now(); let tabsSeen = 0;
 // Événements clés : vers Umami et vers le tableau de bord Traceo (compteur sans cookie, stats.js)
 // Parcours d'arrivée (entonnoir) : accueil_go → splash_tap → ecran_depart → localiser / depart_approx → boucle_invite (boucle tracée sans compte) → course (1re course sans compte)
 // → ecran_compte (2e course) → compte_ok / compte_ferme → course → mur_gratuit (« Commencer » sans course offerte restante) → payer ; limite_boucles : limite anti-abus du calcul
+// Parrainage : parrain_vu (app ouverte avec un lien ?ref= valide), parrain_partage (invitation envoyée), parrain_copie (lien copié), parrain_inscrit (inscription avec un code)
 const TRACEO_EV = {boucle_generee:"boucle", course_lancee:"course", course_terminee:"course_finie", paiement_clic:"payer", abonnement_premium:"premium", ensemble_compte:"inscription", chat_message:"coach", fin_gratuit_vue:"mur_gratuit", entree_compte_vue:"ecran_compte", diamant_utilise:"diamant", ensemble_depart:"je_pars_courir",
-  accueil_go:"accueil_go", splash_tap:"splash_tap", ecran_depart:"ecran_depart", localiser:"localiser", depart_approx:"depart_approx", boucle_invite:"boucle_invite", entree_compte_ok:"compte_ok", entree_compte_fermee:"compte_ferme", boucle_echec:"boucle_echec", limite_boucles:"limite_boucles"};
+  accueil_go:"accueil_go", splash_tap:"splash_tap", ecran_depart:"ecran_depart", localiser:"localiser", depart_approx:"depart_approx", boucle_invite:"boucle_invite", entree_compte_ok:"compte_ok", entree_compte_fermee:"compte_ferme", boucle_echec:"boucle_echec", limite_boucles:"limite_boucles",
+  parrain_vu:"parrain_vu", parrain_partage:"parrain_partage", parrain_copie:"parrain_copie", parrain_inscrit:"parrain_inscrit"};
 // ?notrack : coupe la mesure (Umami, tableau de bord, alertes) sur cet appareil, sans rien changer aux écrans (?notrack=0 pour la remettre)
 const NOTRACK = (() => { const m = location.search.match(/[?&]notrack(?:=([^&]*))?/); try{ if(m){ if(/^(0|off|non)$/i.test(m[1] || "")) localStorage.removeItem("traceoNoTrack"); else localStorage.setItem("traceoNoTrack", "1"); } return localStorage.getItem("traceoNoTrack") === "1"; }catch(e){ return !!m && !/^(0|off|non)$/i.test(m[1] || ""); } })();
 if(NOTRACK) console.info("Traceo : mesure d'audience coupée sur cet appareil (?notrack=0 pour la remettre).");
