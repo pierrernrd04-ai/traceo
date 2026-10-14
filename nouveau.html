@@ -102,6 +102,51 @@ footer{position:relative;z-index:1;border-top:1px solid var(--line);padding:22px
   .grid{grid-template-columns:1fr 1fr}
 }
 @media (max-width:420px){ .btn{width:100%} .grid{gap:10px} .card{padding:15px} .cta .fine{text-align:center} }
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+/* Parrainage : « Pierre t'offre 7 jours de Premium » au-dessus du bouton, seulement avec un lien ?ref= vérifié par le serveur */
+.gift{flex:1 1 100%;display:flex;gap:12px;align-items:flex-start;padding:12px 14px;border-radius:16px;background:linear-gradient(135deg,rgba(59,245,168,.16),rgba(40,180,240,.1));border:1px solid rgba(43,227,155,.5)}
+.gift .e{font-size:24px;line-height:1.15}
+.gift b{display:block;font:800 17px/1.25 var(--f-display)}
+.gift small{display:block;margin-top:3px;color:#CFE3E0;font-size:13.5px;font-weight:600;line-height:1.4}
+/* Compte à rebours de l'offre de lancement (vraie date de fin, affiché seulement pendant l'offre) */
+.cd{font-variant-numeric:tabular-nums;white-space:nowrap}
+.offre .cd{display:inline-block;margin-top:8px;padding:4px 10px;border-radius:999px;background:rgba(43,227,155,.16);font-weight:800;font-size:13.5px}
+/* Vrais chiffres (GET /social/proof), affichés seulement quand le serveur dit qu'il y a assez de monde */
+.proof-g{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.proof-g div{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:16px 12px;text-align:center}
+.proof-g b{display:block;font:800 clamp(24px,5vw,34px) var(--f-display);font-variant-numeric:tabular-nums}
+.proof-g small{display:block;font-size:13px;color:var(--muted);font-weight:600;line-height:1.35}
+/* Gratuit ou Premium : le vrai tableau des limites */
+.cmp{margin:0 0 18px;border:1px solid var(--line);border-radius:20px;overflow:hidden;background:var(--surface)}
+.cmp table{width:100%;border-collapse:collapse;font-size:15px;line-height:1.4}
+.cmp th,.cmp td{padding:12px 10px;text-align:center;vertical-align:middle}
+.cmp thead th{font:800 12px var(--f-body);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);background:var(--surface-2)}
+.cmp thead th.pro{color:var(--accent-ink);background:linear-gradient(105deg,#3BF5A8,#28B4F0)}
+.cmp tbody th,.cmp tfoot th{text-align:left;font-weight:700}
+.cmp tbody tr + tr > *{border-top:1px solid var(--line)}
+.cmp td{color:#CFE3E0;font-weight:600;width:28%}
+.cmp td.pro{background:rgba(43,227,155,.07);color:var(--ink)}
+.cmp .y{color:var(--accent);font-weight:900;font-size:18px}
+.cmp .n{color:#4F6A6E;font-weight:800}
+.cmp td small{display:block;color:var(--muted);font-size:12.5px;font-weight:600}
+.cmp tfoot td,.cmp tfoot th{border-top:1px solid var(--line);font-weight:800}
+.cmp caption{caption-side:bottom;padding:11px 12px;text-align:left;color:var(--muted);font-size:13px;border-top:1px solid var(--line)}
+@media (max-width:420px){ .cmp table{font-size:14px} .cmp th,.cmp td{padding:10px 7px} .cmp td{width:30%} }
+/* Invite un ami : 7 jours de Premium pour vous deux */
+.parrain{background:radial-gradient(90% 120% at 0% 0%,rgba(59,245,168,.18),transparent 60%),var(--surface);border:1px solid rgba(43,227,155,.4);border-radius:24px;padding:24px}
+.parrain h2{margin-bottom:10px}
+.parrain > p{color:#CFE3E0;font-size:16.5px;max-width:60ch}
+.parrain .grid{grid-template-columns:repeat(3,1fr);margin:18px 0}
+.parrain .card{background:rgba(5,15,21,.45)}
+.parrain .card .e{font:800 15px var(--f-display);width:32px;height:32px;border-radius:10px;display:grid;place-items:center;color:var(--accent-ink);background:linear-gradient(135deg,#3BF5A8,#28B4F0)}
+.parrain .fine a{text-decoration:underline}
+@media (max-width:860px){ .parrain .grid{grid-template-columns:1fr} }
+/* Barre d'action collante (mobile), une fois le bouton du haut sorti de l'écran */
+.sticky{position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));z-index:30;transform:translateY(140%);transition:transform .35s cubic-bezier(.2,.8,.2,1)}
+.sticky.on{transform:none}
+.sticky .btn{width:100%}
+@media (min-width:861px){ .sticky{display:none} }
+@media (prefers-reduced-motion:reduce){ .sticky{transition:none} }
 </style>
 <script type="application/ld+json" id="ld-traceo">
 {
@@ -216,7 +261,7 @@ footer{position:relative;z-index:1;border-top:1px solid var(--line);padding:22px
 </head>
 <body>
 <div class="glow"></div>
-<a class="offre-bar" href="#prix" data-offre hidden data-ev="offre_3m">Offre de lancement : <b>3 mois de Premium à 9,99 €</b> au lieu de 14,97 €, jusqu'au <span data-offre-fin>dimanche 18 octobre</span>. <u>Voir l'offre</u></a>
+<a class="offre-bar" href="#prix" data-offre hidden data-ev="offre_3m">Offre de lancement : <b>3 mois de Premium à 9,99 €</b> au lieu de 14,97 €, jusqu'au <span data-offre-fin>dimanche 18 octobre</span><span data-cd-wrap hidden> · <span class="cd" data-cd></span></span>. <u>Voir l'offre</u></a>
 <div class="wrap">
   <header>
     <a class="brand" href="./"><svg viewBox="0 0 32 32"><path d="M7 23c0-8 5.5-14 11.5-14 4.6 0 7.5 2.9 7.5 6.6 0 3.8-3 6.6-6.8 6.6-2.8 0-4.7-1.9-4.7-4.2" fill="none" stroke="#25C98F" stroke-width="3.4" stroke-linecap="round"/><circle cx="7" cy="23" r="3.6" fill="#E6F2F0"/></svg>Traceo</a>
@@ -229,6 +274,7 @@ footer{position:relative;z-index:1;border-top:1px solid var(--line);padding:22px
       <h1>Nouveau<br><span class="g">départ.</span></h1>
       <p class="lead">Traceo revient, <b>entièrement repensé</b>. Une boucle de course neuve en 2 secondes, dans les vraies rues de ta ville, <b>plus sûre</b> que jamais. Plus malin, plus fort, et maintenant avec un coach et des coureurs autour de toi.</p>
       <div class="cta">
+        <p class="gift" id="gift" role="status" hidden><span class="e" aria-hidden="true">🎁</span><span><b><span data-ref-first>Un ami</span> t'offre 7 jours de Premium</b><small>Ils démarrent à ta 1re course lancée avec ton compte gratuit, et <span data-ref-first>ton ami</span> en reçoit 7 aussi.</small></span></p>
         <a class="btn main" href="/app?go=1" data-ev="essayer">Tracer ma boucle gratuite</a>
         <p class="fine"><span>1re boucle sans compte</span> · <span>iPhone et Android</span> · <span>sans téléchargement</span></p>
       </div>
@@ -239,6 +285,16 @@ footer{position:relative;z-index:1;border-top:1px solid var(--line);padding:22px
       <span class="chip"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5L6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 010 7M18.5 5.5a9 9 0 010 13"/></svg>« Dans 100 mètres, tourne à droite »</span>
     </div>
   </div>
+
+  <!-- Vrais chiffres des 7 derniers jours : rempli et affiché seulement si /social/proof répond show:true (jamais arrondis) -->
+  <section id="proof" hidden aria-label="Traceo en chiffres">
+    <h2>Ces 7 derniers jours <span class="g">sur Traceo</span></h2>
+    <div class="proof-g">
+      <div><b data-proof="loops7"></b><small>boucles tracées</small></div>
+      <div><b data-proof="runs7"></b><small>courses lancées</small></div>
+      <div><b data-proof="members"></b><small>membres inscrits</small></div>
+    </div>
+  </section>
 
   <section>
     <h2>Ce qui change <span class="g">aujourd'hui</span></h2>
@@ -255,12 +311,45 @@ footer{position:relative;z-index:1;border-top:1px solid var(--line);padding:22px
   </section>
 
   <section id="prix">
+    <h2>Gratuit pour commencer, <span class="g">Premium si tu accroches</span></h2>
+    <div class="cmp">
+      <table>
+        <caption>Tracer reste gratuit, dans une limite anti-abus de 12 boucles par jour sans Premium. Une course est comptée quand tu touches « Commencer ».</caption>
+        <thead><tr><th scope="col"><span class="sr">Fonction</span></th><th scope="col">Gratuit</th><th scope="col" class="pro">Premium</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">Tracer et comparer des boucles, partout en France</th><td><span class="y" aria-label="Oui">✓</span></td><td class="pro"><span class="y" aria-label="Oui">✓</span></td></tr>
+          <tr><th scope="row">Boucles loin des grands axes</th><td><span class="y" aria-label="Oui">✓</span></td><td class="pro"><span class="y" aria-label="Oui">✓</span></td></tr>
+          <tr><th scope="row">Courses guidées à la voix, rue par rue</th><td>4<small>la 1re sans compte, puis 3 avec ton compte</small></td><td class="pro">Illimitées</td></tr>
+          <tr><th scope="row">Strava, montre Garmin et export GPX</th><td><span class="n" aria-label="Non">—</span></td><td class="pro"><span class="y" aria-label="Oui">✓</span></td></tr>
+          <tr><th scope="row">Coach IA et Ensemble (coureurs autour de toi)</th><td><span class="n" aria-label="Non">—</span></td><td class="pro"><span class="y" aria-label="Oui">✓</span></td></tr>
+          <tr><th scope="row">Un diamant de 5&nbsp;€ toutes les 100 courses</th><td><span class="n" aria-label="Non">—</span></td><td class="pro"><span class="y" aria-label="Oui">✓</span></td></tr>
+        </tbody>
+        <tfoot><tr><th scope="row">Prix</th><td>0 €<small>sans carte bancaire</small></td><td class="pro"><span data-price>4,99 €</span><small>31 jours, sans abonnement</small></td></tr></tfoot>
+      </table>
+    </div>
     <div class="price">
       <div><div class="big">4,99 €<small><span class="dot"> · </span>31 jours · sans abonnement</small></div><p class="fine" style="margin-top:4px">Tracer des boucles est gratuit ; Premium après tes courses offertes. Tu paies une fois, rien ne se renouvelle. Paiement sécurisé par PayPal. <a href="essai-premium.html" data-ev="premium" style="text-decoration:underline">Tout sur Premium</a></p></div>
-      <div class="offre" data-offre hidden><b>Offre de lancement : 9,99 € · 3 mois</b><p>Au lieu de 14,97 € (3 × 4,99 €). Un seul paiement, sans abonnement. Jusqu'au <span data-offre-fin>dimanche 18 octobre</span> à 23 h 59 (heure de Paris), au choix au moment de passer Premium dans l'app.</p></div>
+      <div class="offre" data-offre hidden><b>Offre de lancement : 9,99 € · 3 mois</b><p>Au lieu de 14,97 € (3 × 4,99 €). Un seul paiement, sans abonnement. Jusqu'au <span data-offre-fin>dimanche 18 octobre</span> à 23 h 59 (heure de Paris), au choix au moment de passer Premium dans l'app.</p><span class="cd" data-cd hidden></span></div>
       <a class="btn main" href="/app?go=1" data-ev="essayer">Tracer ma boucle gratuite</a>
     </div>
-    <div class="founder">
+  </section>
+
+  <section id="parrainage">
+    <div class="parrain">
+      <p class="kick">Parrainage</p>
+      <h2>Invite un ami : <span class="g">7 jours de Premium offerts</span> pour vous deux</h2>
+      <p>Courir à deux, c'est plus motivant. Partage ton lien perso, et dès que ton ami lance sa première course, vous recevez chacun une semaine de Premium.</p>
+      <div class="grid">
+        <div class="card"><div class="e" aria-hidden="true">1</div><h3>Crée ton compte gratuit</h3><p>Ton lien perso t'attend dans l'app, onglets Profil et Premium.</p></div>
+        <div class="card"><div class="e" aria-hidden="true">2</div><h3>Envoie-le à un ami</h3><p>Par WhatsApp, SMS ou où tu veux. Il s'inscrit gratuitement.</p></div>
+        <div class="card"><div class="e" aria-hidden="true">3</div><h3>7 jours chacun</h3><p>À sa 1re course, ils s'ajoutent à ton Premium en cours, s'il y en a un.</p></div>
+      </div>
+      <p class="fine">Jusqu'à 5 amis récompensés par période de 30 jours. <a href="legal.html#parrainage">Règles du parrainage</a></p>
+    </div>
+  </section>
+
+  <section>
+    <div class="founder" style="margin-top:0">
       <h2>Créé par Pierre, coureur, en France</h2>
       <p>Je cours, et j'en avais assez de refaire toujours les mêmes tours. J'ai créé Traceo pour que chaque sortie passe par des rues que je ne connaissais pas encore, et je l'améliore au fil de vos retours.</p>
       <p>Une question, une idée, un souci&nbsp;? Écris-moi à <a href="mailto:pierre.rnrd04@gmail.com" data-ev="contact">pierre.rnrd04@gmail.com</a>, je lis chaque message.</p>
@@ -269,30 +358,98 @@ footer{position:relative;z-index:1;border-top:1px solid var(--line);padding:22px
 
   <footer>
     <span>© Traceo · Pierre Renard EI</span>
-    <span><a href="legal.html">Mentions légales et CGV</a> · <a href="./">Accueil</a></span>
+    <span><a href="legal.html">Mentions légales et CGV</a> · <a href="guides/" data-ev="guide">Guides running</a> · <a href="presse" data-ev="presse">Presse</a> · <a href="./">Accueil</a></span>
   </footer>
 </div>
+<div class="sticky" id="sticky" aria-hidden="true"><a class="btn main" href="/app?go=1" data-ev="essayer" tabindex="-1">Tracer ma boucle gratuite</a></div>
 <script src="config.js"></script>
 <script>
 (function(){
-  var C = window.TRACEO_CONFIG || {};
+  var C = window.TRACEO_CONFIG || {}, API = String(C.SOCIAL_API || C.CHAT_API || "").replace(/\/$/, "");
+  if(C.PRICE_LABEL) document.querySelectorAll("#price,[data-price]").forEach(function(el){ el.textContent = C.PRICE_LABEL; });
+  function ev(name){ try{ if(window.traceoTrack) window.traceoTrack(name); else (window.traceoQ = window.traceoQ || []).push(name); }catch(e){} try{ if(window.umami) umami.track(name); }catch(e){} }
+  function getJSON(url, ms){ var ctl = "AbortController" in window ? new AbortController() : null, t = ctl && setTimeout(function(){ ctl.abort(); }, ms || 6000);
+    return fetch(url, ctl ? {signal:ctl.signal} : {}).then(function(r){ clearTimeout(t); return r.ok ? r.json() : null; }, function(){ clearTimeout(t); return null; }); }
   // Offre de lancement 3 mois : visible seulement si le lien PayPal 3 mois est renseigné et jusqu'à la vraie date de fin (heure de Paris), puis disparaît seule
-  var oEnd = Date.parse(C.OFFER_3M_END || "2026-10-18T23:59:59+02:00"), oEls = document.querySelectorAll("[data-offre]");
+  var oEnd = Date.parse(C.OFFER_3M_END || "2026-10-18T23:59:59+02:00"), oEls = document.querySelectorAll("[data-offre]"), cdT = 0;
   function offre(){ var on = !!C.PAYPAL_PAYMENT_LINK_3M && oEnd > Date.now(); oEls.forEach(function(el){ el.hidden = !on; }); return on; }
+  // compte à rebours vers la vraie fin (« plus que 4 j 6 h »), arrondi vers le bas : il ne tourne que pendant l'offre
+  function tickCd(){
+    var left = oEnd - Date.now(); if(!offre() || !(left > 0)){ clearInterval(cdT); return; }
+    var d = Math.floor(left/864e5), h = Math.floor(left%864e5/36e5), m = Math.floor(left%36e5/6e4);
+    var t = "plus que " + (d ? d + " j " + h + " h" : h ? h + " h " + String(m).padStart(2, "0") + " min" : Math.max(1, m) + " min");
+    document.querySelectorAll("[data-cd]").forEach(function(el){ el.textContent = el.closest(".offre") ? t.charAt(0).toUpperCase() + t.slice(1) : t; el.hidden = false; });
+    document.querySelectorAll("[data-cd-wrap]").forEach(function(el){ el.hidden = false; });
+  }
   if(offre()){
     try{ var fin = new Intl.DateTimeFormat("fr-FR", {weekday:"long", day:"numeric", month:"long", timeZone:"Europe/Paris"}).format(oEnd); document.querySelectorAll("[data-offre-fin]").forEach(function(el){ el.textContent = fin; }); }catch(e){}
     if(oEnd - Date.now() < 2147e6) setTimeout(offre, oEnd - Date.now() + 500);
+    tickCd(); cdT = setInterval(tickCd, 30000);
   }
-  // Les boutons vers l'app emportent la source de la visite (?src=…, utm_…) : le parcours reste attribué au bon lien
-  var fw = []; new URLSearchParams(location.search).forEach(function(v, k){ if(v && /^(src|utm_(source|medium|campaign|content|term))$/.test(k)) fw.push([k, v.slice(0, 60)]); });
-  if(fw.length) ["click", "auxclick", "contextmenu"].forEach(function(t){ document.addEventListener(t, function(e){
-    var a = e.target && e.target.closest && e.target.closest('a[href^="/app"]'); if(!a) return;
-    try{ var u = new URL(a.getAttribute("href"), location.href); fw.forEach(function(p){ if(!u.searchParams.has(p[0])) u.searchParams.set(p[0], p[1]); }); a.setAttribute("href", u.pathname + u.search + u.hash); }catch(x){}
-  }, true); });
+  // Parrainage : lien d'un membre <site>/?ref=CODE. Code gardé 30 jours sur le téléphone (« traceoRef » {c, t}, le premier lien reçu reste prioritaire),
+  // comme dans l'app qui le relit et l'envoie à l'inscription. Déjà membre sur ce téléphone : rien à garder ni à afficher.
+  var REF_RE = /^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{6}$/, REF_TTL = 30*864e5, qs = new URLSearchParams(location.search);
+  var urlRef = String(qs.get("ref") || "").trim().toUpperCase(), member = false, ref = "", fresh = false;
+  if(!REF_RE.test(urlRef)) urlRef = "";
+  function refGet(){ try{ var r = JSON.parse(localStorage.getItem("traceoRef") || "null"); if(r && REF_RE.test(r.c) && Date.now() - (+r.t || 0) < REF_TTL) return r; if(r) localStorage.removeItem("traceoRef"); }catch(e){} return null; }
+  function refKeep(c){ try{ localStorage.setItem("traceoRef", JSON.stringify({c:c, t:Date.now()})); return true; }catch(e){ return false; } }
+  try{ member = /^[a-f0-9]{48}$/.test(String(JSON.parse(localStorage.getItem("traceo2:ensAuth") || "null") || "")); }catch(e){}
+  if(!member){ var kept = refGet(); if(kept) ref = kept.c; else if(urlRef){ ref = urlRef; fresh = refKeep(urlRef); } }
+  // Les boutons vers l'app emportent la source de la visite (?src=…, utm_…) et le code de parrainage : le parcours reste attribué au bon lien
+  var fw = []; qs.forEach(function(v, k){ if(v && /^(src|utm_(source|medium|campaign|content|term))$/.test(k)) fw.push([k, v.slice(0, 60)]); });
+  function fwd(a){
+    try{ var u = new URL(a.getAttribute("href"), location.href), go = !u.searchParams.has("connexion");
+      fw.forEach(function(p){ if(!u.searchParams.has(p[0])) u.searchParams.set(p[0], p[1]); });
+      if(go){ if(ref) u.searchParams.set("ref", ref); else u.searchParams.delete("ref"); }
+      a.setAttribute("href", u.pathname + u.search + u.hash); }catch(x){}
+  }
+  function fwdAll(){ document.querySelectorAll('a[href^="/app"]').forEach(fwd); }
+  fwdAll();
+  ["click", "auxclick", "contextmenu"].forEach(function(t){ document.addEventListener(t, function(e){ var a = e.target && e.target.closest && e.target.closest('a[href^="/app"]'); if(a) fwd(a); }, true); });
+  // « Pierre t'offre 7 jours de Premium » : seulement si le serveur reconnaît le code (prénom seul) ; code inconnu = oublié, un autre lien pourra prendre sa place
+  function refCheck(c, again){
+    if(!c || !API) return;
+    getJSON(API + "/social/ref?c=" + encodeURIComponent(c)).then(function(j){
+      if(!j) return;   // serveur injoignable ou trop d'essais : code gardé pour l'inscription, rien d'affiché
+      if(j.ok === true){
+        var first = String(j.first || "").trim().slice(0, 30), named = first && !/^un /i.test(first);
+        document.querySelectorAll("[data-ref-first]").forEach(function(el, i){ el.textContent = named ? first : i ? "ton ami" : first || "Un ami"; });
+        document.querySelectorAll("#gift").forEach(function(el){ el.hidden = false; });
+        if(fresh){ fresh = false; ev("parrain_vu"); }
+      } else if(j.ok === false){
+        var r = refGet(); if(r && r.c === c) try{ localStorage.removeItem("traceoRef"); }catch(e){}
+        ref = ""; fresh = false;
+        if(!again && urlRef && urlRef !== c){ ref = urlRef; fresh = refKeep(urlRef); refCheck(urlRef, true); }
+        fwdAll();
+      }
+    });
+  }
+  refCheck(ref);
+  // Vrais chiffres des 7 derniers jours : le bloc ne s'affiche que si le serveur dit qu'il y a assez de monde (show), jamais arrondis
+  function proof(){
+    if(!API) return;
+    getJSON(API + "/social/proof", 8000).then(function(j){
+      if(!j || j.show !== true) return;
+      var ok = ["loops7", "runs7", "members"].every(function(k){ return typeof j[k] === "number" && j[k] >= 0 && Math.floor(j[k]) === j[k]; }), box = document.getElementById("proof");
+      if(!ok || !box) return;
+      var nf = new Intl.NumberFormat("fr-FR", {maximumFractionDigits:0});
+      box.querySelectorAll("[data-proof]").forEach(function(el){ el.textContent = nf.format(j[el.getAttribute("data-proof")]); });
+      box.hidden = false;
+    });
+  }
   // Vidéo du haut de page : chargée après la page (l'image fixe s'affiche tout de suite), jamais si l'appareil demande moins d'animations ou d'économiser les données
   var hv = document.getElementById("heroVid");
   function heroVid(){ try{ if(matchMedia("(prefers-reduced-motion: reduce)").matches || (navigator.connection && navigator.connection.saveData)) return; hv.muted = true; hv.preload = "auto"; var pr = hv.play(); if(pr && pr.catch) pr.catch(function(){}); }catch(e){} }
-  if(hv){ if(document.readyState === "complete") setTimeout(heroVid, 200); else addEventListener("load", function(){ setTimeout(heroVid, 200); }); }
+  function afterLoad(){ setTimeout(function(){ if(hv) heroVid(); proof(); }, 200); }
+  if(document.readyState === "complete") afterLoad(); else addEventListener("load", afterLoad);
+  // Bouton collant sur mobile : apparaît quand le bouton du haut est sorti de l'écran, s'efface devant le bouton du prix et le pied de page
+  var st = document.getElementById("sticky"), heroBtn = document.querySelector(".hero .cta .btn"), priceBtn = document.querySelector(".price .btn"), foot = document.querySelector("footer");
+  function onScroll(){
+    var p = priceBtn.getBoundingClientRect(), on = heroBtn.getBoundingClientRect().bottom < 0 && (p.top > innerHeight || p.bottom < 0) && foot.getBoundingClientRect().top > innerHeight - 20;
+    if(st.classList.contains("on") === on) return;
+    st.classList.toggle("on", on); st.setAttribute("aria-hidden", on ? "false" : "true"); st.firstElementChild.tabIndex = on ? 0 : -1;
+  }
+  addEventListener("scroll", onScroll, {passive:true}); addEventListener("resize", onScroll); onScroll();
 })();
 </script>
 <script src="stats.js" defer></script>

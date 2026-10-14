@@ -162,7 +162,7 @@ const refFresh = (() => { try{
   const u = new URL(location.href), c = String(u.searchParams.get("ref") || "").trim().toUpperCase();
   if(!u.searchParams.has("ref")) return false;
   u.searchParams.delete("ref"); history.replaceState(history.state, "", u.pathname + u.search + u.hash);
-  if(!REF_RE.test(c) || refGet()) return false;
+  if(!REF_RE.test(c) || refGet() || /^[a-f0-9]{48}$/.test(String(store.get("ensAuth", "") || ""))) return false;   // déjà membre : rien à garder
   localStorage.setItem("traceoRef", JSON.stringify({c, t:Date.now()})); return true;
 }catch(e){ return false; } })();
 async function refCheck(){
@@ -213,7 +213,8 @@ const refOn = () => typeof ensOn === "function" && ensOn() && !PV && !betaOn();
 const refCode = () => member() && REF_RE.test(String(ENS.me?.ref_code || "")) ? ENS.me.ref_code : "";
 const refUrl = () => SITE() + "/?ref=" + refCode();
 const refMsg = () => `Je cours avec Traceo : l'appli trace une boucle neuve depuis chez toi, avec guidage vocal. Avec mon lien, on gagne 7 jours de Premium chacun 👉 ${refUrl()}`;
-// where : me (profil, avec les compteurs), run (fin de course), wall (mur Premium et onglet Premium sans Premium : « Pas maintenant ? »), sheet (fenêtre seule)
+// where : me (profil, avec les compteurs), run (fin de course), wall (mur Premium et onglet Premium sans Premium : « Pas maintenant ? », plus court :
+// partage du téléphone, WhatsApp et lien copié ; le partage du téléphone propose déjà les SMS), sheet (fenêtre seule)
 function inviteCard(where){
   if(!refOn()) return "";
   const alt = where === "wall", box = inner => `<div class="plan ref-card${alt ? " ref-wall" : ""}" data-refcard="${where}">${inner}</div>`;
@@ -228,7 +229,7 @@ function inviteCard(where){
   const stats = where === "me" ? `<div class="trio"><div><small>Amis venus</small><b>${n("ref_count")}</b></div><div><small>En attente</small><b>${n("ref_pending")}</b></div><div><small>Jours gagnés</small><b>${n("ref_days")}</b></div></div>` : "";
   return box(`${head}${alt ? "" : `<p class="small">7 jours de Premium pour toi et 7 pour ton ami, dès qu'il crée son compte et lance sa première course. Jusqu'à ${max} amis par mois.</p>`}${stats}
     ${navigator.share ? `<button type="button" class="btn ${alt ? "soft" : "hero"} block" data-refshare>${I.share}Inviter un ami</button>` : ""}
-    <div class="ref-alt"><a class="btn soft" data-refvia="whatsapp" href="https://wa.me/?text=${t}" target="_blank" rel="noopener">WhatsApp</a><a class="btn soft" data-refvia="sms" href="sms:?&amp;body=${t}">SMS</a><button type="button" class="btn soft" data-refcopy>Copier le lien</button></div>
+    <div class="ref-alt"><a class="btn soft" data-refvia="whatsapp" href="https://wa.me/?text=${t}" target="_blank" rel="noopener">WhatsApp</a>${alt ? "" : `<a class="btn soft" data-refvia="sms" href="sms:?&amp;body=${t}">SMS</a>`}<button type="button" class="btn soft" data-refcopy>Copier le lien</button></div>
     ${alt ? "" : `<p class="ref-url">${esc(refUrl().replace(/^https?:\/\//, ""))}</p>`}`);
 }
 // lien pas encore reçu (compte créé avant le parrainage : le serveur le crée à la demande) : on redemande le profil, deux fois au plus

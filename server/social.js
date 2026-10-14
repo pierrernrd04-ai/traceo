@@ -115,19 +115,20 @@ function lifeMail(kind, first, u){
     body = [`Petit mot rapide : l'offre de lancement de Traceo se termine <b>${end} à 23 h 59</b>.`,
       `Jusque-là, le pass <b>Premium 3 mois est à 9,99 €</b>, soit environ 3,33 € par mois, sans abonnement : tu paies une fois, rien ne se renouvelle. Au programme : ${PREM}.`,
       "Ensuite, Premium reste disponible à 4,99 € pour 31 jours."];
-    cta = [u.app, "Prendre 3 mois à 9,99 € →"]; after = `Pas le bon moment ? Aucun souci : tracer des boucles reste gratuit${ref ? `, et ton lien perso ${ref} offre 7 jours de Premium à toi et à chaque ami qui lance sa première course` : ""}.`;
+    cta = [u.app, "Prendre 3 mois à 9,99 € →"]; after = `Pas le bon moment ? Aucun souci : tracer des boucles reste gratuit${ref ? `, et ton lien perso ${ref} offre 7 jours de Premium à toi et à chaque ami qui lance sa première course (jusqu'à ${REF_MAX} amis par mois)` : ""}.`;
   } else {
     const left = (u.until || now) - now, d = Math.floor(left/864e5), quand = left >= 864e5 ? `dans ${d} jour${d > 1 ? "s" : ""}` : "dans moins de 24 h";
     const day = new Date(u.until || now).toLocaleDateString("fr-FR", {day:"numeric", month:"long", timeZone:"Europe/Paris"});
     subject = u.gift ? `${first}, tes jours Premium offerts se terminent le ${day}` : `${first}, ton Premium se termine le ${day}`; pre = "Rien ne sera prélevé : voici comment continuer, si tu le souhaites.";
     body = [`${u.gift ? "Tes jours de Premium offerts par le parrainage se terminent" : "Ton pass Premium Traceo se termine"} <b>le ${day}</b> (${quand}).`,
       "Pas d'abonnement, donc rien ne sera prélevé : sans action de ta part, tu repasses simplement à la version gratuite, et tracer des boucles reste gratuit.",
-      `Pour garder tes ${PREM} :`,
+      `Pour garder Premium (${PREM}) :`,
       ["<b>4,99 € pour 31 jours</b>, ajoutés à la suite de tes jours restants : aucun jour perdu.", offer, invite]];
     cta = [u.app, "Prolonger mon Premium →"]; after = "Merci de courir avec Traceo ! Une idée pour améliorer l'app ? Réponds à cet e-mail, je lis tout.";
   }
-  const P = (h, pad = "12px 28px 0") => `<tr><td style="padding:${pad};font-size:16px;line-height:1.6;color:#2A3B39;">${h}</td></tr>`;
-  const LI = h => `<tr><td style="padding:8px 28px 0;"><table role="presentation" cellpadding="0" cellspacing="0"><tr><td valign="top" style="padding-right:10px;font-size:16px;line-height:1.6;color:#0B8A66;font-weight:800;">•</td><td style="font-size:16px;line-height:1.6;color:#2A3B39;">${h}</td></tr></table></td></tr>`;
+  const nb = h => h.replace(/ ([:;!?€»])/g, "\u00a0$1").replace(/« /g, "«\u00a0");   // espaces insécables : jamais « : » ni « € » en début de ligne
+  const P = (h, pad = "12px 28px 0") => `<tr><td style="padding:${pad};font-size:16px;line-height:1.6;color:#2A3B39;">${nb(h)}</td></tr>`;
+  const LI = h => `<tr><td style="padding:8px 28px 0;"><table role="presentation" cellpadding="0" cellspacing="0"><tr><td valign="top" style="padding-right:10px;font-size:16px;line-height:1.6;color:#0B8A66;font-weight:800;">•</td><td style="font-size:16px;line-height:1.6;color:#2A3B39;">${nb(h)}</td></tr></table></td></tr>`;
   const html = `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escH(subject)}</title></head>
 <body style="margin:0;padding:0;background:#EEF3F2;"><div style="display:none;max-height:0;overflow:hidden;opacity:0">${escH(pre)}</div>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#EEF3F2;"><tr><td align="center" style="padding:24px 12px;">

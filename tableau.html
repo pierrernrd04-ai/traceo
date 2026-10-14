@@ -157,6 +157,31 @@ h2{font:800 17px "Bricolage Grotesque",sans-serif;letter-spacing:-.01em;margin-b
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap}
 @media (max-width:720px){ .pc-body{grid-template-columns:1fr} .pc-src{flex:1 1 100%} .pc-src select{width:100%;font-size:16px} }   /* 16 px : pas de zoom automatique sur iPhone */
 </style>
+<style>
+/* 🎁 Parrainage et ✉️ e-mails automatiques */
+.rf-top{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:10px}
+.rf-ev{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.rf-ev span{background:var(--surface-2);border-radius:999px;padding:5px 10px;font-size:12.5px;color:var(--muted);font-weight:700}
+.rf-ev b{color:var(--ink)}
+.lc-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px 16px;flex-wrap:wrap}
+.lc-head h2{margin-bottom:4px;flex-wrap:wrap}
+.lc-warn{display:flex;gap:9px;align-items:flex-start;background:var(--bad-bg);color:var(--bad);border-radius:12px;padding:10px 12px;font-size:13px;margin:10px 0}
+.lc-warn b{color:var(--ink)}
+.lc-row{display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--surface-2);border-radius:14px;padding:12px 14px;margin-top:12px}
+.lc-row small{display:block;color:var(--muted);font-size:12.5px;margin-top:2px}
+.lc-row .icon-btn,.lc-head .icon-btn{flex:none}
+.icon-btn.on{background:var(--good-bg);border-color:rgba(74,222,128,.4);color:var(--good)}
+.icon-btn[disabled]{opacity:.55;cursor:default}
+.lc details{margin-top:12px}
+.lc summary{cursor:pointer;font-weight:800;font-size:14px;padding:4px 0}
+.lc-list{margin-top:6px}
+.lc-test{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) auto;gap:8px;margin-top:12px;align-items:center}
+.lc-test select{appearance:none;-webkit-appearance:none;width:100%;padding:13px 14px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;font-weight:700}
+.lc-test .btn{white-space:nowrap}
+.lc-msg{font-size:13.5px;font-weight:700;margin-top:8px}
+.lc-msg.bad{color:var(--bad)}
+@media (max-width:720px){ .rf-top{grid-template-columns:1fr 1fr} .lc-test{grid-template-columns:1fr} .lc-test .input,.lc-test select{font-size:16px} }
+</style>
 </head>
 <body>
 <div class="wrap" id="app"></div>
@@ -429,6 +454,98 @@ function pcWire(){
   document.querySelectorAll("[data-pcs]").forEach(b => b.onclick = () => pick(b.dataset.pcs, `[data-pcs="${CSS.escape(b.dataset.pcs)}"]`));
 }
 
+// 🎁 Parrainage : D.parrainages {credited, pending, capped, refused, days, active, top:[{first, n}], events:{vu, partage, copie, inscrit}}
+// (jours offerts : hors chiffre d'affaires, hors paiements, hors alertes de paiement ; le serveur les compte à part)
+function refCardT(){
+  const R = D.parrainages, [now] = PER[DAYS] || PER[7];
+  if(!R || typeof R !== "object") return `<div class="card" id="rfCard"><h2>🎁 Parrainage</h2><p class="empty">Les parrainages s'afficheront ici dès que le serveur enverra ces chiffres.</p></div>`;
+  const n = k => Number(R[k]) || 0, ev = R.events || {}, top = Array.isArray(R.top) ? R.top.filter(t => t && t.n) : [];
+  const tiles = [["Parrainages crédités", n("credited")], ["En attente d'une 1re course", n("pending")], ["Jours offerts", n("days")], ["Comptes avec des jours en cours", n("active")]];
+  const extra = [n("capped") ? `${nf(n("capped"))} au-delà du plafond (5 par parrain sur 30 jours, sans jours offerts)` : "", n("refused") ? `${nf(n("refused"))} non récompensé${n("refused") > 1 ? "s" : ""} (même adresse IP ou même e-mail que le parrain)` : ""].filter(Boolean);
+  const evs = [["vu", "lien ouvert", "liens ouverts"], ["partage", "invitation envoyée", "invitations envoyées"], ["copie", "lien copié", "liens copiés"], ["inscrit", "inscription avec un lien", "inscriptions avec un lien"]];
+  return `<div class="card" id="rfCard"><h2>🎁 Parrainage</h2>
+    <div class="rf-top">${tiles.map(([l, v]) => `<div class="tile"><b>${nf(v)}</b><span>${l}</span></div>`).join("")}</div>
+    <p class="cap" style="margin-top:0">Parrainages : <b>${nf(n("credited"))} crédité${n("credited") > 1 ? "s" : ""}, ${nf(n("days"))} jour${n("days") > 1 ? "s" : ""} offert${n("days") > 1 ? "s" : ""}</b> depuis le début (parrains et filleuls)${extra.length ? " · " + extra.join(" · ") : ""}.</p>
+    ${top.length ? `<div class="list" style="margin-top:8px">${top.map(t => `<div class="row"><span class="ic">🏅</span><span class="nm">${esc(t.first || "Membre")}</span><span class="vv">${nf(t.n)}</span><span class="tr"><i style="width:${Math.max(4, 100*t.n/Math.max(1, top[0].n))}%"></i></span><span class="ex">${nf(t.n)} ami${t.n > 1 ? "s" : ""} venu${t.n > 1 ? "s" : ""} et lancé${t.n > 1 ? "s" : ""}</span></div>`).join("")}</div>` : `<p class="empty">Pas encore de parrainage crédité : le lien de chaque membre est dans son Profil, après sa course et sur le mur Premium.</p>`}
+    <div class="rf-ev">${evs.map(([k, one, many]) => `<span><b>${nf(ev[k])}</b> ${Number(ev[k]) > 1 ? many : one}</span>`).join("")}</div>
+    <p class="note">Liens et invitations : ${now}. Les jours offerts ne comptent ni dans le chiffre d'affaires ni dans les paiements reçus.</p></div>`;
+}
+
+// ✉️ E-mails automatiques (relances) : état D.relances (= admin/lifecycle), interrupteur kv lifecycle:auto, aperçu, essai vers ton adresse ;
+// offre 3 mois dans les e-mails : interrupteur kv offer3m (admin/offer3m). Rien de tout ça n'active le paiement 3 mois (lien dans config.js).
+const LK = {j1:["👋", "1re course pas lancée", "inscrit depuis 20 h à 7 jours, aucune course lancée"], mur:["🧱", "Courses offertes utilisées", "3 courses faites, pas Premium"], fin3m:["⏳", "Fin de l'offre 3 mois", "36 dernières heures, seulement si l'offre est activée ci-dessous"], prem_fin:["★", "Fin du Premium", "Premium (payé ou offert) qui finit dans les 3 jours"]};
+const lk = k => LK[k] || ["✉️", k, ""];
+let LC = {busy:false, msg:"", bad:false, open:false, list:null, mail:"", kind:"j1", of:null, ofBusy:false};
+try{ LC.mail = localStorage.getItem("traceoDashMail") || ""; }catch(e){}
+const LINK3M = () => !!(window.TRACEO_CONFIG || {}).PAYPAL_PAYMENT_LINK_3M;
+const OF_END = () => Date.parse((window.TRACEO_CONFIG || {}).OFFER_3M_END || "2026-10-18T23:59:59+02:00");
+function lcCard(){
+  const L = D.relances;
+  if(!L || typeof L !== "object") return `<div class="card lc" id="lcCard"><h2>✉️ E-mails automatiques</h2><p class="empty">L'état des e-mails automatiques s'affichera ici dès que le serveur l'enverra.</p></div>`;
+  const kinds = [...new Set([...Object.keys(LK), ...Object.keys(L.sent || {}), ...Object.keys(L.next?.by || {})])], b = LC.busy ? "disabled" : "";
+  const last = L.last && L.last.t ? `Dernier passage il y a ${ago(L.last.t)} : ${nf(L.last.sent || 0)} envoyé${(L.last.sent || 0) > 1 ? "s" : ""}.` : "Aucun passage automatique pour l'instant.";
+  const of = LC.of, ofOn = of ? !!of.on : !!L.offer3m, ofEnd = of?.end || L.offer_end || OF_END(), ofOver = Date.now() >= ofEnd;
+  const list = !LC.open ? "" : !LC.list ? `<p class="empty">Chargement…</p>` : LC.list.error ? `<p class="empty">${esc(LC.list.error)}</p>`
+    : LC.list.items.length ? `<div class="list lc-list">${LC.list.items.map(x => { const [ic, lab] = lk(x.kind); return `<div class="row"><span class="ic">${ic}</span><span class="nm">${esc(x.first || x.pseudo || "Membre")} · ${esc(x.email || "")}</span><span class="vv" style="font-size:13px">${esc(lab)}</span>${x.until ? `<span class="ex">Premium jusqu'au ${new Date(x.until).toLocaleDateString("fr-FR", {day:"numeric", month:"long"})}</span>` : ""}</div>`; }).join("")}</div>`
+    : `<p class="empty">Personne ne recevrait d'e-mail maintenant.</p>`;
+  return `<div class="card lc" id="lcCard"><div class="lc-head"><div><h2>✉️ E-mails automatiques <span class="pill ${L.on ? "on" : ""}">${L.on ? "Activés" : "Arrêtés"}</span></h2>
+      <p class="cap" style="margin-top:0">Quatre e-mails courts signés par toi, chacun une seule fois par membre, de ${esc(L.hours || "9 h à 20 h 30").replace("-", " à ")}. Jamais aux désinscrits ni à ceux qui ont coché « pas d'e-mails ».</p></div>
+      <button class="icon-btn ${L.on ? "" : "on"}" id="lcTog" ${b}>${L.on ? "Arrêter" : "Activer"}</button></div>
+    ${L.mail === false ? `<p class="lc-warn"><span aria-hidden="true">⚠️</span><span><b>Envoi d'e-mails non configuré sur le serveur</b> (clé Brevo et expéditeur) : rien ne partira tant qu'ils manquent.</span></p>` : ""}
+    <div class="list">${kinds.map(k => { const [ic, lab, why] = lk(k), s = Number(L.sent?.[k]) || 0, nx = Number(L.next?.by?.[k]) || 0;
+      return `<div class="row"><span class="ic">${ic}</span><span class="nm">${esc(lab)}</span><span class="vv">${nf(s)}<span class="sr"> envoyé${s > 1 ? "s" : ""}</span></span><span class="ex">${esc(why)} · ${nf(s)} envoyé${s > 1 ? "s" : ""} · ${nf(nx)} à envoyer maintenant</span></div>`; }).join("")}</div>
+    <p class="cap">${last}${L.failed ? ` · <span style="color:var(--bad)">${nf(L.failed)} échec${L.failed > 1 ? "s" : ""} d'envoi</span>` : ""}${L.next ? ` · Prochain passage : ${nf(L.next.count || 0)} membre${(L.next.count || 0) > 1 ? "s" : ""} concerné${(L.next.count || 0) > 1 ? "s" : ""}${L.next.max_run && (L.next.count || 0) > L.next.max_run ? ` (${nf(L.next.max_run)} au plus par passage)` : ""}` : ""}.</p>
+    <details id="lcPrev" ${LC.open ? "open" : ""}><summary>Qui recevrait quoi maintenant ?</summary>${list}</details>
+    <form class="lc-test" id="lcTest" novalidate><input class="input" id="lcMail" type="email" autocomplete="email" placeholder="Ton adresse e-mail" value="${esc(LC.mail)}" aria-label="Adresse pour l'exemple">
+      <select id="lcKind" aria-label="E-mail à recevoir">${kinds.map(k => `<option value="${esc(k)}" ${k === LC.kind ? "selected" : ""}>${esc(lk(k)[1])}</option>`).join("")}</select>
+      <button class="btn" id="lcGo" ${b}>M'envoyer un exemple</button></form>
+    ${LC.msg ? `<p class="lc-msg ${LC.bad ? "bad" : ""}" role="status">${esc(LC.msg)}</p>` : ""}
+    <div class="lc-row"><span><b>Offre 3 mois dans les e-mails</b> <span class="pill ${ofOn && !ofOver ? "on" : ""}">${ofOver ? "Terminée" : ofOn ? "Activée" : "Arrêtée"}</span><small>Rappel « 3 mois à 9,99 € » jusqu'au ${new Date(ofEnd).toLocaleString("fr-FR", {weekday:"long", day:"numeric", month:"long", hour:"2-digit", minute:"2-digit", timeZone:"Europe/Paris"})}, puis plus jamais.${LINK3M() ? "" : " <b style=\"color:var(--bad)\">Le lien de paiement 3 mois est vide dans config.js : l'offre n'est pas en vente dans l'app.</b>"}</small></span>
+      <button class="icon-btn ${ofOn ? "" : "on"}" id="ofTog" ${LC.ofBusy || ofOver ? "disabled" : ""}>${ofOn ? "Arrêter" : "Activer"}</button></div></div>`;
+}
+function lcPaint(){ const el = document.getElementById("lcCard"); if(!el) return; el.outerHTML = lcCard(); lcWire(); }
+async function lcPreview(){
+  try{ const j = await call("lifecycle-preview"); LC.list = {items:Array.isArray(j.list) ? j.list : []}; if(j && typeof j.on === "boolean") D.relances = {...D.relances, ...j, list:undefined}; }
+  catch(e){ LC.list = {error:e.message === "rate_limited" ? "Trop de demandes : réessaie dans quelques minutes." : "Aperçu impossible pour l'instant."}; }
+  lcPaint();
+}
+function lcWire(){
+  const on = (id, ev, f) => { const el = document.getElementById(id); if(el) el[ev] = f; };
+  on("lcTog", "onclick", async () => {
+    const L = D.relances || {}, go = !L.on;
+    if(go && !confirm(`Activer les e-mails automatiques ?${L.next ? `\n${L.next.count || 0} membre(s) recevraient un e-mail au prochain passage (toutes les heures, de 9 h à 20 h 30).` : ""}`)) return;
+    LC.busy = true; LC.msg = ""; lcPaint();
+    try{ const j = await apost("lifecycle", {on:go}); D.relances = {...L, ...j}; LC.msg = j.on ? "E-mails automatiques activés ✓" : "E-mails automatiques arrêtés."; LC.bad = false; }
+    catch(e){ LC.msg = "Changement impossible pour l'instant (" + e.message + ")."; LC.bad = true; }
+    LC.busy = false; lcPaint();
+  });
+  const det = document.getElementById("lcPrev");
+  if(det) det.ontoggle = () => { if(det.open === LC.open) return; LC.open = det.open; if(LC.open){ LC.list = null; lcPaint(); lcPreview(); } };
+  on("lcMail", "oninput", e => { LC.mail = e.target.value.trim(); });
+  on("lcKind", "onchange", e => { LC.kind = e.target.value; });
+  on("lcTest", "onsubmit", async e => {
+    e.preventDefault();
+    const mail = (document.getElementById("lcMail")?.value || "").trim(); LC.mail = mail; LC.kind = document.getElementById("lcKind")?.value || LC.kind;
+    if(!/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(mail)){ LC.msg = "Indique une adresse e-mail valide."; LC.bad = true; return lcPaint(); }
+    try{ localStorage.setItem("traceoDashMail", mail); }catch(x){}
+    LC.busy = true; LC.msg = ""; lcPaint();
+    try{ const j = await apost("lifecycle-test", {email:mail, kind:LC.kind}); LC.bad = !j.ok;
+      LC.msg = j.ok ? `Exemple « ${j.subject || lk(LC.kind)[1]} » envoyé à ${mail} ✓` : j.error === "mail_not_configured" ? "Envoi d'e-mails non configuré sur le serveur (clé Brevo)." : "L'envoi n'est pas parti (" + (j.error || j.status || "erreur") + ")."; }
+    catch(x){ LC.bad = true; LC.msg = x.message === "bad_email" ? "Adresse e-mail refusée." : x.message === "rate_limited" ? "Trop de demandes : réessaie dans quelques minutes." : "Envoi impossible pour l'instant (" + x.message + ")."; }
+    LC.busy = false; lcPaint();
+  });
+  on("ofTog", "onclick", async () => {
+    const L = D.relances || {}, cur = LC.of ? !!LC.of.on : !!L.offer3m, go = !cur;
+    if(go && !confirm(LINK3M() ? "Rappeler l'offre 3 mois à 9,99 € dans les e-mails jusqu'à sa date de fin ?" : "Attention : le lien de paiement 3 mois est vide dans config.js, l'offre n'est pas en vente dans l'app.\nLes e-mails annonceraient une offre impossible à payer. L'activer quand même ?")) return;
+    LC.ofBusy = true; lcPaint();
+    try{ LC.of = await apost("offer3m", {on:go}); D.relances = {...L, offer3m:!!LC.of.active}; LC.msg = LC.of.on ? "Offre 3 mois activée dans les e-mails." : "Offre 3 mois retirée des e-mails."; LC.bad = false; }
+    catch(e){ LC.msg = "Changement impossible pour l'instant (" + e.message + ")."; LC.bad = true; }
+    LC.ofBusy = false; lcPaint();
+  });
+}
+// état de l'interrupteur offre 3 mois : lu une fois à l'ouverture (puis après chaque changement)
+async function ofLoad(){ if(LC.of || LC.ofLoading) return; LC.ofLoading = true; try{ LC.of = await call("offer3m"); lcPaint(); }catch(e){} LC.ofLoading = false; }
+
 function view(){
   document.querySelectorAll(".tip").forEach(e => e.remove());
   const c = D.cur, p = D.prev, [now] = PER[DAYS] || PER[7];
@@ -476,6 +593,10 @@ function view(){
 
     ${pcCard()}
 
+    ${refCardT()}
+
+    ${lcCard()}
+
     <div class="grid2">
       <div class="card"><h2>⏰ À quelle heure</h2>${bars(D.hours.map((v, h) => ({v, lab:h + "h", hi:v && v === hmax, tip:`${h} h – ${h + 1} h|${nf(v)} visite${v > 1 ? "s" : ""}`})), {labels:6, h:130})}
         <p class="cap">${hmax ? `Pic de visites vers <b>${peak} h</b> : publie un peu avant.` : "Pas encore assez de données."}</p></div>
@@ -506,7 +627,7 @@ function view(){
   document.querySelectorAll("[data-d]").forEach(b => b.onclick = async () => { DAYS = +b.dataset.d; localStorage.setItem("traceoDashDays", DAYS); $("#app").classList.add("skel"); try{ await load(); }catch(e){ alert("Erreur : " + e.message); } $("#app").classList.remove("skel"); });
   $("#rf").onclick = () => load().catch(e => alert("Erreur : " + e.message));
   document.querySelectorAll("[data-copy]").forEach(b => b.onclick = () => navigator.clipboard?.writeText(b.dataset.copy).then(() => { b.textContent = "Copié ✓"; setTimeout(() => b.textContent = "Copier", 1500); }));
-  wirePush(); pcWire();
+  wirePush(); pcWire(); lcWire(); ofLoad();
   let tip = null;
   const showTip = (col, e) => { tip?.remove(); document.querySelectorAll(".col.sel").forEach(x => x.classList.remove("sel")); col.classList.add("sel"); const [a, b] = col.dataset.tip.split("|"); tip = document.createElement("div"); tip.className = "tip"; tip.innerHTML = `<b>${esc(a)}</b>${esc(b)}`; document.body.appendChild(tip);
     const r = col.getBoundingClientRect(); tip.style.left = Math.max(8, Math.min(innerWidth - tip.offsetWidth - 8, r.left + r.width/2 - tip.offsetWidth/2)) + "px"; tip.style.top = Math.max(8, r.top + r.height - (col.firstElementChild.offsetHeight) - tip.offsetHeight - 10) + "px"; };
@@ -515,7 +636,8 @@ function view(){
 if(!API) $("#app").innerHTML = `<p class="empty">Serveur non configuré.</p>`;
 else if(KEY) load().catch(e => loginView(e.message === "auth" ? "Clé expirée ou incorrecte." : "Serveur injoignable."));
 else loginView();
-setInterval(() => { if(D && document.visibilityState === "visible") load().catch(() => {}); }, 120000);
+// actualisation toutes les 2 minutes, sauf pendant une saisie ou un envoi dans la carte des e-mails
+setInterval(() => { if(D && document.visibilityState === "visible" && !LC.busy && !document.activeElement?.closest?.("#lcCard")) load().catch(() => {}); }, 120000);
 </script>
 </body>
 </html>
