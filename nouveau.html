@@ -58,7 +58,7 @@ h1{font:400 clamp(72px,11vw,128px)/.96 Anton,Impact,sans-serif;text-transform:up
 .fine{margin-top:12px;font-size:14px;color:var(--muted)}
 .cta .fine{flex:1 1 100%;margin:-2px 0 0;font-weight:600;text-wrap:balance}
 .cta .fine span{white-space:nowrap}
-.login{color:var(--muted);font-weight:700;font-size:15px;padding:10px 2px;text-decoration:underline;text-decoration-color:rgba(138,164,163,.4);text-underline-offset:4px}
+.login{color:var(--muted);font-weight:700;font-size:15px;padding:10px 2px;white-space:nowrap;text-decoration:underline;text-decoration-color:rgba(138,164,163,.4);text-underline-offset:4px}
 .hdr-r{display:flex;align-items:center;gap:14px}
 /* Offre de lancement (affichée seulement pendant l'offre, lien PayPal 3 mois renseigné) */
 [hidden]{display:none!important}
@@ -147,6 +147,8 @@ footer{position:relative;z-index:1;border-top:1px solid var(--line);padding:22px
 .sticky .btn{width:100%}
 @media (min-width:861px){ .sticky{display:none} }
 @media (prefers-reduced-motion:reduce){ .sticky{transition:none} }
+/* Petits écrans peu hauts (bandeau d'offre et cadeau de parrainage affichés) : le bouton reste visible sans défiler */
+@media (max-width:860px) and (max-height:700px){ header{padding:12px 0} .kick{display:none} h1{font-size:50px;margin:2px 0 10px} .lead{font-size:16px;line-height:1.5} .gift{padding:9px 12px} .gift small{font-size:12.5px} }
 </style>
 <script type="application/ld+json" id="ld-traceo">
 {
@@ -274,7 +276,7 @@ footer{position:relative;z-index:1;border-top:1px solid var(--line);padding:22px
       <h1>Nouveau<br><span class="g">départ.</span></h1>
       <p class="lead">Traceo revient, <b>entièrement repensé</b>. Une boucle de course neuve en 2 secondes, dans les vraies rues de ta ville, <b>plus sûre</b> que jamais. Plus malin, plus fort, et maintenant avec un coach et des coureurs autour de toi.</p>
       <div class="cta">
-        <p class="gift" id="gift" role="status" hidden><span class="e" aria-hidden="true">🎁</span><span><b><span data-ref-first>Un ami</span> t'offre 7 jours de Premium</b><small>Ils démarrent à ta 1re course lancée avec ton compte gratuit, et <span data-ref-first>ton ami</span> en reçoit 7 aussi.</small></span></p>
+        <p class="gift" id="gift" role="status" hidden><span class="e" aria-hidden="true">🎁</span><span><b><span data-ref-first>Un ami</span> t'offre 7 jours de Premium</b> <small>Ils démarrent à ta 1re course lancée avec ton compte gratuit, et <span data-ref-first>ton ami</span> en reçoit 7 aussi.</small></span></p>
         <a class="btn main" href="/app?go=1" data-ev="essayer">Tracer ma boucle gratuite</a>
         <p class="fine"><span>1re boucle sans compte</span> · <span>iPhone et Android</span> · <span>sans téléchargement</span></p>
       </div>
