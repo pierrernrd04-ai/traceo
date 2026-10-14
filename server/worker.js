@@ -2,7 +2,7 @@
 //   POST /paypal/verify  vérification des abonnements PayPal
 //   POST /chat           coach IA du chat (Claude, via le SDK Anthropic ; à défaut, IA gratuite Cloudflare Workers AI)
 //   /social/*            « Ensemble » : comptes coureurs, coureurs autour de soi, invitations, messages, notifications
-//   toutes les heures    référencement automatique : pages nouvelles ou modifiées signalées à IndexNow (voir seo())
+//   toutes les heures    relances e-mail aux membres (voir relances()), puis référencement automatique : pages nouvelles ou modifiées signalées à IndexNow (voir seo())
 //
 // L'app appelle POST /paypal/verify {subscription_id} et reçoit {active:true|false}.
 // Le serveur demande l'état de l'abonnement directement à PayPal avec ta clé secrète,
@@ -59,9 +59,22 @@ export default {
       return json({error:"paypal_unreachable"}, 502, cors);
     }
   },
-  // tâche planifiée (wrangler.toml > [triggers]) : référencement automatique, toutes les heures
-  async scheduled(event, env, ctx){ const site = await domaine(env).catch(() => null); await seo(env, site); }
+  // tâche planifiée (wrangler.toml > [triggers]) : relances e-mail aux membres puis référencement automatique, toutes les heures
+  async scheduled(event, env, ctx){
+    await relances(env, event).catch(e => console.error("relances : ", e));   // en premier : une seule sous-requête, le référencement en garde assez
+    const site = await domaine(env).catch(() => null); await seo(env, site);
+  }
 };
+
+/* ---------- Relances e-mail automatiques (1re course, courses offertes utilisées, fin de l'offre 3 mois, fin du Premium) ----------
+   Tout se décide dans le Hub (route interne /internal/lifecycle, jamais joignable depuis Internet : le routeur public n'y envoie que /social/…
+   et retire l'en-tête X-Traceo-Internal) : interrupteur du tableau de bord (arrêté par défaut), heures d'envoi, plafonds, une seule fois par membre. */
+async function relances(env, event){
+  const hub = env.HUB.get(env.HUB.idFromName("france"));
+  const r = await hub.fetch(new Request("https://hub/internal/lifecycle", {method:"POST", headers:{"X-Traceo-Internal":"lifecycle", "Content-Type":"application/json"}, body:JSON.stringify({now:event && event.scheduledTime || 0})}));
+  const j = await r.json().catch(() => ({}));
+  if(j.sent || j.error) console.log("relances :", JSON.stringify({sent:j.sent || 0, by:j.by, error:j.error}));
+}
 
 function base(env){ return env.PAYPAL_ENV === "sandbox" ? "https://api-m.sandbox.paypal.com" : "https://api-m.paypal.com"; }
 

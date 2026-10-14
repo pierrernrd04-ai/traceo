@@ -33,7 +33,31 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,200..800&family=Figtree:wght@400;500;600;700;800&display=swap">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" crossorigin="">
-<link rel="stylesheet" href="styles.css?v=62">
+<link rel="stylesheet" href="styles.css?v=65">
+<style>
+/* Parrainage (« Invite tes amis »), offre 3 mois mise en avant, preuve sociale : compléments de styles.css */
+.ref-card{background:linear-gradient(120deg,rgba(43,227,155,.10),rgba(30,166,208,.10)),var(--surface);border-color:rgba(43,227,155,.35)}
+.ref-card .title{margin:-6px 0 0}
+.ref-card .trio b{font-size:20px}
+.ref-alt{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.ref-alt .btn{min-height:46px;padding:10px 6px;font-size:14px;border-radius:14px}
+.ref-url{font-size:12.5px;color:var(--muted);text-align:center;word-break:break-all;margin-top:-4px}
+.ref-wall{padding:14px;gap:10px;border-radius:20px}
+.ref-alt-h{font-size:14.5px;line-height:1.4}
+.ref-alt-h b{color:var(--ink)}
+.ref-gift{background:rgba(43,227,155,.12);border-color:rgba(43,227,155,.35);line-height:1.4}
+.ref-gift .linkbtn{font-size:14px;margin-left:2px}
+.ref-why{display:block;margin-top:4px;font-size:12.5px;color:var(--muted)}
+.gate .ref-gift{margin:0}
+.ens-news{font-size:12.5px;color:var(--muted);padding-top:0}
+.ens-news input{width:18px;height:18px}
+.o3-top{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.pct{flex:none;padding:4px 10px;border-radius:999px;background:linear-gradient(105deg,var(--accent),var(--accent-2));color:var(--accent-ink);font-weight:900;font-size:14px;letter-spacing:0}
+.cd{color:var(--ink);margin:0}
+.cd b{font-variant-numeric:tabular-nums}
+.proof{color:var(--ink)}
+.pvals li b{color:var(--ink)}
+</style>
 </head>
 <body>
 <!--APP-->
@@ -109,16 +133,16 @@
 <div class="toast" id="toast" role="status" hidden></div>
 <!--/APP-->
 
-<script src="config.js?v=62"></script>
-<script src="native.js?v=62"></script>
-<script src="chat-brain.js?v=62"></script>
+<script src="config.js?v=65"></script>
+<script src="native.js?v=65"></script>
+<script src="chat-brain.js?v=65"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js" crossorigin=""></script>
-<script src="app.js?v=62"></script>
-<script src="recettes.js?v=62"></script>
-<script src="ensemble.js?v=62"></script>
-<script src="boutique.js?v=62"></script>
-<script src="poster.js?v=62"></script>
-<script src="stats.js?v=62" defer></script>
+<script src="app.js?v=65"></script>
+<script src="recettes.js?v=65"></script>
+<script src="ensemble.js?v=65"></script>
+<script src="boutique.js?v=65"></script>
+<script src="poster.js?v=65"></script>
+<script src="stats.js?v=65" defer></script>
 </body>
 </html>

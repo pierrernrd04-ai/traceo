@@ -122,6 +122,141 @@ const OFFER_END = () => Date.parse(C.OFFER_3M_END || "2026-10-18T23:59:59+02:00"
 const offer3m = () => !!C.PAYPAL_PAYMENT_LINK_3M && !betaOn() && nowT() < OFFER_END();
 const offerEndTxt = () => new Date(OFFER_END()).toLocaleDateString("fr-FR", {weekday:"long", day:"numeric", month:"long", timeZone:"Europe/Paris"});
 const P3M = {label:C.PRICE_3M_LABEL || "9,99 €", value:C.PRICE_3M_VALUE || "9.99", was:"14,97 €"};
+// Compte à rebours de l'offre de lancement : vers la vraie date de fin, affiché seulement pendant l'offre (data-cd), mis à jour chaque seconde
+const cdTxt = ms => { const s = Math.max(0, Math.floor(ms/1000)), d = Math.floor(s/86400), h = Math.floor(s%86400/3600), m = String(Math.floor(s%3600/60)).padStart(2, "0"); return d ? `${d} j ${h} h ${m} min` : `${h} h ${m} min ${String(s%60).padStart(2, "0")} s`; };
+const cdLine = () => offer3m() ? `<p class="small cd" data-cd>⏳ Fin de l'offre dans <b>${cdTxt(OFFER_END() - nowT())}</b></p>` : "";
+const CD = {done:false};
+setInterval(() => { const els = document.querySelectorAll("[data-cd]"); if(!els.length) return;
+  if(!offer3m()){ els.forEach(e => e.remove()); if(!CD.done){ CD.done = true; offerOver(); } return; }   // offre finie écran ouvert : on le dit, prix du moment
+  const t = cdTxt(OFFER_END() - nowT()); els.forEach(e => { const b = e.querySelector("b"); if(b) b.textContent = t; }); }, 1000);
+// Prix de l'offre ramené au mois et remise réelle, arrondis à l'avantage du client (jamais une remise gonflée)
+const perMonth3m = () => nf(2).format(Math.ceil(parseFloat(P3M.value)/3*100)/100) + " €";
+const pct3m = () => Math.floor(100*(1 - parseFloat(P3M.value)/(3*parseFloat(C.PRICE_VALUE || "4.99"))));
+
+// Preuve sociale : uniquement les vrais chiffres du serveur (GET /social/proof), et seulement quand il répond show (assez de monde pour que ce soit parlant).
+// Nombres exacts, jamais arrondis au-dessus.
+const PROOF = {show:false, at:0};
+async function proofLoad(){
+  const api = (C.SOCIAL_API || C.CHAT_API || "").replace(/\/$/, "");
+  if(!api || PV || Date.now() - PROOF.at < 10*60e3) return;
+  PROOF.at = Date.now();
+  try{
+    const j = await fetchJSON(api + "/social/proof", {}, 6000), n = k => Number.isInteger(j[k]) && j[k] >= 0 ? j[k] : null, was = PROOF.show;
+    Object.assign(PROOF, {loops7:n("loops7"), runs7:n("runs7"), members:n("members")}); PROOF.show = j.show === true && PROOF.loops7 != null && PROOF.members != null;
+    if(PROOF.show && !was && S.tab === "premium" && modal.hidden && !run.active) render();
+  }catch(e){}
+}
+const proofLine = () => PROOF.show ? `<p class="small proof">🏃 <b>${nf(0).format(PROOF.loops7)}</b> boucle${PROOF.loops7 > 1 ? "s" : ""} tracée${PROOF.loops7 > 1 ? "s" : ""}${PROOF.runs7 ? ` et <b>${nf(0).format(PROOF.runs7)}</b> course${PROOF.runs7 > 1 ? "s" : ""} lancée${PROOF.runs7 > 1 ? "s" : ""}` : ""} ces 7 derniers jours · <b>${nf(0).format(PROOF.members)}</b> membres</p>` : "";
+
+/* ---------- Parrainage ----------
+   Lien d'un membre : <site>/?ref=CODE (la page d'accueil le transmet à l'app). Le code reçu est gardé 30 jours sur le téléphone (« traceoRef » {c, t},
+   le premier lien reçu reste prioritaire) et envoyé à l'inscription, puis effacé. Le serveur offre 7 jours de Premium au parrain ET au filleul
+   à la 1re course du filleul lancée avec son compte (pas à l'inscription). */
+const REF_RE = /^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{6}$/, REF_TTL = 30*864e5, REF_MAX = 5;
+const REF = {ok:null, first:"", meTry:0};   // ok : code vérifié par le serveur (GET /social/ref) ; first : prénom du parrain
+function refGet(){ try{ const r = JSON.parse(localStorage.getItem("traceoRef") || "null"); if(r && REF_RE.test(r.c) && Date.now() - (+r.t || 0) < REF_TTL) return r; if(r) localStorage.removeItem("traceoRef"); }catch(e){} return null; }
+function refDrop(){ try{ localStorage.removeItem("traceoRef"); }catch(e){} REF.ok = null; REF.first = ""; }
+// code reçu dans l'adresse de l'app (/app?ref=… ou /app?go=1&ref=…) : gardé s'il n'y en a pas déjà un, puis retiré de l'adresse.
+// true seulement si l'app est le premier point de contact (arrivé par l'accueil, le code est déjà gardé et compté par la page d'accueil).
+const refFresh = (() => { try{
+  const u = new URL(location.href), c = String(u.searchParams.get("ref") || "").trim().toUpperCase();
+  if(!u.searchParams.has("ref")) return false;
+  u.searchParams.delete("ref"); history.replaceState(history.state, "", u.pathname + u.search + u.hash);
+  if(!REF_RE.test(c) || refGet()) return false;
+  localStorage.setItem("traceoRef", JSON.stringify({c, t:Date.now()})); return true;
+}catch(e){ return false; } })();
+async function refCheck(){
+  const r = refGet(), api = (C.SOCIAL_API || C.CHAT_API || "").replace(/\/$/, "");
+  if(!r || !api || PV || member()) return;
+  try{
+    const j = await fetchJSON(api + "/social/ref?c=" + encodeURIComponent(r.c), {}, 6000);
+    if(j && j.ok === true){ REF.ok = true; REF.first = String(j.first || "").trim().slice(0, 30); if(refFresh && !REF.seen){ REF.seen = true; track("parrain_vu"); } refPaint(); }
+    else if(j && j.ok === false) refDrop();   // code inconnu : oublié (un vrai lien reçu plus tard pourra prendre sa place)
+  }catch(e){}   // serveur injoignable ou trop d'essais : code gardé pour l'inscription, rien d'affiché
+}
+// « Pierre t'offre 7 jours de Premium » : écran de départ et fenêtre de compte, seulement avec un code vérifié et sans compte
+function refLine(where){
+  if(!REF.ok || member() || betaOn()) return "";
+  return `🎁 <b>${REF.first ? esc(REF.first) : "Un ami"} t'offre 7 jours de Premium</b> : crée ton compte et lance ta première course.${where === "ag" ? `<small class="ref-why">Les 7 jours démarrent à ta première course lancée avec ton compte, pour toi comme pour ${REF.first ? esc(REF.first) : "ton ami"}.</small>` : ""}`;
+}
+function refPaint(){
+  document.querySelectorAll("[data-refline]").forEach(el => { const t = refLine(el.dataset.refline); el.innerHTML = t + (t && el.dataset.refline === "gate" ? ` <button type="button" class="linkbtn" id="gRefGo">Créer mon compte</button>` : ""); el.hidden = !t; });
+  const b = $("#gRefGo"); if(b) b.onclick = () => { if(typeof authGate === "function") authGate(refPaint, "parrain"); };
+}
+document.addEventListener("DOMContentLoaded", () => setTimeout(refCheck, 300), {once:true});   // ensemble.js (compte) est chargé après app.js
+// filleul : sa 1re course avec son compte vient de démarrer, le serveur crédite les 7 jours offerts → on les récupère tout de suite et on le dit
+async function refGiftCheck(){
+  const g = store.get("refGift", null); if(!g || !member()) return;
+  store.set("refGift", null);   // une seule vérification : le cadeau n'est crédité qu'à la 1re course avec le compte
+  if(Date.now() - (+g.t || 0) > 60*864e5) return;
+  await new Promise(r => setTimeout(r, 2500));
+  const before = paid() ? S.premium.until || 0 : 0;
+  await acctPremium();
+  if(paid() && (S.premium.until || 0) > before) toast(`🎁 Cadeau de parrainage : 7 jours de Premium offerts${g.first ? `, grâce à ${g.first}` : ""} !`, 6000);
+}
+// parrain : un ami vient de lancer sa 1re course (ref_count / ref_days du compte augmentent) → on le lui dit une fois, Premium du compte récupéré
+async function refNotice(me){
+  if(!me || !me.id || typeof me.ref_count !== "number") return;
+  const k = "refSeen:" + me.id, was = store.get(k, null), now = {c:me.ref_count, d:+me.ref_days || 0};
+  store.set(k, now);
+  if(!was || now.c <= was.c) return;
+  const n = now.c - was.c, days = Math.max(0, now.d - (+was.d || 0));
+  if(days) await acctPremium();
+  toast(`🎁 ${n > 1 ? `${n} amis ont lancé leur` : "Un ami a lancé sa"} première course avec ton lien${days ? ` : +${days} jours de Premium pour toi` : ""} !`, 6000); celebrate(140);
+  refRepaint();
+}
+
+/* ---------- « Invite tes amis » : profil, fin de course, mur et onglet Premium ----------
+   Partage du téléphone (texte avec le lien), sinon WhatsApp, SMS ou lien copié. Sans compte : d'abord le compte gratuit (le lien est celui du compte). */
+const SITE = () => /^https?:$/.test(location.protocol) && !NATIVE ? location.origin : "https://traceorun.pages.dev";
+const refOn = () => typeof ensOn === "function" && ensOn() && !PV && !betaOn();
+const refCode = () => member() && REF_RE.test(String(ENS.me?.ref_code || "")) ? ENS.me.ref_code : "";
+const refUrl = () => SITE() + "/?ref=" + refCode();
+const refMsg = () => `Je cours avec Traceo : l'appli trace une boucle neuve depuis chez toi, avec guidage vocal. Avec mon lien, on gagne 7 jours de Premium chacun 👉 ${refUrl()}`;
+// where : me (profil, avec les compteurs), run (fin de course), wall (mur Premium et onglet Premium sans Premium : « Pas maintenant ? »), sheet (fenêtre seule)
+function inviteCard(where){
+  if(!refOn()) return "";
+  const alt = where === "wall", box = inner => `<div class="plan ref-card${alt ? " ref-wall" : ""}" data-refcard="${where}">${inner}</div>`;
+  const head = alt ? `<p class="ref-alt-h"><b>Pas maintenant ?</b> Invite un ami : 7 jours de Premium offerts pour vous deux, dès sa première course.</p>`
+    : `<p class="eyebrow" style="color:var(--gold)">🎁 Parrainage</p><p class="title" style="font-size:22px">Invite tes amis</p>`;
+  if(!member()) return box(`${head}<p class="small">${alt ? "Crée d'abord ton compte gratuit : ton lien d'invitation est prêt aussitôt."
+      : where === "run" ? "Crée ton compte gratuit (30 s) : 3 courses offertes, et ton lien pour offrir 7 jours de Premium à tes amis. Tu en gagnes 7 pour chaque ami qui lance sa première course."
+      : "Crée ton compte gratuit pour avoir ton lien : 7 jours de Premium pour toi et pour chaque ami qui crée son compte et lance sa première course."}</p>
+    <button type="button" class="btn ${alt ? "soft" : "hero"} block" data-refjoin>${I.share}${alt ? "Créer mon compte et inviter un ami" : "Créer mon compte gratuit"}</button>`);
+  if(!refCode()){ refMe(); return REF.meTry >= 2 && !refMe.busy ? "" : box(`${head}<p class="small">Ton lien d'invitation se prépare…</p>`); }
+  const me = ENS.me || {}, n = k => Math.max(0, Math.floor(+me[k] || 0)), max = Math.floor(+me.ref_max) || REF_MAX, t = encodeURIComponent(refMsg());
+  const stats = where === "me" ? `<div class="trio"><div><small>Amis venus</small><b>${n("ref_count")}</b></div><div><small>En attente</small><b>${n("ref_pending")}</b></div><div><small>Jours gagnés</small><b>${n("ref_days")}</b></div></div>` : "";
+  return box(`${head}${alt ? "" : `<p class="small">7 jours de Premium pour toi et 7 pour ton ami, dès qu'il crée son compte et lance sa première course. Jusqu'à ${max} amis par mois.</p>`}${stats}
+    ${navigator.share ? `<button type="button" class="btn ${alt ? "soft" : "hero"} block" data-refshare>${I.share}Inviter un ami</button>` : ""}
+    <div class="ref-alt"><a class="btn soft" data-refvia="whatsapp" href="https://wa.me/?text=${t}" target="_blank" rel="noopener">WhatsApp</a><a class="btn soft" data-refvia="sms" href="sms:?&amp;body=${t}">SMS</a><button type="button" class="btn soft" data-refcopy>Copier le lien</button></div>
+    ${alt ? "" : `<p class="ref-url">${esc(refUrl().replace(/^https?:\/\//, ""))}</p>`}`);
+}
+// lien pas encore reçu (compte créé avant le parrainage : le serveur le crée à la demande) : on redemande le profil, deux fois au plus
+function refMe(){
+  if(refMe.busy || REF.meTry >= 2 || typeof ensCall !== "function" || !member()) return;
+  refMe.busy = true; REF.meTry++;
+  ensCall("me", {}).then(j => { if(j && j.me){ ENS.me = j.me; store.set("ensMe", ENS.me); refNotice(j.me); } }).catch(() => {}).finally(() => { refMe.busy = false; refRepaint(); });
+}
+function refRepaint(){ document.querySelectorAll("[data-refcard]").forEach(el => { const h = inviteCard(el.dataset.refcard); if(h) el.outerHTML = h; else el.remove(); }); refPaint(); }
+function inviteSheet(){ const h = inviteCard("sheet"); if(!h) return; openModal(`<button class="iconbtn x" data-close aria-label="Fermer">${I.x}</button>${h}<button class="linkbtn" data-close style="align-self:center">Fermer</button>`); }
+async function copyTxt(t){
+  try{ await navigator.clipboard.writeText(t); return true; }catch(e){}
+  try{ const a = document.createElement("textarea"); a.value = t; a.setAttribute("readonly", ""); a.style.cssText = "position:fixed;top:0;opacity:0"; document.body.appendChild(a); a.select(); const ok = document.execCommand("copy"); a.remove(); return ok; }catch(e){ return false; }
+}
+document.addEventListener("click", async e => {
+  const b = e.target.closest?.("[data-refshare],[data-refvia],[data-refcopy],[data-refjoin]"); if(!b) return;
+  if(b.hasAttribute("data-refjoin")){
+    // sans compte : la fenêtre de compte d'abord, puis le lien d'invitation tout de suite
+    if(b.closest("#sheet")) closeModal();
+    if(typeof authGate === "function") authGate(() => { refRepaint(); setTimeout(inviteSheet, 400); }, "parrain");
+    return;
+  }
+  if(b.hasAttribute("data-refcopy")){ track("parrain_copie"); toast(await copyTxt(refUrl()) ? "Lien copié : colle-le dans un message à tes amis." : "Ton lien : " + refUrl(), 4000); return; }
+  if(b.hasAttribute("data-refvia")){ track("parrain_partage", {via:b.dataset.refvia}); return; }   // WhatsApp ou SMS s'ouvrent avec le message prêt
+  track("parrain_partage", {via:"partage"});
+  try{ await navigator.share({title:"Traceo", text:refMsg()}); }
+  catch(x){ if(x && x.name === "AbortError") return; toast(await copyTxt(refUrl()) ? "Lien copié : colle-le dans un message à tes amis." : "Ton lien : " + refUrl(), 4000); }
+});
 // Moments sans sollicitation : rien (courses restantes, installation) avant la fin de la 1re course (ou la 4e boucle tracée : générer est libre, on compare sans être dérangé)
 const warmed = () => S.loops.some(l => l.run) || S.loops.length >= 4;
 const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
@@ -416,6 +551,7 @@ function showGate(){
     <p class="eyebrow">Avant de courir</p>
     <p class="gate-h">D'où pars-tu ?</p>
     <p class="muted">Traceo dessine ta boucle depuis ton point de départ, dans les vraies rues autour de toi.</p>
+    <p class="ag-gift ref-gift" data-refline="gate" hidden></p>
     <button class="btn hero block" id="gLoc">${PIN}Me localiser <small>recommandé</small></button>
     <div class="gate-msg" id="gMsg" hidden></div>
     <div class="gate-row"><button class="btn soft" id="gCity">Choisir une ville</button><button class="btn soft" id="gAddr">Taper une adresse</button></div>
@@ -426,6 +562,7 @@ function showGate(){
   $("#gAddr").onclick = () => { g.hidden = true; document.body.classList.remove("gate-on"); setTimeout(() => q.focus(), 60);
     // si la personne quitte la recherche sans choisir, l'écran revient
     q.addEventListener("blur", () => setTimeout(() => { if(!S.start && res.hidden && document.activeElement !== q) showGate(); }, 900), {once:true}); };
+  refPaint();   // lien de parrainage vérifié : « Pierre t'offre 7 jours de Premium »
   if(!showGate.seen){ showGate.seen = true; track("ecran_depart"); }   // une fois par ouverture de l'app (l'écran revient parfois après une recherche abandonnée)
 }
 function hideGate(){ const g = gateEl(); if(g){ g.hidden = true; } document.body.classList.remove("gate-on"); }
@@ -1011,10 +1148,12 @@ async function quotaSeen(q){
   if(!code || code === S.premium?.code) return;
   const v = await verifyAct(code);
   if(v && v.until > nowT() && (!paid() || v.until > (S.premium.until || 0))){
-    if(q.receipt && typeof q.receipt === "object") store.set("lastReceipt", {rc:q.receipt, until:v.until, acct:1});
+    // jours offerts par le parrainage (REF-…, 0 €) : pas un paiement, le dernier vrai reçu reste
+    if(q.receipt && typeof q.receipt === "object" && !giftRc(q.receipt)) store.set("lastReceipt", {rc:q.receipt, until:v.until, acct:1});
     adoptPremium({via:"code", until:v.until, code, kind:v.kind, acct:(typeof ENS !== "undefined" && ENS.me?.id) || 1});
   }
 }
+const giftRc = rc => /^REF-/.test(String(rc?.txn || "")) || (rc?.amount != null && parseFloat(rc.amount) === 0 && !/^TEST-/.test(String(rc?.txn || "")));
 // Premium du compte retrouvé sur un autre navigateur ou téléphone : activé sans fenêtre de bienvenue (ce n'est pas un nouveau paiement)
 function adoptPremium(p){
   if(paid() && (S.premium.until || 0) >= p.until) return;   // déjà reconnu (réponses croisées du serveur)
@@ -1047,6 +1186,7 @@ async function useRun(){
       const q = await srvStart(); await quotaSeen(q);
       if(guest){ store.set("guestRun", store.get("guestRun", 0) + 1); return "ok"; }   // 1re course sans compte : aucun message
       if(!q.premium && !q.again && !isPremium()){ const left = typeof q.left === "number" ? q.left : remaining(); setTimeout(() => { if(run.active) toast(left ? `Course offerte : il t'en reste ${left} sur ${FREE()}.` : "C'était ta dernière course offerte. Bonne course !", 3500); }, 1500); }
+      if(store.get("refGift", null)) refGiftCheck();   // inscrit avec un lien de parrainage : 7 jours offerts à cette 1re course
       return "ok";
     }catch(e){
       if(e.message === "quota"){ store.set("freeUsed", Math.max(FREE(), store.get("freeUsed", 0))); freeWall(); return "wall"; }
@@ -2025,15 +2165,20 @@ function viewPremium(){
       <p class="small">La version gratuite offre ${FREE()} courses pour découvrir Traceo, guidage compris.</p></div>`;
   const on = isPremium() && !S.demo && S.premium;
   const left = on && S.premium.until ? Math.max(0, Math.ceil((S.premium.until - Date.now())/864e5)) : null;
-  return `${rw}${on ? `<div class="plan pro"><p class="eyebrow" style="color:var(--gold)">★ Premium actif</p><p class="title" style="font-size:24px">Tout Traceo est débloqué.</p>${left != null ? `<p class="muted">Encore <b>${left} jour${left > 1 ? "s" : ""}</b>, jusqu'au ${new Date(S.premium.until).toLocaleDateString("fr-FR", {day:"numeric", month:"long"})}.</p>` : ""}${member() ? `<p class="small">Premium suit ton compte : connecte-toi sur un autre téléphone ou navigateur, il y est aussi actif.</p>` : ""}${store.get("lastReceipt", null) ? `<button class="linkbtn" data-receipt>Voir mon reçu de paiement</button>` : ""}</div>` : ""}<div class="plan pro"><p class="eyebrow" style="color:var(--gold)">Traceo Premium</p><p class="title">Une boucle neuve à chaque sortie, sans limite.</p>
-      ${priceTag()}
-      <ul class="checks"><li>Courses et boucles illimitées, partout en France</li><li>Envoi sur ta montre Garmin</li><li>Envoi de tes courses sur Strava</li><li>Export GPX pour toutes les montres</li><li>Image de ta boucle à partager</li><li><b>🛡️ Boucles sûres</b> : petites rues et chemins</li><li><b>💎 Un diamant de 5 €</b> toutes les 100 courses (31 jours offerts)</li><li><b>Ensemble</b> : coureurs autour de toi, invitations et messages</li><li><b>Coach IA</b> personnalisé dans le chat</li></ul>
+  proofLoad();
+  const active = on ? `<div class="plan pro"><p class="eyebrow" style="color:var(--gold)">★ Premium actif</p><p class="title" style="font-size:24px">Tout Traceo est débloqué.</p>${left != null ? `<p class="muted">Encore <b>${left} jour${left > 1 ? "s" : ""}</b>, jusqu'au ${new Date(S.premium.until).toLocaleDateString("fr-FR", {day:"numeric", month:"long"})}.</p>` : ""}${member() ? `<p class="small">Premium suit ton compte : connecte-toi sur un autre téléphone ou navigateur, il y est aussi actif.</p>` : ""}${store.get("lastReceipt", null) ? `<button class="linkbtn" data-receipt>Voir mon reçu de paiement</button>` : ""}</div>` : "";
+  const offer = `<div class="plan pro"><p class="eyebrow" style="color:var(--gold)">Traceo Premium</p><p class="title">Une boucle neuve à chaque sortie, sans limite.</p>
+      ${on ? "" : proofLine()}${priceTag()}
+      ${premVals(true)}
       ${on ? `${S.premium.via === "sub" ? `<a class="btn block night" href="${C.PAYPAL_MANAGE_URL}" target="_blank" rel="noopener">Gérer mon abonnement PayPal</a>` : S.premium.until && S.premium.until - Date.now() < 7*864e5 ? `<p class="small">Pour continuer après cette date, reprends Premium : les jours s'ajoutent à ceux qui restent.</p>${payBlock("payMain")}` : ""}` : payBlock("payMain")}
-    </div>
-    ${on ? "" : `<div class="plan"><p class="eyebrow">Gratuit</p><p class="title" style="font-size:22px">${FREE()} courses offertes pour découvrir Traceo.</p><p class="small">${guestNow() ? (guestLeft() ? `La première sans compte, puis ${FREE()} avec ton compte gratuit.` : `Crée ton compte gratuit pour tes ${FREE()} courses offertes.`) : remaining() ? `Il t'en reste ${remaining()}.` : "Elles sont utilisées : Premium te donne des courses illimitées."} Générer et comparer des boucles reste gratuit : une course offerte est utilisée quand tu touches « Commencer ».</p></div>`}`;
+    </div>`;
+  const free = `<div class="plan"><p class="eyebrow">Gratuit</p><p class="title" style="font-size:22px">${FREE()} courses offertes pour découvrir Traceo.</p><p class="small">${guestNow() ? (guestLeft() ? `La première sans compte, puis ${FREE()} avec ton compte gratuit.` : `Crée ton compte gratuit pour tes ${FREE()} courses offertes.`) : remaining() ? `Il t'en reste ${remaining()}.` : "Elles sont utilisées : Premium te donne des courses illimitées."} Générer et comparer des boucles reste gratuit : une course offerte est utilisée quand tu touches « Commencer ».</p></div>`;
+  // sans Premium : l'offre d'abord, l'autre chemin (inviter un ami) juste après, le programme diamant en bas ; avec Premium : son état d'abord
+  return on ? `${rw}${active}${offer}${inviteCard("run")}` : `${offer}${inviteCard("wall")}${free}${rw}`;
 }
 function viewMe(){
   return `<p class="eyebrow">Profil</p><p class="title">Tes réglages</p>
+    ${inviteCard("me")}
     <div class="field"><label for="wIn">Poids, pour calculer les calories</label><input class="input" id="wIn" type="number" inputmode="numeric" min="30" max="200" value="${S.weight}"></div>
     <div class="field"><label>Allure moyenne</label><div class="pace" style="background:var(--surface-2);border-radius:14px;padding:8px"><button class="step" data-pace="10">−</button><b class="title" style="font-size:26px" id="meP">${paceTxt(S.pace)} /km</b><button class="step" data-pace="-10">+</button></div></div>
     <label class="switch"><span><b>Guidage vocal</b><br><span class="small">Annonce la rue où tu es, chaque virage et chaque kilomètre.</span></span><input type="checkbox" id="vIn" ${S.voice ? "checked" : ""}></label>
@@ -2362,8 +2507,11 @@ function finishRun(){
 }
 function summary(res, l){
   const ok = res.dist > 50, name = l?.name || "Course Traceo";
+  // 1re course terminée : un vrai moment « Bravo », l'invitation à partager avant tout ce qui touche à Premium
+  const first = ok && !store.get("bravo1", false) && S.loops.filter(x => x.run).length <= 1; if(ok) store.set("bravo1", true);
+  const inv = ok ? inviteCard("run") : "";
   openModal(`<button class="iconbtn x" data-close aria-label="Fermer">${I.x}</button>
-    <div class="center"><div class="medal">${I.check}</div><p class="title">${ok ? "Bravo, boucle bouclée !" : "Course arrêtée"}</p><p class="muted">${ok ? "Demain, Traceo t'emmène dans d'autres rues." : "Le GPS n'a presque rien enregistré. Vérifie que la localisation est autorisée."}</p></div>
+    <div class="center"><div class="medal">${I.check}</div><p class="title">${!ok ? "Course arrêtée" : first ? "Bravo, ta première boucle Traceo !" : "Bravo, boucle bouclée !"}</p><p class="muted">${!ok ? "Le GPS n'a presque rien enregistré. Vérifie que la localisation est autorisée." : first ? "Tu viens de courir des rues tracées rien que pour toi. Demain, Traceo t'emmène ailleurs." : "Demain, Traceo t'emmène dans d'autres rues."}</p></div>
     ${ok && typeof ENS !== "undefined" && ENS.auth && ensOn() ? `<div id="rwRes" class="rw-res"><p class="small">Vérification de ta course pour ton diamant…</p></div>` : ""}
     <div class="stats">
       <div class="stat"><small>Durée</small><b>${hms(res.time)}</b></div>
@@ -2371,8 +2519,10 @@ function summary(res, l){
       <div class="stat"><small>Allure moyenne</small><b>${paceTxt(res.pace)}<small>/km</small></b></div>
       <div class="stat"><small>Calories brûlées</small><b><span data-count="${res.kcal}">${res.kcal}</span><small>kcal</small></b></div>
     </div>
+    ${first ? inv : ""}
     ${ok ? `<button class="btn strava block" id="sStrava">${I.up}Envoyer sur Strava${isPremium() ? "" : '<span class="lock">★</span>'}</button>
-    <div class="grid2"><button class="btn garmin" id="sGarmin">${I.watch}Garmin${isPremium() ? "" : '<span class="lock">★</span>'}</button><button class="btn soft" id="sImg">${I.img}Image</button><button class="btn soft" id="sGpx">${I.dl}GPX${isPremium() ? "" : '<span class="lock">★</span>'}</button><button class="btn soft" id="sShare">${I.share}Partager</button></div>` : `<button class="btn night block" data-close>Fermer</button>`}`);
+    <div class="grid2"><button class="btn garmin" id="sGarmin">${I.watch}Garmin${isPremium() ? "" : '<span class="lock">★</span>'}</button><button class="btn soft" id="sImg">${I.img}Image</button><button class="btn soft" id="sGpx">${I.dl}GPX${isPremium() ? "" : '<span class="lock">★</span>'}</button><button class="btn soft" id="sShare">${I.share}Partager</button></div>` : `<button class="btn night block" data-close>Fermer</button>`}
+    ${ok && !first ? inv : ""}`);
   counters();
   if(!ok) return;
   const blob = () => gpxBlob(gpxActivity(name, res.gps)), fn = slug(name) + "-course.gpx";
@@ -2481,14 +2631,20 @@ async function posterFlow(o){
 }
 
 /* ---------- Premium : PayPal ---------- */
+// Ce que Premium apporte, en clair : les 4 promesses du mur (l'onglet Premium donne la liste complète)
+const PREM_VALS = [["Courses illimitées", "une boucle neuve à chaque sortie, partout en France"], ["Guidage vocal", "sur toutes tes courses, chaque virage annoncé"], ["Garmin, Strava et GPX", "ta boucle sur ta montre, ta course sur Strava"], ["Ensemble", "les coureurs autour de toi, invitations et messages"]];
+const PREM_MORE = ["<b>🛡️ Boucles sûres</b> : petites rues et chemins", "<b>💎 Un diamant de 5 €</b> toutes les 100 courses (31 jours offerts)", "<b>Coach IA</b> personnalisé dans le chat", "Image de ta boucle à partager"];
+const premVals = all => `<ul class="checks pvals">${PREM_VALS.map(([b, t]) => `<li><b>${b}</b> : ${t}</li>`).join("")}${all ? PREM_MORE.map(t => `<li>${t}</li>`).join("") : ""}</ul>`;
+// Mur Premium : la valeur d'abord, le prix ensuite, puis l'autre chemin (inviter un ami : 7 jours offerts pour les deux)
 function premiumModal(msg, sub){
-  openModal(`<button class="iconbtn x" data-close aria-label="Fermer">${I.x}</button><div class="plan pro"><p class="eyebrow" style="color:var(--gold)">Traceo Premium</p><p class="title" style="font-size:24px">${esc(msg)}</p>${sub ? `<p class="muted" style="margin-top:-4px">${esc(sub)}</p>` : ""}${priceTag()}<ul class="checks"><li>Courses illimitées</li><li>Garmin, Strava et GPX</li><li>Image de ta boucle</li></ul>${payBlock("payModal")}</div><button class="linkbtn" data-close style="align-self:center">Plus tard</button>`);
+  proofLoad();
+  openModal(`<button class="iconbtn x" data-close aria-label="Fermer">${I.x}</button><div class="plan pro"><p class="eyebrow" style="color:var(--gold)">Traceo Premium</p><p class="title" style="font-size:24px">${esc(msg)}</p>${sub ? `<p class="muted" style="margin-top:-4px">${esc(sub)}</p>` : ""}${premVals()}${proofLine()}${priceTag()}${payBlock("payModal")}</div>${inviteCard("wall")}<button class="linkbtn" data-close style="align-self:center">Plus tard</button>`);
   mountPay("payModal");
 }
 const subReady = () => !!(C.PAYPAL_CLIENT_ID && C.PAYPAL_PLAN_ID);
 // Prix affiché honnêtement : un paiement = 31 jours (ou 3 mois avec l'offre de lancement), rien ne se renouvelle (sauf vrai abonnement PayPal, s'il est configuré)
 // (offre de lancement en cours : les deux prix sont dans les deux choix de paiement, voir payBlock)
-const priceTag = () => subReady() ? `<p class="price">${C.PRICE_LABEL}<small> / mois</small></p>` : `${show3m() ? "" : `<p class="price">${C.PRICE_LABEL}<small> · 31 jours</small></p>`}<p class="small" style="margin-top:-4px">Sans abonnement : tu paies une fois, rien ne se renouvelle.</p>`;
+const priceTag = () => subReady() ? `<p class="price">${C.PRICE_LABEL}<small> / mois</small></p>` : `${show3m() ? "" : `<p class="price">${C.PRICE_LABEL}<small> · 31 jours</small></p>`}<p class="small" style="margin-top:-4px">${show3m() ? "" : "Un mois complet de courses illimitées. "}Sans abonnement : tu paies une fois, rien ne se renouvelle.</p>`;
 // Paiement automatique : boutons PayPal dans l'app + vérification par le serveur (activation immédiate, sans intervention)
 const orderReady = () => !!(C.PAYPAL_CLIENT_ID && !C.PAYPAL_PLAN_ID && (C.PAYMENT_API || C.CHAT_API));
 // L'offre 3 mois passe par le lien de paiement (ou le paiement automatique) : jamais avec les boutons PayPal intégrés
@@ -2501,9 +2657,10 @@ function payBlock(id){
   // offre de lancement : deux choix clairs, avec leurs vrais prix et la vraie date de fin
   const opt = (hot, inner) => `<div style="border:1px solid ${hot ? "var(--gold)" : "var(--line)"};border-radius:18px;padding:12px;display:flex;flex-direction:column;gap:8px;background:${hot ? "rgba(37,201,143,.08)" : "transparent"}">${inner}</div>`;
   const big = (price, what, was) => `<p style="margin:0;font-family:var(--f-display);font-weight:800;font-size:32px;line-height:1.05">${esc(price)}<small style="font-size:17px;opacity:.75;font-weight:600"> · ${what}</small>${was ? ` <s style="font-size:16px;font-weight:600;color:var(--muted)">${esc(was)}</s>` : ""}</p>`;
-  const o3 = show3m() ? opt(true, `<p class="eyebrow" style="color:var(--gold);margin:0">Offre de lancement · jusqu'au ${esc(offerEndTxt())}</p>${big(P3M.label, "3 mois", P3M.was)}<button class="btn block paypal" data-pp="3m">Débloquer 3 mois · <b>PayPal</b></button>`) : "";
+  // 3 mois mis en avant : vraie remise (-33 %), prix ramené au mois et compte à rebours vers la vraie date de fin
+  const o3 = show3m() ? opt(true, `<p class="eyebrow" style="color:var(--gold);margin:0">Offre de lancement · jusqu'au ${esc(offerEndTxt())}</p><div class="o3-top">${big(P3M.label, "3 mois", P3M.was)}<span class="pct">-${pct3m()} %</span></div><p class="small" style="margin:-4px 0 0">Soit <b style="color:var(--ink)">${perMonth3m()} par mois</b>, le meilleur prix de Premium.</p>${cdLine()}<button class="btn block paypal" data-pp="3m">Débloquer 3 mois · <b>PayPal</b></button>`) : "";
   const b31 = `<button class="btn block paypal" data-pp="31">Débloquer 31 jours · <b>PayPal</b></button>`;
-  return `<div class="paybox" id="${id}">${live && (subReady() || orderReady()) ? `<div class="skel" style="height:52px"></div>` : `${o3 ? o3 + opt(false, big(C.PRICE_LABEL, "31 jours") + b31) : b31}${autoPay() ? `<p class="small pay-steps">① Paiement PayPal (compte, carte ou Apple Pay) ② Premium activé automatiquement, sans code à recevoir</p>` : ""}`}</div>
+  return `<div class="paybox" id="${id}">${live && (subReady() || orderReady()) ? `<div class="skel" style="height:52px"></div>` : `${o3 ? o3 + opt(false, big(C.PRICE_LABEL, "31 jours") + `<p class="small" style="margin:-4px 0 0">Un mois complet, sans engagement.</p>` + b31) : b31}${autoPay() ? `<p class="small pay-steps">① Paiement PayPal (compte, carte ou Apple Pay) ② Premium activé automatiquement, sans code à recevoir</p>` : ""}`}</div>
     ${pending ? `<button class="btn soft block" data-paid>${store.get("actPending", null) ? "⏳ Vérification en cours : voir ma demande" : "J'ai déjà payé : activer mon Premium"}</button>` : ""}
     <p class="small consent">En payant, tu demandes l'accès immédiat à Premium et renonces à ton droit de rétractation (art. L221-28 du Code de la consommation). <a href="legal.html#cgv" target="_blank" rel="noopener">Conditions de vente</a></p>
     <p class="small">${subReady() ? "Paiement sécurisé par PayPal : compte PayPal ou carte bancaire. Sans engagement, résiliable à tout moment." : `Paiement sécurisé par PayPal (compte PayPal ou carte bancaire). Un paiement = ${show3m() ? "3 mois ou 31 jours" : "31 jours"} de Premium, sans abonnement ni renouvellement automatique.`}</p>`;

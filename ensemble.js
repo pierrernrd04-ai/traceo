@@ -73,7 +73,7 @@ async function ensPoll(){
   if(!ensOn() || !ENS.auth || document.hidden) return;
   try{
     const j = await ensCall("inbox?since=" + ENS.last);
-    ENS.me = j.me; Object.assign(ENS.users, j.users);
+    ENS.me = j.me; Object.assign(ENS.users, j.users); if(typeof refNotice === "function") refNotice(j.me);
     const fresh = j.msgs.filter(m => !ENS.msgs.some(x => x.id === m.id));
     if(fresh.length){
       ENS.msgs = [...ENS.msgs, ...fresh].slice(-400); ENS.last = ENS.msgs[ENS.msgs.length - 1].id;
@@ -147,6 +147,7 @@ function ensSignup(gate){
     <p class="small alt-link" style="text-align:center">Pas encore de compte ? <button type="button" class="linkbtn" data-mode="signup">Créer mon compte</button></p>
     <p class="small" style="text-align:center">Mot de passe oublié ? <a href="mailto:pierre.rnrd04@gmail.com?subject=Traceo%20-%20mot%20de%20passe%20oubli%C3%A9" style="color:var(--accent)">Écris au support</a> depuis l'e-mail de ton compte.</p></form>`;
   // Inscription courte : prénom, e-mail, mot de passe et la case « 15 ans ou plus » (elle atteste l'âge : pas de date de naissance).
+  // Case « pas d'e-mails » décochée : refus des conseils et offres proposé dès l'inscription (l'e-mail de bienvenue part quand même).
   // L'identifiant est créé par le serveur à partir du prénom ; niveau « Régulier » par défaut, modifiable dans « Mon compte ».
   const fe = id => `<small class="small fe" id="${id}E" style="color:var(--warn)" hidden></small>`;
   return (gate ? "" : ensPitch()) + `<form class="ens-form" id="ensForm" novalidate><p class="title" style="font-size:22px">Crée ton compte Traceo</p>
@@ -155,6 +156,7 @@ function ensSignup(gate){
     <div class="field"><label for="efMail">Adresse e-mail</label><input class="input" id="efMail" type="email" autocomplete="email" inputmode="email" autocapitalize="none" maxlength="120" aria-describedby="efMailE">${fe("efMail")}</div>
     <div class="field"><label for="efPw">Mot de passe (8 caractères minimum)</label><div class="pw"><input class="input" id="efPw" type="password" autocomplete="new-password" maxlength="100" aria-describedby="efPwE"><button type="button" class="linkbtn" data-eye="efPw">Voir</button></div>${fe("efPw")}</div>
     <label class="ens-ck"><input type="checkbox" id="efTerms" aria-describedby="efTermsE"><span>J'ai 15 ans ou plus et j'accepte les <a href="legal.html#ensemble" target="_blank" rel="noopener">règles de la communauté et la politique de confidentialité</a>.</span></label>${fe("efTerms")}
+    <label class="ens-ck ens-news"><input type="checkbox" id="efNews"><span>Je préfère ne pas recevoir les conseils et offres de Traceo par e-mail</span></label>
     <p class="small" id="efErr" style="color:var(--warn)"></p>
     <button class="btn hero block" id="efGo">${EI.people}Créer mon compte</button>
     <p class="small">Sur Ensemble, les autres coureurs voient ton prénom, ton identifiant, ton niveau, ton allure et une distance arrondie. Jamais ton e-mail ni ton adresse.</p></form>`;
@@ -270,6 +272,7 @@ function wireAuth(root, rerender, after){
   root.querySelectorAll("[data-mode]").forEach(b => b.onclick = () => { ENS.mode = b.dataset.mode; rerender(); });
   root.querySelectorAll("[data-eye]").forEach(b => b.onclick = () => { const i = q("#" + b.dataset.eye); i.type = i.type === "password" ? "text" : "password"; b.textContent = i.type === "password" ? "Voir" : "Masquer"; });
   const done = (j, msg, kind) => { ENS.auth = j.token; ENS.me = j.me; ENS.msgs = []; ENS.last = 0; ENS.first = true; ensSaveAuth(); ensSync(); celebrate(120); toast(msg); ensLoop(); ensPoll();
+    if(typeof refNotice === "function") refNotice(j.me);   // point de départ des compteurs de parrainage de ce compte
     // Premium payé avec ce compte (sur un autre appareil) : reconnu ici tout de suite ; compteur de courses offertes du compte
     if(typeof j.me?.free_left === "number") store.set("freeUsed", Math.max(0, (j.me.free || C.FREE_LOOPS || 3) - j.me.free_left));
     Promise.resolve(j.premium && quotaSeen(j.premium)).catch(() => {}).then(() => acctPremium());
@@ -299,8 +302,11 @@ function wireAuth(root, rerender, after){
       const first = F.find(id => bad[id]); if(first){ q("#" + first).focus(); return; }
       q("#efGo").disabled = true;
       try{
-        const j = await ensCall("signup", {first:f, email:m, key:await pwKey(pw), terms:true, pace:S.pace, premium:paid()});
-        track("ensemble_compte"); done(j, `Bienvenue, ${j.me.first} ! Ton compte est prêt.`, "signup");
+        const ref = typeof refGet === "function" ? refGet() : null;   // lien de parrainage reçu (30 jours au plus)
+        const j = await ensCall("signup", {first:f, email:m, key:await pwKey(pw), terms:true, pace:S.pace, premium:paid(), news:!q("#efNews")?.checked, ...(ref ? {ref:ref.c} : {})});
+        track("ensemble_compte");
+        if(ref){ track("parrain_inscrit"); store.set("refGift", {first:REF.first || "", t:Date.now()}); refDrop(); }   // 7 jours offerts à la 1re course avec le compte
+        done(j, `Bienvenue, ${j.me.first} ! Ton compte est prêt.`, "signup");
       }catch(x){
         q("#efGo").disabled = false; const id = ON[x.message];
         if(!id){ err.textContent = /pseudo/.test(x.message) ? "Petit souci à la création de ton identifiant : réessaie dans un instant." : errTxt(x); return; }   // l'identifiant est créé par le serveur
@@ -335,7 +341,8 @@ function wireEnsemble(){
   q("#ensStop") && (q("#ensStop").onclick = async () => { try{ await ensCall("shout", {cancel:true}); ENS.me.avail_until = 0; store.set("ensMe", ENS.me); render(); }catch(e){} });
   q("#ensPush") && (q("#ensPush").onclick = ensEnablePush);
   q("#ensLoc") && (q("#ensLoc").onclick = () => { go("plan"); locate(); });
-  q("#ensShare") && (q("#ensShare").onclick = async () => { const url = location.origin + location.pathname.replace(/app\.html$/, ""), t = "Je cours avec Traceo : des boucles neuves dans ta ville, et on peut courir ensemble. Rejoins-moi !"; try{ if(navigator.share) await navigator.share({title:"Traceo", text:t, url}); else{ await navigator.clipboard.writeText(t + " " + url); toast("Lien copié !"); } }catch(e){} });
+  // avec le lien de parrainage du compte : la fenêtre d'invitation (7 jours offerts pour les deux)
+  q("#ensShare") && (q("#ensShare").onclick = async () => { if(typeof refCode === "function" && refCode()) return inviteSheet(); const url = location.origin + location.pathname.replace(/app\.html$/, ""), t = "Je cours avec Traceo : des boucles neuves dans ta ville, et on peut courir ensemble. Rejoins-moi !"; try{ if(navigator.share) await navigator.share({title:"Traceo", text:t, url}); else{ await navigator.clipboard.writeText(t + " " + url); toast("Lien copié !"); } }catch(e){} });
   q("#ensSafe") && (q("#ensSafe").onclick = ensSafety); q("#ensAcc") && (q("#ensAcc").onclick = ensAccount);
   body.querySelectorAll("[data-ensr]").forEach(b => b.onclick = () => { ENS.r = +b.dataset.ensr; store.set("ensR", ENS.r); ENS.near = null; render(); ensNearby(); });
   body.querySelectorAll("[data-ensinv]").forEach(b => b.onclick = () => ensInviteModal(b.dataset.ensinv));
@@ -350,7 +357,7 @@ function ensJoinCard(){
 }
 document.addEventListener("click", e => { if(e.target.closest?.("#ensJoin")){ track("ensemble_carte_boucle"); go("ensemble"); } });
 // statut Premium et ville affichés dans la page d'administration
-function ensSync(){ if(!ensOn() || !ENS.auth) return; const place = (S.start?.label || "").split(",").pop().replace(/\d{5}/, "").trim(); ensCall("me", {premium:paid(), place}).then(j => { ENS.me = j.me; store.set("ensMe", ENS.me); if(typeof j.me?.free_left === "number") store.set("freeUsed", Math.max(0, (j.me.free || C.FREE_LOOPS || 3) - j.me.free_left)); }).catch(() => {}); }
+function ensSync(){ if(!ensOn() || !ENS.auth) return; const place = (S.start?.label || "").split(",").pop().replace(/\d{5}/, "").trim(); ensCall("me", {premium:paid(), place}).then(j => { ENS.me = j.me; store.set("ensMe", ENS.me); if(typeof refNotice === "function") refNotice(j.me); if(typeof j.me?.free_left === "number") store.set("freeUsed", Math.max(0, (j.me.free || C.FREE_LOOPS || 3) - j.me.free_left)); }).catch(() => {}); }
 function ensOpen(){ if(ensOn() && ENS.auth){ ensPoll(); } }
 
 // démarrage : relève des messages en arrière-plan, ouverture directe depuis une notification
@@ -440,11 +447,12 @@ function authGate(next, why){
       <button class="iconbtn ag-x" id="agX" aria-label="Fermer">${I.x}</button>
       <p class="eyebrow">${G ? "Une autre course ?" : P ? `Premium · ${why === "pay3m" ? "3 mois" : "31 jours"}` : "Bienvenue sur Traceo"}</p><p class="ag-h">${L ? "Content de te revoir !" : G ? "Crée ton compte gratuit (30 s)" : P ? "Crée ton compte pour débloquer Premium" : "Crée ton compte, c'est gratuit"}</p>
       ${!P && !L ? `<p class="ag-gift">🎁 ${G ? `<b>${n} courses offertes</b> et ta boucle gardée.` : `<b>${n} courses offertes</b> pour découvrir Traceo, sans payer.`}</p>` : ""}
+      ${!L ? `<p class="ag-gift ref-gift" data-refline="ag" hidden></p>` : ""}
       <div class="seg ag-seg"><button type="button" data-mode="signup" aria-pressed="${ENS.mode !== "login"}">Créer un compte</button><button type="button" data-mode="login" aria-pressed="${ENS.mode === "login"}">Se connecter</button></div></div>
       ${ensSignup(true)}
       <p class="small ag-why">${P ? "Premium suit ton compte : connecte-toi sur un autre téléphone ou navigateur, il y est aussi actif." : "Ton compte garde tes courses, compte tes diamants 💎 et te connecte aux coureurs autour de toi."}</p>
       <button class="linkbtn ag-skip" id="agSkip" hidden>Serveur indisponible : continuer sans compte</button></div>`;
-    el.scrollTop = 0;
+    el.scrollTop = 0; if(typeof refPaint === "function") refPaint();
     wireAuth(el, paint, kind => { close(); track(kind === "login" ? "entree_connexion_ok" : fun ? "entree_compte_ok" : "entree_compte_lien", {raison:why || "?"}); next && next(); });
     // si le serveur ne répond pas, on ne bloque pas le client (pour le reste de la visite : boucles comptées sur le téléphone)
     const sk = el.querySelector("#agSkip");

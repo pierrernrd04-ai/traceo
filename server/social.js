@@ -40,7 +40,27 @@ const GEN_DAY = 12, GEN_DAY_PREMIUM = 100;   // anti-abus : boucles tracées par
 const GUEST_IP_GENS = 120, GUEST_IP_RUNS = 30;   // plafonds larges par adresse IP sans compte (Wi-Fi partagé, réseaux mobiles qui partagent une adresse)
 // Pass Premium payé par PayPal : 9,99 € ou plus = 3 mois (92 jours), 4,99 € ou plus = 31 jours (prix réglables : variables PRICE et PRICE_3M)
 const PLAN_1M = {days:31, label:"31 jours"}, PLAN_3M = {days:92, label:"3 mois"};
-const parisDay = () => new Date().toLocaleDateString("sv-SE", {timeZone:"Europe/Paris"});
+// Offre de lancement « 3 mois à 9,99 € » : rappelée dans les e-mails seulement si l'interrupteur kv offer3m est à « 1 » (tableau de bord), et jamais après cette date
+const OFFER_3M_END = Date.parse("2026-10-18T23:59:59+02:00");
+// Parrainage : code personnel de 6 caractères (sans 0, O, 1, I, L), 7 jours de Premium pour le parrain ET le filleul à la 1re course du filleul
+const REF_ABC = "ABCDEFGHJKMNPQRSTUVWXYZ23456789", REF_RE = /^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{6}$/;
+const REF_DAYS = 7, REF_MAX = 5, REF_IP_DAY = 3;   // jours offerts à chacun ; parrainages récompensés par parrain sur 30 jours glissants ; inscriptions parrainées par jour et par adresse IP pour un même parrain
+const PAID = "txn NOT LIKE 'TEST-%' AND txn NOT LIKE 'REF-%'";   // vrais paiements : ni simulation (TEST-), ni jours offerts par parrainage (REF-, 0 €)
+const PROOF_LOOPS = 50, PROOF_MEMBERS = 30;   // preuve sociale montrée seulement à partir de ces vrais chiffres (boucles tracées en 7 jours, membres)
+// Relances e-mail automatiques : 30 envois par passage (l'offre gratuite autorise 50 sous-requêtes, alerte comprise), 200 par 24 h (Brevo gratuit : 300 par jour, bienvenue comprise), un e-mail tous les 2 jours au plus par membre
+const LIFE_KINDS = ["j1", "mur", "fin3m", "prem_fin"], LIFE_RUN = 30, LIFE_DAY = 200, LIFE_GAP = 48*HOUR;
+const LIFE_LABEL = {j1:"1re course pas lancée", mur:"courses offertes utilisées", fin3m:"fin de l'offre 3 mois", prem_fin:"fin du Premium"};
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i;
+const parisDay = (t = Date.now()) => new Date(t).toLocaleDateString("sv-SE", {timeZone:"Europe/Paris"});
+// e-mail ramené à sa boîte : même personne sous deux adresses (Gmail ignore les points ; « + » et ce qui suit, partout)
+function mailKey(e){
+  let [l, d] = String(e || "").trim().toLowerCase().split("@"); if(!d) return String(e || "").trim().toLowerCase();
+  if(d === "googlemail.com") d = "gmail.com";
+  l = l.split("+")[0]; if(d === "gmail.com") l = l.replace(/\./g, "");
+  return l + "@" + d;
+}
+// prénom tel qu'inscrit dans la fiche du membre ; tout en minuscules ou en majuscules → « Jean-Marc »
+function niceFirst(s){ const f = clean(s, 30); return f && (f === f.toLowerCase() || f === f.toUpperCase()) ? f.toLowerCase().replace(/(^|[\s'-])(\p{L})/gu, (m, a, b) => a + b.toUpperCase()) : f; }
 const frDate = ms => new Date(ms).toLocaleDateString("fr-FR", {day:"numeric", month:"long", year:"numeric", timeZone:"Europe/Paris"});   // « 13 novembre 2026 » (fin du pass, heure de Paris)
 const REWARD_EVERY = 100, REWARD_EUR = 5;   // un diamant (bon d'achat de 5 €) toutes les 100 courses vérifiées
 const DASH_URL = "https://traceorun.pages.dev/tableau";   // ouvert en touchant une alerte
@@ -68,6 +88,64 @@ ${btn(u.app, "Lancer ma 1re course →", "#071318", "#ffffff")}
 </td></tr></table></body></html>`;
   const text = `Salut ${first} !\n\nMerci pour ton inscription sur Traceo ! Je suis Pierre Renard, coureur et fondateur de Traceo. Je t'ai préparé une vidéo de 15 secondes, rien que pour toi :\n${u.video}\n\nTon défi : ta première course, aujourd'hui. Tu choisis la distance, Traceo te trace en un clic une boucle toute neuve autour de toi, loin des grands axes, et te guide à la voix rue par rue. Tracer et comparer des boucles est gratuit, et tes 3 premières courses guidées sont offertes, sans carte bancaire :\n${u.app}\n\nEt après ta course, dis-moi ce que tu en as pensé (30 secondes) : ${u.avis}\nou réponds simplement à cet e-mail. Dis-moi aussi si Premium te serait utile : boucles illimitées, Garmin, Strava, GPX, pour 4,99 €.\n\nBonne course,\nPierre Renard, fondateur de Traceo\n\n—\nTu reçois cet e-mail parce que tu as créé un compte Traceo. Ne plus recevoir ces e-mails : ${u.unsub}\nTraceo · Pierre Renard EI`;
   return {subject:`${first}, merci ! Ta première course t'attend 🏃`, html, text};
+}
+// relances automatiques (j1, mur, fin3m, prem_fin) : même mise en page que l'e-mail de bienvenue, courtes, signées par Pierre ; texte brut tiré du HTML
+// u : {app, unsub, logo, link (lien de parrainage), offer (pass 3 mois rappelé), until (fin du pass), gift (jours offerts par parrainage), now}
+function lifeMail(kind, first, u){
+  const f = escH(first), now = u.now || Date.now();
+  const end = new Date(OFFER_3M_END).toLocaleDateString("fr-FR", {weekday:"long", day:"numeric", month:"long", timeZone:"Europe/Paris"});   // « dimanche 18 octobre »
+  const ref = u.link ? `<a href="${escH(u.link)}" style="color:#0B8A66;font-weight:700;">${escH(u.link.replace(/^https?:\/\//, ""))}</a>` : "";
+  const invite = `<b>Invite un ami : 7 jours de Premium offerts pour vous deux</b>, dès sa première course (jusqu'à ${REF_MAX} amis par mois)${ref ? ". Ton lien perso : " + ref : "."}`;
+  const offer = u.offer ? `<b>Offre de lancement : 3 mois pour 9,99 €</b>, jusqu'au ${end} inclus.` : "";
+  const PREM = "courses guidées illimitées, envoi vers Garmin et Strava, export GPX et coach IA";
+  let subject, pre, body, cta, after;
+  if(kind === "j1"){
+    subject = `${first}, tes 3 courses offertes t'attendent 🏃`; pre = "Une boucle neuve autour de toi en un clic, guidée à la voix rue par rue.";
+    body = ["Tu as créé ton compte Traceo, et tes <b>3 courses guidées offertes</b> t'attendent toujours, sans carte bancaire. La prochaine est à un clic :",
+      ["tu choisis la distance, ou le temps que tu as ;", "Traceo te trace une boucle toute neuve autour de toi, loin des grands axes ;", "tu touches « Commencer » et la voix te guide rue par rue."],
+      "Tracer et comparer des boucles reste gratuit : une course offerte n'est utilisée que quand tu touches « Commencer »."];
+    cta = [u.app, "Tracer ma boucle →"]; after = "Un souci pour démarrer, ou une question ? Réponds simplement à cet e-mail : je lis tout et je réponds moi-même.";
+  } else if(kind === "mur"){
+    subject = `${first}, tes 3 courses offertes sont faites 👏`; pre = "Merci d'avoir couru avec Traceo. Voici comment continuer.";
+    body = ["Tu as utilisé tes 3 courses guidées offertes : merci d'avoir testé Traceo pour de vrai !", "Tracer et comparer des boucles reste gratuit. Pour continuer à courir guidé, tu as le choix :",
+      [`<b>Premium : 4,99 € pour 31 jours</b>, sans abonnement : tu paies une fois, rien ne se renouvelle tout seul. Au programme : ${PREM}.`, offer, invite]];
+    cta = [u.app, "Continuer avec Premium →"]; after = "Et dis-moi ce que tu as pensé de tes courses : réponds à cet e-mail, je lis chaque retour.";
+  } else if(kind === "fin3m"){
+    subject = `${first}, dernières heures pour 3 mois à 9,99 €`; pre = `L'offre de lancement de Traceo se termine ${end} à minuit.`;
+    body = [`Petit mot rapide : l'offre de lancement de Traceo se termine <b>${end} à 23 h 59</b>.`,
+      `Jusque-là, le pass <b>Premium 3 mois est à 9,99 €</b>, soit environ 3,33 € par mois, sans abonnement : tu paies une fois, rien ne se renouvelle. Au programme : ${PREM}.`,
+      "Ensuite, Premium reste disponible à 4,99 € pour 31 jours."];
+    cta = [u.app, "Prendre 3 mois à 9,99 € →"]; after = `Pas le bon moment ? Aucun souci : tracer des boucles reste gratuit${ref ? `, et ton lien perso ${ref} offre 7 jours de Premium à toi et à chaque ami qui lance sa première course` : ""}.`;
+  } else {
+    const left = (u.until || now) - now, d = Math.floor(left/864e5), quand = left >= 864e5 ? `dans ${d} jour${d > 1 ? "s" : ""}` : "dans moins de 24 h";
+    const day = new Date(u.until || now).toLocaleDateString("fr-FR", {day:"numeric", month:"long", timeZone:"Europe/Paris"});
+    subject = u.gift ? `${first}, tes jours Premium offerts se terminent le ${day}` : `${first}, ton Premium se termine le ${day}`; pre = "Rien ne sera prélevé : voici comment continuer, si tu le souhaites.";
+    body = [`${u.gift ? "Tes jours de Premium offerts par le parrainage se terminent" : "Ton pass Premium Traceo se termine"} <b>le ${day}</b> (${quand}).`,
+      "Pas d'abonnement, donc rien ne sera prélevé : sans action de ta part, tu repasses simplement à la version gratuite, et tracer des boucles reste gratuit.",
+      `Pour garder tes ${PREM} :`,
+      ["<b>4,99 € pour 31 jours</b>, ajoutés à la suite de tes jours restants : aucun jour perdu.", offer, invite]];
+    cta = [u.app, "Prolonger mon Premium →"]; after = "Merci de courir avec Traceo ! Une idée pour améliorer l'app ? Réponds à cet e-mail, je lis tout.";
+  }
+  const P = (h, pad = "12px 28px 0") => `<tr><td style="padding:${pad};font-size:16px;line-height:1.6;color:#2A3B39;">${h}</td></tr>`;
+  const LI = h => `<tr><td style="padding:8px 28px 0;"><table role="presentation" cellpadding="0" cellspacing="0"><tr><td valign="top" style="padding-right:10px;font-size:16px;line-height:1.6;color:#0B8A66;font-weight:800;">•</td><td style="font-size:16px;line-height:1.6;color:#2A3B39;">${h}</td></tr></table></td></tr>`;
+  const html = `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escH(subject)}</title></head>
+<body style="margin:0;padding:0;background:#EEF3F2;"><div style="display:none;max-height:0;overflow:hidden;opacity:0">${escH(pre)}</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#EEF3F2;"><tr><td align="center" style="padding:24px 12px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:22px;overflow:hidden;font-family:Helvetica,Arial,sans-serif;color:#13201F;">
+<tr><td style="padding:22px 28px 6px;font-weight:800;font-size:18px;color:#0B5F4A;"><img src="${escH(u.logo)}" width="26" height="26" alt="" style="vertical-align:middle;border-radius:7px;margin-right:8px;border:0;">Traceo</td></tr>
+<tr><td style="padding:16px 28px 0;font-size:24px;font-weight:800;line-height:1.25;">Salut ${f} 👋</td></tr>
+${body.map(x => Array.isArray(x) ? x.filter(Boolean).map(LI).join("\n") : P(x)).join("\n")}
+<tr><td align="center" style="padding:22px 28px 4px;"><a href="${escH(cta[0])}" style="display:inline-block;padding:15px 30px;border-radius:999px;background:#071318;color:#ffffff;font-weight:800;font-size:17px;text-decoration:none;">${cta[1]}</a></td></tr>
+${P(after, "20px 28px 0")}
+<tr><td style="padding:22px 28px 26px;font-size:16px;line-height:1.6;color:#2A3B39;">Bonne course,<br><b>Pierre</b>, fondateur de Traceo</td></tr>
+</table>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;"><tr><td style="padding:16px 28px;font-family:Helvetica,Arial,sans-serif;font-size:12px;line-height:1.5;color:#7D8F8C;text-align:center;">Tu reçois cet e-mail parce que tu as un compte Traceo. <a href="${escH(u.unsub)}" style="color:#7D8F8C;">Ne plus recevoir ces e-mails</a>.<br>Traceo · Pierre Renard EI · traceorun.pages.dev</td></tr></table>
+</td></tr></table></body></html>`;
+  // texte brut : liens en adresse complète, balises retirées
+  const plain = h => h.replace(/<a href="([^"]*)"[^>]*>[^<]*<\/a>/g, "$1").replace(/<br>/g, "\n").replace(/<[^>]+>/g, "").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
+  const text = [`Salut ${first} !`, ...body.map(x => Array.isArray(x) ? x.filter(Boolean).map(li => "• " + plain(li)).join("\n") : plain(x)), `${cta[1].replace(/\s*→$/, "")} : ${cta[0]}`, plain(after),
+    "Bonne course,\nPierre, fondateur de Traceo", `—\nTu reçois cet e-mail parce que tu as un compte Traceo. Ne plus recevoir ces e-mails : ${u.unsub}\nTraceo · Pierre Renard EI`].join("\n\n");
+  return {subject, html, text};
 }
 const SRC_LABEL = {story:"ta story Instagram", bio:"ta bio Instagram", ig:"Instagram", insta:"Instagram", instagram:"Instagram", linkedin:"LinkedIn", whatsapp:"WhatsApp", facebook:"Facebook", fb:"Facebook", tiktok:"TikTok", strava:"Strava", email:"ton e-mail", qr:"ton QR code", reddit:"Reddit", forum:"un forum running", club:"un club contacté", createur:"un créateur partenaire"};
 const SOCIAL_REF = /^(instagram|facebook|linkedin|lnkd\.in|tiktok|t\.co|x|twitter|snapchat|whatsapp|wa\.me|youtube|threads|reddit|strava)(\.com|\.net)?$/;
@@ -121,6 +199,18 @@ export class Hub {
     try{ this.sql.exec("ALTER TABLE users ADD COLUMN welcomed INT DEFAULT 0"); }catch(e){}
     this.sql.exec(`CREATE TABLE IF NOT EXISTS feedback(id INTEGER PRIMARY KEY AUTOINCREMENT, t INT, stars INT, text TEXT, name TEXT, src TEXT)`);
     try{ this.sql.exec("ALTER TABLE feedback ADD COLUMN premium TEXT"); }catch(e){}
+    // Parrainage : code personnel, parrain et état (attente → ok à la 1re course du filleul ; plafond, ip, alias : enregistré sans récompense ; parti : parrain supprimé),
+    // e-mail ramené à sa boîte (mailKey), dernière course lancée avec le compte (« boucle|heure », pour les relances et les chiffres réels)
+    for(const c of ["ref_code TEXT", "ref_by TEXT", "ref_state TEXT", "ref_at INT", "email_n TEXT", "run_last TEXT"]){ try{ this.sql.exec("ALTER TABLE users ADD COLUMN " + c); }catch(e){} }
+    this.sql.exec(`CREATE UNIQUE INDEX IF NOT EXISTS users_ref ON users(ref_code)`);
+    this.sql.exec(`CREATE INDEX IF NOT EXISTS users_refby ON users(ref_by, ref_state)`);
+    this.sql.exec(`CREATE INDEX IF NOT EXISTS users_emailn ON users(email_n)`);
+    for(const u of this.rows("SELECT id, email FROM users WHERE email_n IS NULL")) this.sql.exec("UPDATE users SET email_n = ? WHERE id = ?", mailKey(u.email), u.id);
+    // chiffres réels par jour (boucles tracées, courses lancées) : preuve sociale publique, jamais arrondie
+    this.sql.exec(`CREATE TABLE IF NOT EXISTS daystat(day TEXT, k TEXT, n INT DEFAULT 0, PRIMARY KEY(day, k))`);
+    // relances e-mail : une ligne par envoi (ok = 1) ou essai manqué (ok = 0) ; key = fin du pass pour prem_fin (une fois par pass), vide sinon (une fois par membre)
+    this.sql.exec(`CREATE TABLE IF NOT EXISTS mail_log(id INTEGER PRIMARY KEY AUTOINCREMENT, uid TEXT, kind TEXT, key TEXT, t INT, ok INT DEFAULT 0, info TEXT)`);
+    this.sql.exec(`CREATE INDEX IF NOT EXISTS mail_log_uid ON mail_log(uid, t)`);
   }
   rows(q, ...a){ return [...this.sql.exec(q, ...a)]; }
   one(q, ...a){ return this.rows(q, ...a)[0] || null; }
@@ -132,7 +222,11 @@ export class Hub {
     if(url.pathname === "/internal/seo-state") return req.headers.get("X-Traceo-Internal") === "seo" ? this.seoState(req) : json({error:"not_found"}, 404, {});
     // alerte envoyée par worker.js (tâches planifiées) : même circuit que les autres (ntfy + notification native du tableau de bord)
     if(url.pathname === "/internal/alert"){ if(req.headers.get("X-Traceo-Internal") !== "alert" || req.method !== "POST") return json({error:"not_found"}, 404, {}); const a = await req.json().catch(() => ({})); return json(await this.alert(clean(a.title, 120) || "Alerte Traceo", String(a.body || "").slice(0, 1000), {tags:clean(a.tags, 40), priority:clean(a.priority, 10), click:/^https:\/\//.test(a.click || "") ? String(a.click).slice(0, 300) : ""}), 200, {}); }
+    // relances e-mail : passage horaire lancé par worker.js (tâche planifiée), même circuit interne
+    if(url.pathname === "/internal/lifecycle"){ if(req.headers.get("X-Traceo-Internal") !== "lifecycle" || req.method !== "POST") return json({error:"not_found"}, 404, {}); const a = await req.json().catch(() => ({})); return json(await this.lifeRun(this.clock(a.now), true), 200, {}); }
     if(path === "ipn") return this.ipn(await req.text());
+    // désinscription : avant la lecture JSON, car le clic « Se désabonner » de Gmail ou Yahoo envoie un POST « List-Unsubscribe=One-Click » (RFC 8058)
+    if(path === "unsub") return await this.unsub(url, req);
     let body = {}; if(req.method === "POST"){ const raw = await req.text(); if(raw.trim()){ try{ body = JSON.parse(raw); }catch(e){ return json({error:"bad_json"}, 400, {}); } } }
     try{
       if(path === "vapid") return json({key:(await this.vapid()).pub}, 200, {});
@@ -147,7 +241,8 @@ export class Hub {
       if(path === "alerts") return await this.alertsFeed(req, url, ip);
       if(path === "evt") return this.evtAlert(body, ip);
       if(path === "avis") return req.method === "POST" ? this.feedback(body, ip) : json({error:"method"}, 405, {});
-      if(path === "unsub") return await this.unsub(url, req);
+      if(path === "ref") return this.refInfo(url, ip);
+      if(path === "proof") return this.proof();
       // courses offertes (start), boucles tracées (gen) et état (quota) : avec un compte (jeton) ou sans compte (code de l'appareil « dev »)
       if(path === "start" || path === "gen" || path === "quota"){
         const who = await this.auth(req);
@@ -217,20 +312,28 @@ export class Hub {
       if((NOW() - bd)/(365.25*864e5) < 15) return json({error:"too_young"}, 400, {});
     }
     if(!b.terms) return json({error:"consent_required"}, 400, {});
-    const pw = await this.hashPw(b.key);   // avant les vérifications d'unicité : plus aucune attente entre elles et l'enregistrement
+    const pw = await this.hashPw(b.key), ipk = await this.ipKey(ip);   // avant les vérifications d'unicité : plus aucune attente entre elles et l'enregistrement
     if(pseudo && this.one("SELECT 1 AS x FROM users WHERE pseudo = ?", pseudo)) return json({error:"pseudo_taken"}, 409, {});
     if(this.one("SELECT 1 AS x FROM users WHERE email = ?", email)) return json({error:"email_taken"}, 409, {});
     if(!pseudo && !(pseudo = this.newPseudo(first))) return json({error:"pseudo_taken"}, 409, {});
+    // parrainage (code « ref » gardé par le site ou l'app) : code d'un membre existant ; récompense possible seulement si la boîte e-mail est nouvelle
+    // (pas celle du parrain ni d'un autre compte, points Gmail et « + » compris) et dans la limite de 3 inscriptions parrainées par jour et par adresse IP pour ce parrain
+    const emailN = mailKey(email), rc = String((b.ref && typeof b.ref === "object" ? b.ref.c : b.ref) || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+    const host = REF_RE.test(rc) ? this.one("SELECT id, first, email FROM users WHERE ref_code = ?", rc) : null;
+    const refState = !host ? null : mailKey(host.email) === emailN || this.one("SELECT 1 AS x FROM users WHERE email_n = ?", emailN) ? "alias" : this.dayAdd("refip:" + ipk + ":" + host.id) > REF_IP_DAY ? "ip" : "attente";
     const id = hex(crypto.getRandomValues(new Uint8Array(8)));
-    this.sql.exec("INSERT INTO users(id, pseudo, pw, first, last, email, birth, level, pace, bio, created, seen, visible, premium) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-      id, pseudo, pw, first, last, email, birth, LEVELS.includes(b.level) ? b.level : "regulier", Math.max(150, Math.min(900, +b.pace || 345)), clean(b.bio, 140), NOW(), NOW(), b.visible === false ? 0 : 1, b.premium ? 1 : 0);
+    // news === false (case « Je préfère ne pas recevoir les conseils et offres de Traceo par e-mail ») : aucun e-mail de Traceo, comme après une désinscription
+    this.sql.exec("INSERT INTO users(id, pseudo, pw, first, last, email, birth, level, pace, bio, created, seen, visible, premium, mail_off, ref_code, ref_by, ref_state, email_n) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+      id, pseudo, pw, first, last, email, birth, LEVELS.includes(b.level) ? b.level : "regulier", Math.max(150, Math.min(900, +b.pace || 345)), clean(b.bio, 140), NOW(), NOW(), b.visible === false ? 0 : 1, b.premium ? 1 : 0,
+      b.news === false ? 1 : 0, this.newRefCode(), host ? host.id : null, refState, emailN);
     const u = this.one("SELECT * FROM users WHERE id = ?", id), token = await this.newSession(u, req);
     {
       // chiffres agrégés du jour seulement : l'inscription n'est jamais reliée à une visite précise
       const day = new Date().toLocaleDateString("sv-SE", {timeZone:"Europe/Paris"});
       const vis = this.one("SELECT COUNT(DISTINCT vid) AS n, COUNT(DISTINCT CASE WHEN src != '' THEN vid END) AS l FROM hits WHERE day = ? AND ev = 'pv'", day);
       const su = this.one("SELECT COUNT(*) AS n FROM users WHERE created >= ?", NOW() - 864e5).n, tot = this.one("SELECT COUNT(*) AS n FROM users").n;
-      this.alert("Nouvel inscrit Traceo", `${[first, last].filter(Boolean).join(" ")} (@${pseudo}) vient de créer son compte.\nAujourd'hui : ${vis.n} visiteur${vis.n > 1 ? "s" : ""} (dont ${vis.l} via tes liens) · ${su} inscription${su > 1 ? "s" : ""} en 24 h · ${tot} membres au total.`, {tags:"tada", priority:"high", click:DASH_URL});
+      const par = host ? `\nParrainé par ${niceFirst(host.first)}${refState === "attente" ? " : 7 jours offerts à chacun dès sa 1re course." : ` (sans récompense : ${refState === "ip" ? "trop d'inscriptions parrainées depuis cette connexion aujourd'hui" : "même boîte e-mail qu'un compte existant"}).`}` : "";
+      this.alert("Nouvel inscrit Traceo", `${[first, last].filter(Boolean).join(" ")} (@${pseudo}) vient de créer son compte.\nAujourd'hui : ${vis.n} visiteur${vis.n > 1 ? "s" : ""} (dont ${vis.l} via tes liens) · ${su} inscription${su > 1 ? "s" : ""} en 24 h · ${tot} membres au total.${par}`, {tags:"tada", priority:"high", click:DASH_URL});
     }
     if(this.one("SELECT v FROM kv WHERE k = 'welcome:auto'")?.v === "1") this.state.waitUntil(this.welcome(u).catch(() => {}));
     return json({token, me:this.mine(u)}, 200, {});
@@ -244,9 +347,11 @@ export class Hub {
     const token = await this.newSession(u, req), prem = await this.accountPremium(u, b.dev);
     return json({token, me:this.mine(u), ...(prem ? {premium:prem} : {})}, 200, {});
   }
-  // free_left : courses offertes restantes ; premium_until : fin du pass payé relié au compte (0 sans pass actif)
-  mine(u){ const p = this.accountPay(u.id); return {...this.pub(u), last:u.last, email:u.email, birth:u.birth, phone_ok:!!u.phone_ok, visible:!!u.visible, notif:!!u.notif, push:!!u.push, avail_until:u.avail_until || 0,
-    free:FREE_LOOPS, free_left:Math.max(0, FREE_LOOPS - (u.free_used || 0)), premium_until:p ? p.until : 0}; }
+  // free_left : courses offertes restantes ; premium_until : fin du pass relié au compte, payé ou offert par parrainage (0 sans pass actif)
+  // parrainage : ref_code (lien <site>/?ref=CODE), ref_count (filleuls récompensés), ref_pending (inscrits sans course lancée), ref_days (jours gagnés comme parrain), ref_max (par 30 jours)
+  mine(u){ const p = this.accountPay(u.id), r = this.refStats(u.id); return {...this.pub(u), last:u.last, email:u.email, birth:u.birth, phone_ok:!!u.phone_ok, visible:!!u.visible, notif:!!u.notif, push:!!u.push, avail_until:u.avail_until || 0,
+    free:FREE_LOOPS, free_left:Math.max(0, FREE_LOOPS - (u.free_used || 0)), premium_until:p ? p.until : 0,
+    ref_code:this.refCode(u), ref_count:r.count, ref_pending:r.pending, ref_days:r.days, ref_max:REF_MAX}; }
   async update(me, b){
     const f = {};
     if(b.first != null) f.first = clean(b.first, 30) || me.first;
@@ -427,14 +532,16 @@ export class Hub {
   devOf(b){ const d = clean(b && b.dev, 16).toLowerCase(); return /^[a-f0-9]{16}$/.test(d) ? d : ""; }
   // pass payé encore actif relié au compte (le plus long), ou au téléphone / au compte
   accountPay(uid){ return uid ? this.one("SELECT * FROM payments WHERE uid = ? AND until > ? ORDER BY until DESC LIMIT 1", uid, NOW()) : null; }
-  bestPay(dev, uid){ return this.one("SELECT * FROM payments WHERE until > ? AND (dev = ? OR (? != '' AND uid = ?)) ORDER BY until DESC LIMIT 1", NOW(), dev, uid || "", uid || ""); }
+  bestPay(dev, uid, paidOnly){ return this.one(`SELECT * FROM payments WHERE until > ? AND (dev = ? OR (? != '' AND uid = ?))${paidOnly ? " AND txn NOT LIKE 'REF-%'" : ""} ORDER BY until DESC LIMIT 1`, NOW(), dev, uid || "", uid || ""); }
   // paiement fait sur ce téléphone (sans compte, ou avant la connexion) : relié au compte du membre qui s'y connecte avec l'activation de ce téléphone
   linkPay(uid, dev){ this.sql.exec("UPDATE payments SET uid = ? WHERE dev = ? AND uid IS NULL AND until > ? AND txn NOT LIKE 'TEST-%'", uid, dev, NOW()); }
   // Premium du compte sur un autre appareil : fin du pass, reçu et activation signée pour le code d'appareil donné
+  // (jours offerts par parrainage compris ; le reçu est celui du dernier vrai paiement en cours, aucun s'il n'y a que des jours offerts)
   async accountPremium(u, dev){
     const p = u && this.accountPay(u.id); if(!p) return null;
     dev = this.devOf({dev});
-    return {until:p.until, receipt:this.receipt(p), ...(dev && this.env.ACT_KEY ? {code:await this.signAct(dev, p.until, "paiement")} : {})};
+    const paid = p.txn.startsWith("REF-") ? this.one(`SELECT * FROM payments WHERE uid = ? AND until > ? AND ${PAID} ORDER BY until DESC LIMIT 1`, u.id, NOW()) : p;
+    return {until:p.until, receipt:this.receipt(paid), ...(dev && this.env.ACT_KEY ? {code:await this.signAct(dev, p.until, "paiement")} : {})};
   }
   async premiumOf(me, b){
     const dev = this.devOf(b), sig = await this.premiumOk(b.code, dev);
@@ -465,7 +572,7 @@ export class Hub {
         if(used >= FREE_LOOPS) return json({...res(), error:"quota"}, 402, {});
         this.sql.exec("UPDATE users SET free_used = ? WHERE id = ?", ++used, me.id);
       }
-      gens = this.dayAdd(k);
+      gens = this.dayAdd(k); this.statAdd("loops");
     }
     return json(res(), 200, {});
   }
@@ -478,7 +585,7 @@ export class Hub {
     const res = () => ({guest:true, premium:prem, left:prem ? 999 : ran ? 0 : GUEST_RUNS, used:ran ? GUEST_RUNS : 0, free:GUEST_RUNS, gens, genMax:max, genLeft:Math.max(0, max - gens)});
     if(use){
       if(gens >= max || (!prem && this.dayGet(ipk) >= GUEST_IP_GENS)) return json({...res(), genLeft:0, error:"gen_limit"}, 429, {});
-      gens = this.dayAdd(k); this.dayAdd(ipk);
+      gens = this.dayAdd(k); this.dayAdd(ipk); this.statAdd("loops");
     }
     return json(res(), 200, {});
   }
@@ -491,13 +598,21 @@ export class Hub {
     if(!me) return await this.guestStart(b, loop, ip);
     const pr = await this.premiumOf(me, b);
     const u = this.one("SELECT free_used, last_start FROM users WHERE id = ?", me.id) || {}, used = u.free_used || 0;
-    if(pr.premium) return json({ok:true, premium:true, left:999, used, free:FREE_LOOPS, ...pr.extra}, 200, {});
+    if(pr.premium){ const gift = this.started(me, loop); return json({ok:true, premium:true, left:999, used, free:FREE_LOOPS, ...pr.extra, ...(gift ? {gift} : {})}, 200, {}); }
     const res = n => ({ok:true, premium:false, left:Math.max(0, FREE_LOOPS - n), used:n, free:FREE_LOOPS});
     const [lastLoop, lastT] = String(u.last_start || "").split("|");
     if(loop && loop === lastLoop && NOW() - (+lastT || 0) < 6*HOUR) return json({...res(used), again:true}, 200, {});
     if(used >= FREE_LOOPS) return json({...res(used), ok:false, error:"quota"}, 402, {});
     this.sql.exec("UPDATE users SET free_used = ?, last_start = ? WHERE id = ?", used + 1, loop ? loop + "|" + NOW() : null, me.id);
-    return json(res(used + 1), 200, {});
+    const gift = this.started(me, loop);
+    return json({...res(used + 1), ...(gift ? {gift} : {})}, 200, {});
+  }
+  // course lancée avec un compte : chiffres réels (même boucle relancée dans les 6 h comptée une fois), heure de la dernière course (relances),
+  // et récompense de parrainage à la toute première course du filleul ; renvoie {days, until} si le filleul vient de gagner ses jours offerts
+  started(me, loop){
+    const [l, t] = String(me.run_last || "").split("|");
+    if(!(loop && l === loop && NOW() - (+t || 0) < 6*HOUR)){ this.statAdd("runs"); this.sql.exec("UPDATE users SET run_last = ? WHERE id = ?", loop + "|" + NOW(), me.id); }
+    return this.refCredit(me.id);
   }
   async guestStart(b, loop, ip){
     const dev = this.devOf(b); if(!dev) return json({error:"auth"}, 401, {});
@@ -506,8 +621,75 @@ export class Hub {
     const res = x => ({guest:true, premium:false, left:0, used:GUEST_RUNS, free:GUEST_RUNS, ...x});
     if(row) return loop && row.loop === loop && NOW() - row.t < 6*HOUR ? json(res({ok:true, again:true}), 200, {}) : json(res({ok:false, error:"account_required"}), 403, {});
     if(this.dayGet(ipk) >= GUEST_IP_RUNS) return json(res({ok:false, error:"account_required"}), 403, {});
-    this.sql.exec("INSERT OR IGNORE INTO guest_runs(dev, t, loop) VALUES(?,?,?)", dev, NOW(), loop || null); this.dayAdd(ipk);
+    this.sql.exec("INSERT OR IGNORE INTO guest_runs(dev, t, loop) VALUES(?,?,?)", dev, NOW(), loop || null); this.dayAdd(ipk); this.statAdd("runs");
     return json(res({ok:true}), 200, {});
+  }
+
+  /* ---------- Parrainage : « invite un ami, 7 jours de Premium offerts pour vous deux » ----------
+     Chaque membre a un code de 6 caractères (créé à l'inscription, ou à la première lecture de son profil pour les anciens comptes) ; lien <site>/?ref=CODE.
+     Le site et l'app gardent le code 30 jours et l'envoient à l'inscription (champ « ref »). La récompense tombe une seule fois, quand le filleul lance
+     sa toute première course avec son compte (POST /social/start), jamais à l'inscription : 7 jours pour le parrain et 7 pour le filleul, ajoutés après
+     la fin de leur Premium en cours. Au plus 5 parrainages récompensés par parrain sur 30 jours glissants (les suivants sont notés, sans jours offerts).
+     Les jours offerts sont des lignes de pass « REF-<filleul>-a » (parrain) et « -b » (filleul) à 0 € : Premium du compte sur tous ses appareils,
+     mais jamais comptées dans les paiements, le chiffre d'affaires, les pass payés ni les alertes de paiement. */
+  newRefCode(){
+    for(let i = 0; i < 40; i++){
+      const c = [...crypto.getRandomValues(new Uint32Array(6))].map(x => REF_ABC[x % REF_ABC.length]).join("");
+      if(!this.one("SELECT 1 AS x FROM users WHERE ref_code = ?", c)) return c;
+    }
+    return null;
+  }
+  refCode(u){
+    if(u.ref_code) return u.ref_code;
+    const c = this.newRefCode(); if(!c) return "";
+    this.sql.exec("UPDATE users SET ref_code = ? WHERE id = ? AND ref_code IS NULL", c, u.id);
+    return u.ref_code = this.one("SELECT ref_code FROM users WHERE id = ?", u.id)?.ref_code || "";
+  }
+  refStats(id){
+    const c = this.one("SELECT SUM(ref_state = 'ok') AS ok, SUM(ref_state = 'attente') AS wait FROM users WHERE ref_by = ?", id) || {};
+    return {count:c.ok || 0, pending:c.wait || 0, days:this.one("SELECT SUM(days) AS d FROM payments WHERE uid = ? AND txn LIKE 'REF-%-a'", id)?.d || 0};
+  }
+  // jours offerts à un compte, à la suite de son Premium en cours ; dev vide (jamais NULL) et e-mail « parrainage » : aucune demande d'activation par e-mail ne peut s'en servir
+  refGrant(uid, txn){
+    const cur = this.one("SELECT MAX(until) AS u FROM payments WHERE uid = ? AND until > ? AND txn NOT LIKE 'TEST-%'", uid, NOW())?.u || 0, until = Math.max(NOW(), cur) + REF_DAYS*864e5;
+    this.sql.exec("INSERT OR IGNORE INTO payments(txn, email, amount, currency, t, dev, until, name, uid, days) VALUES(?,?,?,?,?,?,?,?,?,?)", txn, "parrainage", "0", "EUR", NOW(), "", until, "Parrainage", uid, REF_DAYS);
+    return this.one("SELECT until FROM payments WHERE txn = ?", txn)?.until || until;
+  }
+  // 1re course du filleul : récompense (une seule fois), ou plafond du parrain atteint (noté sans jours offerts)
+  refCredit(id){
+    const u = this.one("SELECT id, first, ref_by, ref_state FROM users WHERE id = ?", id);
+    if(!u || u.ref_state !== "attente") return null;
+    const host = u.ref_by ? this.one("SELECT id, first, pseudo FROM users WHERE id = ?", u.ref_by) : null, now = NOW();
+    if(!host){ this.sql.exec("UPDATE users SET ref_state = 'parti', ref_at = ? WHERE id = ?", now, id); return null; }
+    const n = this.one("SELECT COUNT(*) AS n FROM users WHERE ref_by = ? AND ref_state = 'ok' AND ref_at > ?", host.id, now - 30*864e5).n;
+    if(n >= REF_MAX){ this.sql.exec("UPDATE users SET ref_state = 'plafond', ref_at = ? WHERE id = ?", now, id); return null; }
+    this.sql.exec("UPDATE users SET ref_state = 'ok', ref_at = ? WHERE id = ?", now, id);
+    this.refGrant(host.id, `REF-${id}-a`); const until = this.refGrant(id, `REF-${id}-b`);
+    const a = niceFirst(host.first) || "Un membre", b = niceFirst(u.first) || "un coureur";
+    this.alert(`🎁 Parrainage : ${a} a fait venir ${b}`, `${b} vient de lancer sa première course grâce au lien de @${host.pseudo} : 7 jours de Premium offerts à chacun.\nParrainages récompensés de ${a} sur 30 jours : ${n + 1}/${REF_MAX}.`, {tags:"gift", click:DASH_URL});
+    return {days:REF_DAYS, until};
+  }
+  // GET /social/ref?c=CODE : prénom du parrain (accueil « Pierre t'invite »), rien d'autre
+  refInfo(url, ip){
+    if(this.limit("refi:" + ip, 30, 15*MIN)) return json({ok:false, error:"rate_limited"}, 429, {});
+    const c = clean(url.searchParams.get("c"), 12).toUpperCase(), u = REF_RE.test(c) ? this.one("SELECT first FROM users WHERE ref_code = ?", c) : null;
+    return json(u ? {ok:true, first:niceFirst(u.first) || "Un coureur"} : {ok:false}, 200, {});
+  }
+  // chiffres réels du jour : « loops » (boucles tracées acceptées), « runs » (courses lancées, avec ou sans compte)
+  statAdd(k){
+    const day = parisDay();
+    if(this._stDay !== day){ this._stDay = day; this.sql.exec("DELETE FROM daystat WHERE day < ?", parisDay(NOW() - 400*864e5)); }
+    this.sql.exec("INSERT INTO daystat(day, k, n) VALUES(?, ?, 1) ON CONFLICT(day, k) DO UPDATE SET n = n + 1", day, k);
+  }
+  // GET /social/proof : vrais chiffres des 7 derniers jours (aujourd'hui compris), jamais arrondis ; show = assez de monde pour les montrer
+  proof(){
+    const now = NOW();
+    if(!this._proof || now - this._proof.t > 10*MIN){
+      const from = parisDay(now - 6*864e5), sum = k => this.one("SELECT SUM(n) AS n FROM daystat WHERE k = ? AND day >= ?", k, from)?.n || 0;
+      const loops7 = sum("loops"), runs7 = sum("runs"), members = this.one("SELECT COUNT(*) AS n FROM users").n;
+      this._proof = {t:now, v:{loops7, runs7, members, show:loops7 >= PROOF_LOOPS && members >= PROOF_MEMBERS}};
+    }
+    return new Response(JSON.stringify(this._proof.v), {status:200, headers:{"Content-Type":"application/json; charset=utf-8", "Cache-Control":"public, max-age=600"}});
   }
 
   /* ---------- Vérification du numéro de téléphone (code à 6 chiffres par SMS, service Twilio Verify) ----------
@@ -548,7 +730,7 @@ export class Hub {
     this.sql.exec("UPDATE users SET phone_ok = 1, phone_code = NULL WHERE id = ?", me.id);
     // numéro ajouté APRÈS le paiement (jamais obligatoire) : le reçu du pass en cours part par SMS
     const p = this.accountPay(me.id);
-    if(p && !p.txn.startsWith("TEST-")) this.state.waitUntil(this.smsReceipt({...me, phone_ok:1}, p));
+    if(p && !/^(TEST|REF)-/.test(p.txn)) this.state.waitUntil(this.smsReceipt({...me, phone_ok:1}, p));
     return json({ok:true, verified:true, receipt:!!p}, 200, {});
   }
 
@@ -598,13 +780,13 @@ export class Hub {
   }
   // reçu : montant, date, fin du Premium et offre (« 31 jours » ou « 3 mois », « essai » pour un paiement simulé)
   receipt(p){
-    if(!p) return null;
+    if(!p || p.txn.startsWith("REF-")) return null;   // jours offerts par parrainage : pas un paiement, pas de reçu
     const plan = p.days ? (p.days >= PLAN_3M.days ? PLAN_3M : PLAN_1M) : this.planOf(p.amount), label = plan ? plan.label : "essai";
     return {txn:p.txn, amount:p.amount, currency:p.currency || "EUR", date:p.t, until:p.until, days:plan ? plan.days : 0, plan:label, label:"Traceo Premium · " + label};
   }
   // reçu par SMS (numéro confirmé) : offre et date de fin du pass ; TWILIO_API sert seulement aux essais locaux (jamais dans wrangler.toml)
   async smsReceipt(u, p){
-    if(!u.phone || !u.phone_ok || !this.env.TWILIO_ACCOUNT_SID || !this.env.TWILIO_AUTH_TOKEN) return;
+    if(!u.phone || !u.phone_ok || !this.env.TWILIO_ACCOUNT_SID || !this.env.TWILIO_AUTH_TOKEN || /^(TEST|REF)-/.test(p.txn)) return;
     const body = `Traceo : paiement de ${String(p.amount).replace(".", ",")} € confirmé (réf. ${p.txn}). Premium ${this.receipt(p).plan} actif jusqu'au ${frDate(p.until)}. Merci pour ta confiance et ta fidélité, bonne course ! Pierre Renard, fondateur de Traceo`;
     try{
       await fetch(`${this.env.TWILIO_API || "https://api.twilio.com"}/2010-04-01/Accounts/${this.env.TWILIO_ACCOUNT_SID}/Messages.json`, {method:"POST", headers:{Authorization:"Basic " + btoa(this.env.TWILIO_ACCOUNT_SID + ":" + this.env.TWILIO_AUTH_TOKEN), "Content-Type":"application/x-www-form-urlencoded"}, body:new URLSearchParams({To:u.phone, From:this.env.TWILIO_SMS_FROM || "Traceo", Body:body}).toString()});
@@ -632,13 +814,13 @@ export class Hub {
     const me = req ? await this.auth(req) : null;   // membre connecté (en-tête Authorization facultatif) : le paiement est relié à son compte
     // pass actif pour ce téléphone (bouton de paiement de l'app) ou pour le compte connecté (payé sur un autre appareil) : on renvoie l'activation
     // (un paiement fait sans compte n'est pas relié ici sur le seul code d'appareil, qui se montre au support : il l'est quand le membre présente l'activation de ce téléphone, voir premiumOf)
-    const mine = this.bestPay(dev, me && me.id);
+    const mine = this.bestPay(dev, me && me.id, true);
     if(mine) return json({status:"active", code:await this.signAct(dev, mine.until, mine.txn.startsWith("TEST-") ? "test" : "paiement"), receipt:this.receipt(mine)}, 200, {});
     if(email.length < 3) return json({status:"pending"}, 200, {});
     // paiement déjà reçu avec cet e-mail (ou ce nom) et jamais utilisé : activation immédiate
-    const pay = this.one("SELECT * FROM payments WHERE (email = ? OR lower(name) = ?) AND dev IS NULL AND t > ? ORDER BY t DESC", email, email, NOW() - 30*864e5);
+    const pay = this.one("SELECT * FROM payments WHERE (email = ? OR lower(name) = ?) AND dev IS NULL AND t > ? AND txn NOT LIKE 'REF-%' ORDER BY t DESC", email, email, NOW() - 30*864e5);
     if(pay){ const code = await this.grant(pay.txn, dev, 0, me && me.id); return json({status:"active", code, receipt:this.receipt(this.one("SELECT * FROM payments WHERE txn = ?", pay.txn))}, 200, {}); }
-    const again = this.one("SELECT * FROM payments WHERE (email = ? OR lower(name) = ?) AND dev = ? AND until > ?", email, email, dev, NOW());
+    const again = this.one("SELECT * FROM payments WHERE (email = ? OR lower(name) = ?) AND dev = ? AND until > ? AND txn NOT LIKE 'REF-%'", email, email, dev, NOW());
     if(again) return json({status:"active", code:await this.signAct(dev, again.until, "paiement"), receipt:this.receipt(again)}, 200, {});
     const open = this.one("SELECT id FROM act_requests WHERE email = ? AND dev = ? AND done = 0", email, dev);
     if(!open) this.sql.exec("INSERT INTO act_requests(email, dev, t, uid) VALUES(?,?,?,?)", email, dev, NOW(), me ? me.id : null);
@@ -773,7 +955,7 @@ export class Hub {
         app:visitsOf("ev = 'pv' AND path = '/app'"),
         story:visitsOf("ev = 'pv' AND src LIKE 'story%'"),
         signups:this.one("SELECT COUNT(*) AS n FROM users WHERE created > ?", since).n,
-        payments:this.one("SELECT COUNT(*) AS n FROM payments WHERE t > ? AND txn NOT LIKE 'TEST-%'", since).n
+        payments:this.one(`SELECT COUNT(*) AS n FROM payments WHERE t > ? AND ${PAID}`, since).n
       }
     };
   }
@@ -798,9 +980,9 @@ export class Hub {
       payClicks:one("SELECT COUNT(DISTINCT day || vid) AS n FROM hits WHERE day BETWEEN ? AND ? AND ev = 'clic:payer'", a, b).n || 0,
       coach:one("SELECT COUNT(*) AS n FROM hits WHERE day BETWEEN ? AND ? AND ev = 'clic:coach'", a, b).n || 0,
       signups:one("SELECT COUNT(*) AS n FROM users WHERE created >= ? AND created < ?", ma, mb).n || 0,
-      payments:one("SELECT COUNT(*) AS n FROM payments WHERE t >= ? AND t < ? AND txn NOT LIKE 'TEST-%'", ma, mb).n || 0,
-      passes3m:one("SELECT COUNT(*) AS n FROM payments WHERE t >= ? AND t < ? AND txn NOT LIKE 'TEST-%' AND CAST(amount AS REAL) >= ?", ma, mb, p3).n || 0,
-      revenue:Math.round(100*(one("SELECT SUM(CAST(amount AS REAL)) AS s FROM payments WHERE t >= ? AND t < ? AND txn NOT LIKE 'TEST-%'", ma, mb).s || 0))/100,
+      payments:one(`SELECT COUNT(*) AS n FROM payments WHERE t >= ? AND t < ? AND ${PAID}`, ma, mb).n || 0,
+      passes3m:one(`SELECT COUNT(*) AS n FROM payments WHERE t >= ? AND t < ? AND ${PAID} AND CAST(amount AS REAL) >= ?`, ma, mb, p3).n || 0,
+      revenue:Math.round(100*(one(`SELECT SUM(CAST(amount AS REAL)) AS s FROM payments WHERE t >= ? AND t < ? AND ${PAID}`, ma, mb).s || 0))/100,
       runs:one("SELECT COUNT(*) AS n FROM runs WHERE ok = 1 AND t >= ? AND t < ?", ma, mb).n || 0
     });
     const cur = period(from, to, msFrom, now + 1), prev = period(pFrom, pTo, msPFrom, msFrom);
@@ -811,7 +993,7 @@ export class Hub {
     const dayKey = ms => new Date(ms).toLocaleDateString("sv-SE", {timeZone:"Europe/Paris"});
     const ds = {}, dp = {};
     for(const r of this.rows("SELECT created AS t FROM users WHERE created >= ?", msFrom)){ const k = dayKey(r.t); ds[k] = (ds[k] || 0) + 1; }
-    for(const r of this.rows("SELECT t, amount FROM payments WHERE t >= ? AND txn NOT LIKE 'TEST-%'", msFrom)){ const k = dayKey(r.t); dp[k] = (dp[k] || 0) + (+r.amount || 0); }
+    for(const r of this.rows(`SELECT t, amount FROM payments WHERE t >= ? AND ${PAID}`, msFrom)){ const k = dayKey(r.t); dp[k] = (dp[k] || 0) + (+r.amount || 0); }
     const daily = []; for(let i = days - 1; i >= 0; i--){ const d = dayBack(i); daily.push({day:d, visits:dv[d] || 0, signups:ds[d] || 0, revenue:Math.round(100*(dp[d] || 0))/100, loops:dl[d] || 0}); }
     // heures de visite (heure de Paris)
     const hours = Array(24).fill(0);
@@ -847,10 +1029,20 @@ export class Hub {
         total:one("SELECT COUNT(*) AS n FROM users").n || 0,
         active7:one("SELECT COUNT(*) AS n FROM users WHERE seen > ?", now - 7*864e5).n || 0,
         premium:one("SELECT COUNT(*) AS n FROM users WHERE premium = 1").n || 0,
-        passes:one("SELECT COUNT(DISTINCT COALESCE(uid, dev)) AS n FROM payments WHERE until > ? AND txn NOT LIKE 'TEST-%'", now).n || 0,   // pass payés en cours (compte ou téléphone)
-        revenueAll:Math.round(100*(one("SELECT SUM(CAST(amount AS REAL)) AS s FROM payments WHERE txn NOT LIKE 'TEST-%'").s || 0))/100
-      }
+        passes:one(`SELECT COUNT(DISTINCT COALESCE(uid, dev)) AS n FROM payments WHERE until > ? AND ${PAID}`, now).n || 0,   // pass payés en cours (compte ou téléphone), sans les jours offerts
+        revenueAll:Math.round(100*(one(`SELECT SUM(CAST(amount AS REAL)) AS s FROM payments WHERE ${PAID}`).s || 0))/100
+      },
+      // parrainage (à part des paiements) : « Parrainages : N crédités, J jours offerts » ; étapes vues sur le site et l'app pendant la période
+      parrainages:{...this.refDash(now), events:Object.fromEntries(["vu", "partage", "copie", "inscrit"].map(k => [k, one("SELECT COUNT(*) AS n FROM hits WHERE day BETWEEN ? AND ? AND ev = ?", from, to, "clic:parrain_" + k).n || 0]))},
+      relances:this.lifeState(now, false)
     };
+  }
+  refDash(now){
+    const c = this.one("SELECT SUM(ref_state = 'ok') AS ok, SUM(ref_state = 'attente') AS wait, SUM(ref_state = 'plafond') AS cap, SUM(ref_state IN ('ip', 'alias')) AS refused FROM users WHERE ref_by IS NOT NULL") || {};
+    return {credited:c.ok || 0, pending:c.wait || 0, capped:c.cap || 0, refused:c.refused || 0,
+      days:this.one("SELECT SUM(days) AS d FROM payments WHERE txn LIKE 'REF-%'")?.d || 0,   // jours offerts au total (parrains + filleuls)
+      active:this.one("SELECT COUNT(DISTINCT uid) AS n FROM payments WHERE txn LIKE 'REF-%' AND until > ?", now).n || 0,   // comptes avec des jours offerts en cours
+      top:this.rows("SELECT h.first AS first, COUNT(*) AS n FROM users u JOIN users h ON h.id = u.ref_by WHERE u.ref_state = 'ok' GROUP BY u.ref_by ORDER BY n DESC, MAX(u.ref_at) DESC LIMIT 5").map(r => ({first:niceFirst(r.first), n:r.n}))};
   }
 
   async admin(req, path, b, url, ip){
@@ -877,7 +1069,8 @@ export class Hub {
     if(path === "members"){
       const rows = this.rows(`SELECT u.*, (SELECT COUNT(*) FROM msgs WHERE a = u.id) AS sent, (SELECT COUNT(*) FROM reports WHERE whom = u.id) AS reported, (SELECT COUNT(*) FROM runs WHERE uid = u.id AND ok = 1) AS runs, u.free_used AS free_used FROM users u ORDER BY created DESC LIMIT 5000`);
       return json({members:rows.map(u => ({id:u.id, pseudo:u.pseudo, first:u.first, last:u.last, email:u.email, birth:u.birth, level:u.level, pace:u.pace, created:u.created, last_login:u.last_login, seen:u.seen,
-        place:u.place || "", visible:!!u.visible, premium:!!u.premium, push:!!u.push, sent:u.sent, reported:u.reported, runs:u.runs, free_used:u.free_used || 0, phone:u.phone || "", phone_ok:!!u.phone_ok}))}, 200, {});
+        place:u.place || "", visible:!!u.visible, premium:!!u.premium, push:!!u.push, sent:u.sent, reported:u.reported, runs:u.runs, free_used:u.free_used || 0, phone:u.phone || "", phone_ok:!!u.phone_ok,
+        mail_off:!!u.mail_off, ref_code:u.ref_code || "", ref_by:u.ref_by || "", ref_state:u.ref_state || ""}))}, 200, {});
     }
     if(path === "reports") return json({reports:this.rows("SELECT r.*, a.pseudo AS by_pseudo, b.pseudo AS whom_pseudo FROM reports r LEFT JOIN users a ON a.id = r.who LEFT JOIN users b ON b.id = r.whom ORDER BY t DESC LIMIT 500")}, 200, {});
     // Sauvegarde complète de la base (sans mots de passe ni jetons de session)
@@ -891,7 +1084,8 @@ export class Hub {
       this.sql.exec("INSERT INTO payments(txn, email, amount, currency, t, dev, until, name) VALUES(?,?,?,?,?,?,?,?)", txn, "simulation", "0.00", "EUR", NOW(), dev, until, "Paiement simulé (test)");
       return json({code:await this.signAct(dev, until, "test"), until, receipt:this.receipt(this.one("SELECT * FROM payments WHERE txn = ?", txn))}, 200, {});
     }
-    if(path === "payments") return json({payments:this.rows("SELECT * FROM payments ORDER BY t DESC LIMIT 500"), pending:this.rows("SELECT * FROM act_requests WHERE done = 0 ORDER BY id DESC LIMIT 200")}, 200, {});
+    if(path === "payments") return json({payments:this.rows("SELECT * FROM payments WHERE txn NOT LIKE 'REF-%' ORDER BY t DESC LIMIT 500"), pending:this.rows("SELECT * FROM act_requests WHERE done = 0 ORDER BY id DESC LIMIT 200"),
+      refs:this.rows("SELECT p.txn, p.t, p.until, p.days, p.uid, u.pseudo, u.first FROM payments p LEFT JOIN users u ON u.id = p.uid WHERE p.txn LIKE 'REF-%' ORDER BY p.t DESC LIMIT 500")}, 200, {});
     if(path === "rewards") return json({rewards:this.rows(`SELECT r.*, u.pseudo, u.first, u.last, u.email, (SELECT COUNT(*) FROM runs WHERE uid = r.uid AND ok = 1) AS runs,
       (SELECT COUNT(*) FROM runs WHERE uid = r.uid AND ok = 0) AS refused FROM rewards r LEFT JOIN users u ON u.id = r.uid ORDER BY CASE r.status WHEN 'demandee' THEN 0 WHEN 'a_reclamer' THEN 1 ELSE 2 END, r.id DESC LIMIT 500`)}, 200, {});
     if(path === "runs") return json({runs:this.rows("SELECT id, t, dist, time, ascent, n_pts, ok, reason, premium FROM runs WHERE uid = ? ORDER BY id DESC LIMIT 300", clean(url.searchParams.get("uid"), 32))}, 200, {});
@@ -915,6 +1109,23 @@ export class Hub {
       let sent = 0; const fails = [];
       for(const u of list){ const r = await this.welcome(u); if(r.ok) sent++; else fails.push({pseudo:u.pseudo, error:r.error || r.status}); await new Promise(res => setTimeout(res, 250)); }
       return json({sent, fails}, 200, {}); }
+    // offre de lancement 3 mois rappelée dans les e-mails : interrupteur (le lien de paiement 3 mois de config.js reste la décision de Pierre)
+    if(path === "offer3m"){ if(req.method === "POST") this.kvSet("offer3m", b.on ? "1" : "0");
+      return json({on:this.kvGet("offer3m") === "1", end:OFFER_3M_END, active:this.offerOn(now)}, 200, {}); }
+    // relances e-mail automatiques : interrupteur + état (GET), essai d'une relance vers une adresse, aperçu de qui recevrait quoi maintenant (rien n'est envoyé)
+    if(path === "lifecycle"){ if(req.method === "POST") this.kvSet("lifecycle:auto", b.on ? "1" : "0"); return json(this.lifeState(this.clock(url.searchParams.get("now")), false), 200, {}); }
+    if(path === "lifecycle-preview") return json({now:this.clock(url.searchParams.get("now")), ...this.lifeState(this.clock(url.searchParams.get("now")), true)}, 200, {});
+    if(path === "lifecycle-test"){
+      if(req.method !== "POST" || !EMAIL_RE.test(String(b.email || ""))) return json({error:"bad_email"}, 400, {});
+      if(!LIFE_KINDS.includes(b.kind)) return json({error:"bad_kind", kinds:LIFE_KINDS}, 400, {});
+      if(!this.mailReady()) return json({ok:false, error:"mail_not_configured"}, 200, {});
+      // adresse d'un membre : son vrai lien de parrainage ; sinon un exemple. Offre 3 mois montrée si elle est active (ou demandée : offer = true)
+      const to = clean(b.email, 120), m = this.one("SELECT * FROM users WHERE email = ?", to.toLowerCase()), t = this.clock(b.now);
+      const u = {id:"test", first:clean(b.first, 30) || (m && m.first) || "Pierre", last:"", ref_code:(m && this.refCode(m)) || "AB23CD"};
+      const {m:mail, unsub} = await this.lifeMailFor(u, b.kind, {now:t, code:u.ref_code, offer:b.offer === true || this.offerOn(t), until:t + 2*864e5 + 5*HOUR, gift:!!b.gift});
+      const r = await this.mailSend(to, u.first, mail, "relance-essai", unsub);
+      return json({...r, subject:mail.subject}, 200, {});
+    }
     if(path === "avis") return json({avis:this.rows("SELECT * FROM feedback ORDER BY id DESC LIMIT 300")}, 200, {});
     if(path === "push-test") return req.method === "POST" ? json({ok:true, ...await this.alert("Notifications activées ✅", "Les alertes Traceo arriveront maintenant ici, même app fermée : inscriptions, visiteurs de tes liens, paiements, signalements.", {tags:"bell", click:DASH_URL})}, 200, {}) : json({error:"method"}, 405, {});
     if(path === "reset"){
@@ -977,19 +1188,104 @@ export class Hub {
   async welcome(u, to){
     if(!this.env.BREVO_API_KEY || !this.env.MAIL_FROM) return {ok:false, error:"mail_not_configured"};
     if(!to && (u.mail_off || u.welcomed)) return {ok:false, error:"deja_envoye_ou_desinscrit"};
-    // prénom tel qu'inscrit dans la fiche du membre ; tout en minuscules ou en majuscules → « Jean-Marc »
-    let first = clean(u.first, 30); if(first && (first === first.toLowerCase() || first === first.toUpperCase())) first = first.toLowerCase().replace(/(^|[\s'-])(\p{L})/gu, (m, a, b) => a + b.toUpperCase());
-    first = first || "toi"; const n = encodeURIComponent(first);
+    const first = niceFirst(u.first) || "toi", n = encodeURIComponent(first);
     const urls = {video:`${SITE}/video?n=${n}&src=email`, app:`${SITE}/app?src=email`, avis:`${SITE}/avis?n=${n}&src=email`, thumb:`${SITE}/media/bienvenue-email.jpg`, logo:`${SITE}/icons/icon-192.png`,
       unsub:`${API_URL}/social/unsub?u=${encodeURIComponent(u.id)}&t=${await this.unsubTok(u.id)}`};
-    const m = welcomeMail(first, urls);
+    const r = await this.mailSend(to || u.email, `${u.first || ""} ${u.last || ""}`.trim() || first, welcomeMail(first, urls), "bienvenue", urls.unsub);
+    if(r.ok && !to) this.sql.exec("UPDATE users SET welcomed = ? WHERE id = ?", NOW(), u.id);
+    return r;
+  }
+  // envoi par Brevo (MAIL_API remplace l'adresse de Brevo pour les essais locaux seulement, jamais dans wrangler.toml), désinscription en un clic dans les en-têtes
+  async mailSend(to, name, m, tag, unsub){
     const r = await fetch(this.env.MAIL_API || "https://api.brevo.com/v3/smtp/email", {method:"POST", headers:{"api-key":this.env.BREVO_API_KEY, "Content-Type":"application/json", Accept:"application/json"},
-      body:JSON.stringify({sender:{name:this.env.MAIL_NAME || "Pierre de Traceo", email:this.env.MAIL_FROM}, to:[{email:to || u.email, name:`${u.first || ""} ${u.last || ""}`.trim() || first}],
-        replyTo:{email:this.env.MAIL_REPLY || this.env.MAIL_FROM}, subject:m.subject, htmlContent:m.html, textContent:m.text, tags:["bienvenue"],
-        headers:{"List-Unsubscribe":`<${urls.unsub}>`, "List-Unsubscribe-Post":"List-Unsubscribe=One-Click"}})}).catch(e => ({status:0, text:async () => String(e)}));
+      body:JSON.stringify({sender:{name:this.env.MAIL_NAME || "Pierre de Traceo", email:this.env.MAIL_FROM}, to:[{email:to, name}],
+        replyTo:{email:this.env.MAIL_REPLY || this.env.MAIL_FROM}, subject:m.subject, htmlContent:m.html, textContent:m.text, tags:[tag],
+        headers:{"List-Unsubscribe":`<${unsub}>`, "List-Unsubscribe-Post":"List-Unsubscribe=One-Click"}})}).catch(e => ({status:0, text:async () => String(e)}));
     const ok = r.status >= 200 && r.status < 300;
-    if(ok && !to) this.sql.exec("UPDATE users SET welcomed = ? WHERE id = ?", NOW(), u.id);
+    if(ok) await r.body?.cancel().catch(() => {});
     return {ok, status:r.status, error:ok ? "" : String(await r.text()).slice(0, 200)};
+  }
+
+  /* ---------- Relances e-mail automatiques (tâche planifiée de worker.js, toutes les heures) ----------
+     Quatre e-mails, chacun une seule fois par membre (prem_fin : une fois par pass) :
+       j1        inscrit depuis 20 h à 7 jours, aucune course lancée (free_used = 0), pas Premium                  → /app?src=email_j1
+       mur       courses offertes toutes utilisées, pas Premium, dernière course il y a 2 h ou plus                → /app?src=email_mur
+       fin3m     36 dernières heures de l'offre 3 mois (seulement si kv offer3m = 1), pas Premium, inscrit depuis 12 h → /app?src=email_fin3m
+       prem_fin  Premium du compte (payé ou offert) qui finit dans les 3 jours sans avoir été prolongé              → /app?src=email_premfin
+     Interrupteur kv « lifecycle:auto », arrêté par défaut (tableau de bord). Jamais après une désinscription ou la case « pas d'e-mails » ;
+     de 9 h à 20 h 30 (heure de Paris) ; un e-mail tous les 2 jours au plus par membre ; plafonds par passage et par 24 h (voir LIFE_RUN).
+     Horloge : l'heure réelle, sauf essais locaux (variable TEST_CLOCK = 1, jamais dans wrangler.toml) où « now » peut être donné. */
+  clock(v){ return this.env.TEST_CLOCK === "1" && +v > 0 ? +v : NOW(); }
+  kvGet(k){ return this.one("SELECT v FROM kv WHERE k = ?", k)?.v; }
+  kvSet(k, v){ this.sql.exec("INSERT OR REPLACE INTO kv(k, v) VALUES(?, ?)", k, String(v)); }
+  mailReady(){ return !!(this.env.BREVO_API_KEY && this.env.MAIL_FROM); }
+  offerOn(now){ return this.kvGet("offer3m") === "1" && now < OFFER_3M_END; }
+  lifeHours(now){ const hm = new Date(now).toLocaleTimeString("fr-FR", {timeZone:"Europe/Paris", hour:"2-digit", minute:"2-digit", hourCycle:"h23"}).replace(/\D/g, ""); return hm >= "0900" && hm <= "2030"; }
+  // qui recevrait quoi maintenant : un seul e-mail par membre et par passage, dans l'ordre fin3m, prem_fin, mur, j1
+  lifePlan(now){
+    const fin3m = this.offerOn(now) && now >= OFFER_3M_END - 36*HOUR;
+    const done = new Set(), fails = {}, recent = new Set(), pass = {};
+    for(const r of this.rows("SELECT uid, kind, key, ok, t FROM mail_log")){
+      const k = r.uid + "|" + r.kind + "|" + r.key;
+      if(r.ok){ done.add(k); if(r.t > now - LIFE_GAP && r.t <= now) recent.add(r.uid); } else fails[k] = (fails[k] || 0) + 1;
+    }
+    for(const r of this.rows("SELECT uid, MAX(until) AS until FROM payments WHERE uid IS NOT NULL AND until > ? AND txn NOT LIKE 'TEST-%' GROUP BY uid", now)) pass[r.uid] = r.until;
+    const list = [], skip = {desinscrits:0, email_invalide:0, ecart_48h:0, echecs:0};
+    for(const u of this.rows("SELECT id, pseudo, first, last, email, created, free_used, last_start, run_last, mail_off, ref_code FROM users ORDER BY created")){
+      const until = pass[u.id] || 0, prem = until > now, last = +String(u.run_last || "").split("|")[1] || +String(u.last_start || "").split("|")[1] || 0, c = [];
+      if(fin3m && !prem && u.created <= now - 12*HOUR) c.push({kind:"fin3m", key:""});
+      if(prem && until - now <= 3*864e5) c.push({kind:"prem_fin", key:String(until), until});
+      if(!prem && (u.free_used || 0) >= FREE_LOOPS && now - last >= 2*HOUR) c.push({kind:"mur", key:""});
+      if(!prem && !(u.free_used > 0) && u.created <= now - 20*HOUR && u.created > now - 7*864e5) c.push({kind:"j1", key:""});
+      const todo = c.filter(x => !done.has(u.id + "|" + x.kind + "|" + x.key)); if(!todo.length) continue;
+      if(u.mail_off){ skip.desinscrits++; continue; }
+      if(!EMAIL_RE.test(u.email || "")){ skip.email_invalide++; continue; }
+      const x = todo.find(x => (fails[u.id + "|" + x.kind + "|" + x.key] || 0) < 3); if(!x){ skip.echecs++; continue; }   // 3 essais manqués : abandon
+      if(recent.has(u.id)){ skip.ecart_48h++; continue; }
+      list.push({u, ...x});
+    }
+    return {list, skip, fin3m};
+  }
+  async lifeMailFor(u, kind, o = {}){
+    const first = niceFirst(u.first) || "toi", now = o.now || NOW(), code = o.code !== undefined ? o.code : this.refCode(u);
+    const unsub = `${API_URL}/social/unsub?u=${encodeURIComponent(u.id)}&t=${await this.unsubTok(u.id)}`;
+    return {first, unsub, m:lifeMail(kind, first, {app:`${SITE}/app?src=email_${kind.replace("_", "")}`, unsub, logo:`${SITE}/icons/icon-192.png`, link:code ? `${SITE}/?ref=${code}` : "",
+      offer:o.offer !== undefined ? o.offer : this.offerOn(now), until:o.until, gift:o.gift, now})};
+  }
+  // passage : auto = tâche planifiée (respecte l'interrupteur) ; renvoie le résumé (aussi gardé dans kv lifecycle:last)
+  async lifeRun(now, auto){
+    if(auto && this.kvGet("lifecycle:auto") !== "1") return {ok:true, off:true, sent:0};
+    if(!this.mailReady()) return {ok:false, error:"mail_not_configured", sent:0};
+    if(!this.lifeHours(now)) return {ok:true, quiet:true, sent:0};
+    if(this._lifeBusy) return {ok:false, error:"busy", sent:0};
+    this._lifeBusy = true;
+    try{
+      const plan = this.lifePlan(now), room = Math.max(0, Math.min(LIFE_RUN, LIFE_DAY - this.one("SELECT COUNT(*) AS n FROM mail_log WHERE ok = 1 AND t > ?", now - 864e5).n));
+      const by = {}, fails = [];
+      for(const x of plan.list.slice(0, room)){
+        const u = x.u, gift = x.kind === "prem_fin" && !!this.one("SELECT 1 AS x FROM payments WHERE uid = ? AND until = ? AND txn LIKE 'REF-%'", u.id, x.until);
+        const {m, unsub} = await this.lifeMailFor(u, x.kind, {now, until:x.until, gift});
+        // noté avant l'envoi (ok = 0) : un passage interrompu ne renvoie jamais deux fois sans le compter comme essai
+        const id = this.one("INSERT INTO mail_log(uid, kind, key, t, ok, info) VALUES(?,?,?,?,0,'envoi') RETURNING id", u.id, x.kind, x.key, now).id;
+        const r = await this.mailSend(u.email, `${u.first || ""} ${u.last || ""}`.trim() || niceFirst(u.first), m, "relance-" + x.kind, unsub);
+        this.sql.exec("UPDATE mail_log SET ok = ?, info = ? WHERE id = ?", r.ok ? 1 : 0, r.ok ? "" : `HTTP ${r.status} ${r.error}`.slice(0, 200), id);
+        console.log("relance", x.kind, u.pseudo, r.ok ? "envoyée" : "échec " + r.status);
+        if(r.ok) by[x.kind] = (by[x.kind] || 0) + 1; else fails.push({pseudo:u.pseudo, kind:x.kind, status:r.status});
+      }
+      const sent = Object.values(by).reduce((a, n) => a + n, 0), res = {ok:true, t:now, sent, by, fails:fails.length, waiting:Math.max(0, plan.list.length - room), skip:plan.skip};
+      this.kvSet("lifecycle:last", JSON.stringify(res));
+      if(auto && sent) this.alert(`Relances e-mail : ${sent} envoyée${sent > 1 ? "s" : ""}`, Object.entries(by).map(([k, n]) => `${LIFE_LABEL[k]} : ${n}`).join(" · ") + (fails.length ? `\n${fails.length} envoi${fails.length > 1 ? "s" : ""} manqué${fails.length > 1 ? "s" : ""} (nouvel essai à l'heure suivante).` : ""), {tags:"email", click:DASH_URL});
+      return {...res, failed:fails};
+    } finally { this._lifeBusy = false; }
+  }
+  // état pour le tableau de bord : interrupteur, e-mails envoyés par sorte, dernier passage, prochains destinataires (withList : liste détaillée)
+  lifeState(now, withList){
+    const plan = this.lifePlan(now), sent = Object.fromEntries(LIFE_KINDS.map(k => [k, 0]));
+    for(const r of this.rows("SELECT kind, COUNT(*) AS n FROM mail_log WHERE ok = 1 GROUP BY kind")) sent[r.kind] = r.n;
+    const next = Object.fromEntries(LIFE_KINDS.map(k => [k, plan.list.filter(x => x.kind === k).length]));
+    return {on:this.kvGet("lifecycle:auto") === "1", mail:this.mailReady(), hours:"09:00-20:30", now_ok:this.lifeHours(now), offer3m:this.offerOn(now), offer_end:OFFER_3M_END, sent,
+      failed:this.one("SELECT COUNT(*) AS n FROM mail_log WHERE ok = 0").n, last:this.kvJson("lifecycle:last"), next:{count:plan.list.length, by:next, max_run:LIFE_RUN}, skip:plan.skip,
+      ...(withList ? {list:plan.list.map(x => ({pseudo:x.u.pseudo, first:niceFirst(x.u.first), email:String(x.u.email).replace(/^(.{2})[^@]*/, "$1…"), kind:x.kind, ...(x.until ? {until:x.until} : {})}))} : {})};
   }
   async unsub(url, req){
     const id = clean(url.searchParams.get("u"), 40), t = clean(url.searchParams.get("t"), 40), ok = !!id && t === await this.unsubTok(id);
