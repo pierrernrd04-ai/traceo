@@ -16,7 +16,10 @@ const TRACEO_EV = {boucle_generee:"boucle", course_lancee:"course", course_termi
 const NOTRACK = (() => { const m = location.search.match(/[?&]notrack(?:=([^&]*))?/); try{ if(m){ if(/^(0|off|non)$/i.test(m[1] || "")) localStorage.removeItem("traceoNoTrack"); else localStorage.setItem("traceoNoTrack", "1"); } return localStorage.getItem("traceoNoTrack") === "1"; }catch(e){ return !!m && !/^(0|off|non)$/i.test(m[1] || ""); } })();
 if(NOTRACK) console.info("Traceo : mesure d'audience coupée sur cet appareil (?notrack=0 pour la remettre).");
 // stats.js se charge après app.js : les événements du tout début attendent dans une file (vidée par stats.js)
-let track = function(name, data){ if(NOTRACK) return; try{ if(window.umami && (window.TRACEO_CONFIG || {}).UMAMI_ID) umami.track(name, data); }catch(e){} try{ const ev = TRACEO_EV[name]; if(ev){ if(window.traceoTrack) window.traceoTrack(ev); else (window.traceoQ = window.traceoQ || []).push(ev); } }catch(e){} }
+// Le script Umami se charge après le démarrage : les événements du tout début (retour de PayPal, accueil…) attendent dans une file, envoyée dès son chargement
+const UMQ = [];
+const umamiSend = (name, data) => { if(!(window.TRACEO_CONFIG || {}).UMAMI_ID) return; if(window.umami && typeof umami.track === "function") umami.track(name, data); else if(UMQ.length < 40) UMQ.push([name, data]); };
+let track = function(name, data){ if(NOTRACK) return; try{ umamiSend(name, data); }catch(e){} try{ const ev = TRACEO_EV[name]; if(ev){ if(window.traceoTrack) window.traceoTrack(ev); else (window.traceoQ = window.traceoQ || []).push(ev); } }catch(e){} }
 // Alertes en temps réel sur le téléphone du propriétaire (appli ntfy, canal privé ALERTS_TOPIC)
 const ALERT = {abonnement_premium:["💰 Nouvel abonné Premium !", "high", "moneybag"], paiement_clic:["👀 Quelqu'un ouvre le paiement PayPal", "default", "eyes"], fin_beta_vue:null, course_terminee:["🏃 Une course terminée avec Traceo", "low", "runner"], ensemble_compte:["🤝 Nouveau compte Ensemble", "default", "handshake"], ensemble_depart:["📣 Un coureur lance « Je pars courir »", "low", "loudspeaker"]};
 function alertOwner(name, data){ try{ const C_ = window.TRACEO_CONFIG || {}, a = ALERT[name]; if(!a || !C_.ALERTS_TOPIC || window.TRACEO_PREVIEW) return;
@@ -25,7 +28,11 @@ function alertOwner(name, data){ try{ const C_ = window.TRACEO_CONFIG || {}, a =
   // aussi en notification native sur le téléphone de Pierre (le serveur relaie ces événements, liste fermée)
   const api = (C_.CHAT_API || "").replace(/\/$/, ""); if(api && /^(paiement_clic|course_terminee|ensemble_depart)$/.test(name)) fetch(api + "/social/evt", {method:"POST", headers:{"Content-Type":"text/plain"}, body:JSON.stringify({...(data || {}), e:name}), keepalive:true}).catch(() => {}); }catch(e){} }
 const _track = track; track = (n, d) => { if(NOTRACK) return; _track(n, d); alertOwner(n, d); };
-(function(){ const C_ = window.TRACEO_CONFIG || {}; if(!C_.UMAMI_ID || window.TRACEO_PREVIEW || NOTRACK) return; const s = document.createElement("script"); s.defer = true; s.src = C_.UMAMI_SRC || "https://cloud.umami.is/script.js"; s.dataset.websiteId = C_.UMAMI_ID; document.head.appendChild(s); })();
+(function(){ const C_ = window.TRACEO_CONFIG || {}; if(!C_.UMAMI_ID || window.TRACEO_PREVIEW || NOTRACK) return; const s = document.createElement("script"); s.defer = true; s.src = C_.UMAMI_SRC || "https://cloud.umami.is/script.js"; s.dataset.websiteId = C_.UMAMI_ID; s.onload = () => UMQ.splice(0).forEach(([n, d]) => { try{ umami.track(n, d); }catch(e){} }); document.head.appendChild(s); })();
+// Entonnoir Premium (Umami) : entonnoir_limite_gratuite → entonnoir_offre_vue → entonnoir_clic_paypal → entonnoir_retour_paiement
+// Une fois par chargement de page et par provenance : on compte des visiteurs, pas des réaffichages. Aucune donnée personnelle.
+const FUNNEL_SEEN = new Set();
+function funnel(name, data){ const k = name + "|" + (data && data.depuis || ""); if(FUNNEL_SEEN.has(k)) return; FUNNEL_SEEN.add(k); track(name, data); }
 document.addEventListener("visibilitychange", () => { if(document.visibilityState === "hidden"){ const s = Math.round((Date.now() - T0)/1000); track("temps_passe", {secondes:s, tranche:s < 30 ? "moins de 30 s" : s < 120 ? "30 s à 2 min" : s < 600 ? "2 à 10 min" : "plus de 10 min", onglets:tabsSeen}); } });
 // Diagnostic temporaire : les erreurs (sans données personnelles) sont envoyées à un canal privé pour être corrigées à distance
 const DBG = "https://ntfy.sh/traceo-dbg-9591c50f";
@@ -993,7 +1000,7 @@ function genLimit(){
   $("#glMine").onclick = () => { closeModal(); go("mine"); };
   $("#glPrem").onclick = () => { closeModal(); go("premium"); };
 }
-function freeWall(){ track("fin_gratuit_vue"); premiumModal(`Tes ${FREE()} courses offertes sont utilisées.`, "Ta boucle est prête : passe à Premium pour la courir, et toutes les suivantes."); }
+function freeWall(){ track("fin_gratuit_vue"); funnel("entonnoir_limite_gratuite", {offertes:FREE()}); premiumModal(`Tes ${FREE()} courses offertes sont utilisées.`, "Ta boucle est prête : passe à Premium pour la courir, et toutes les suivantes.", "limite_gratuite"); }
 // Serveur Traceo (server/social.js) : avec le compte (jeton) ou sans compte (code de l'appareil « dev »)
 //   quota : état, sans rien utiliser ; gen : boucle tracée (limite anti-abus du jour, 429 gen_limit) ; start : course offerte utilisée au départ
 //   (402 quota : plus de course offerte → mur Premium ; 403 account_required : course sans compte déjà faite → compte)
@@ -2402,7 +2409,7 @@ async function share(blob, name, title){
   if(!PV && navigator.canShare?.({files:[f]})){ try{ await navigator.share({files:[f], title}); return; }catch(e){ if(e.name === "AbortError") return; } }
   download(blob, name);
 }
-function needPremium(msg){ if(isPremium()) return false; premiumModal(msg); return true; }
+function needPremium(msg){ if(isPremium()) return false; premiumModal(msg, "", "fonction_premium"); return true; }
 function garminFlow(r){
   if(needPremium("L'envoi sur ta montre Garmin fait partie de Premium.")) return;
   const n = curLoop()?.name || "Boucle Traceo";
@@ -2479,7 +2486,9 @@ async function posterFlow(o){
 }
 
 /* ---------- Premium : PayPal ---------- */
-function premiumModal(msg, sub){
+let payFrom = "fenetre";   // provenance de la fenêtre Premium, pour l'entonnoir
+function premiumModal(msg, sub, from){
+  payFrom = from || "fenetre";
   openModal(`<button class="iconbtn x" data-close aria-label="Fermer">${I.x}</button><div class="plan pro"><p class="eyebrow" style="color:var(--gold)">Traceo Premium</p><p class="title" style="font-size:24px">${esc(msg)}</p>${sub ? `<p class="muted" style="margin-top:-4px">${esc(sub)}</p>` : ""}${priceTag()}<ul class="checks"><li>Courses illimitées</li><li>Garmin, Strava et GPX</li><li>Image de ta boucle</li></ul>${payBlock("payModal")}</div><button class="linkbtn" data-close style="align-self:center">Plus tard</button>`);
   mountPay("payModal");
 }
@@ -2512,11 +2521,14 @@ function unlock(p){ track("abonnement_premium", {via:p && p.via || "?"}); S.prem
   openModal(`<div class="center"><div class="medal">${I.star}</div><p class="title">Bienvenue en Premium !</p><p class="muted">Courses illimitées, Garmin, Strava et GPX : tout est débloqué${p && p.until ? `, jusqu'au ${new Date(p.until).toLocaleDateString("fr-FR", {day:"numeric", month:"long", year:"numeric"})}` : ""}.</p></div><button class="btn hero block" data-close>C'est parti</button>`); if(S.tab === "premium" || S.tab === "plan") render(); }
 async function mountPay(id){
   const box = document.getElementById(id); if(!box) return; const btns = box.querySelectorAll("[data-pp]");
+  const from = id === "payModal" ? payFrom : "onglet";
+  if(!PV) funnel("entonnoir_offre_vue", {depuis:from});
   const paid = box.parentElement?.querySelector("[data-paid]");
   if(paid) paid.onclick = () => requestActivation();
   if(btns.length){ btns.forEach(btn => btn.onclick = () => {
     if(btn.dataset.pp === "3m" && !offer3m()){ offerOver(); return; }
     const plan = btn.dataset.pp === "3m" ? "3m" : "31";
+    if(!PV) funnel("entonnoir_clic_paypal", {depuis:from, offre:plan});
     if(PV){ toast("Dans l'app en ligne, ce bouton ouvre le paiement PayPal.", 4000); return; }
     if(autoPay()){ premiumCheckout(plan); return; }
     // lien de paiement PayPal (sans paiement automatique) : activation ensuite par l'e-mail utilisé pour payer
@@ -2528,7 +2540,7 @@ async function mountPay(id){
     try{
       const pp = await loadPayPal(); box.innerHTML = "";
       await pp.Buttons({ style:{shape:"pill", color:"gold", layout:"vertical", label:"pay", height:50},
-        createOrder:(d, a) => { track("paiement_clic", {depuis:"bouton_paypal"}); return a.order.create({intent:"CAPTURE", purchase_units:[{amount:{currency_code:"EUR", value:(C.PRICE_VALUE || "4.99")}, description:"Traceo Premium - 31 jours", custom_id:devId()}], application_context:{brand_name:"Traceo", locale:"fr-FR", shipping_preference:"NO_SHIPPING", user_action:"PAY_NOW"}}); },
+        createOrder:(d, a) => { funnel("entonnoir_clic_paypal", {depuis:from, offre:"31"}); track("paiement_clic", {depuis:"bouton_paypal"}); return a.order.create({intent:"CAPTURE", purchase_units:[{amount:{currency_code:"EUR", value:(C.PRICE_VALUE || "4.99")}, description:"Traceo Premium - 31 jours", custom_id:devId()}], application_context:{brand_name:"Traceo", locale:"fr-FR", shipping_preference:"NO_SHIPPING", user_action:"PAY_NOW"}}); },
         onApprove:async (d, a) => {
           try{ await a.order.capture(); }catch(e){}
           for(let i = 0; i < 4; i++){
@@ -2745,7 +2757,7 @@ async function payOnLaunch(){
     else if(days <= 3){ store.set("payNag", today); setTimeout(() => toast(`Ton Premium se termine dans ${days} jour${days > 1 ? "s" : ""}. Prolonge-le dans l'onglet Premium.`, 5000), 2500); }
   }
   // le lien de retour de PayPal ne débloque plus rien : il ouvre seulement la demande d'activation vérifiée
-  if(u.get("paiement") === "ok"){ store.set("payPending", 0); history.replaceState(null, "", location.pathname); setTimeout(autoPay() ? waitActivation : requestActivation, 1500); return; }
+  if(u.get("paiement") === "ok"){ funnel("entonnoir_retour_paiement", {offre:store.get("payPlan", "31") === "3m" ? "3m" : "31"}); store.set("payPending", 0); history.replaceState(null, "", location.pathname); setTimeout(autoPay() ? waitActivation : requestActivation, 1500); return; }
   if(u.get("paiement") === "annule"){ history.replaceState(null, "", location.pathname); store.set("actPending", null); setTimeout(() => toast("Paiement annulé : rien n'a été débité."), 1500); }
   // demande en attente : on redemande au serveur à chaque ouverture (le paiement a pu arriver entre-temps)
   { const pend = store.get("actPending", null);
